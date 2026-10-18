@@ -47,6 +47,10 @@ test('the server keeps its promises', async () => {
     );
     const info = rooms.rooms.find((r) => r.name === room);
     check(info?.status === 'draft', 'room status is read from the BRIEF.md frontmatter');
+    check(
+      rooms.rooms.every((r) => typeof r.running === 'boolean'),
+      'every room says whether an agent is running in it',
+    );
     check(info?.behaviourIds?.length >= 2, 'behaviour ids are counted from BEHAVIOUR.md');
     check(!('bodyText' in info), 'the public room payload does not ship the body');
     check(
@@ -73,7 +77,10 @@ test('the server keeps its promises', async () => {
 
     const dash = await fetch(`${base}/`);
     const dashHtml = await dash.text();
-    check(dash.status === 200 && dashHtml.includes('modelroom'), 'GET / serves the dashboard');
+    check(
+      dash.status === 200 && dashHtml.includes('data-app="dashboard"'),
+      'GET / serves the dashboard shell',
+    );
 
     const roomPage = await fetch(`${base}/room/${room}`);
     const roomHtml = await roomPage.text();
@@ -91,7 +98,11 @@ test('the server keeps its promises', async () => {
     );
 
     const settings = await fetch(`${base}/settings`);
-    check(settings.status === 200, 'GET /settings serves settings');
+    const settingsHtml = await settings.text();
+    check(
+      settings.status === 200 && settingsHtml.includes('data-app="settings"'),
+      'GET /settings serves the settings shell',
+    );
 
     const raw = await fetch(`${base}/files/${rooms.config.rooms}/${room}/${rooms.config.artifact}`);
     const disk = await readFile(join(pkgDir, rooms.config.rooms, room, rooms.config.artifact));
