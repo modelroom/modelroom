@@ -1,8 +1,13 @@
 // Rendered markdown. The HTML comes from markdown-it with raw HTML disabled, so
 // `dangerouslySetInnerHTML` is safe here; the only DOM we touch is adding a copy
 // button to each code fence.
+//
+// The reading rhythm is Mantine's `Typography` — the old `prose` recipe is gone
+// with the utility layer, and its job (headings, tables, code fences,
+// blockquotes) is what `Typography` is for.
 
 import { useEffect, useMemo, useRef } from 'react';
+import { Typography } from '@mantine/core';
 import { renderChat } from '../lib/markdown.ts';
 
 export function Markdown({
@@ -28,8 +33,7 @@ export function Markdown({
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = 'copy';
-      button.className =
-        'absolute top-1.5 right-1.5 inline-flex h-6 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
+      button.className = 'mr-copy';
       button.addEventListener('click', () => {
         void (async () => {
           try {
@@ -55,9 +59,9 @@ export function Markdown({
   }, [html]);
 
   return (
-    <div
+    <Typography
       ref={ref}
-      className={`mr-markdown ${className}`}
+      className={`mr-markdown ${className}`.trim()}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

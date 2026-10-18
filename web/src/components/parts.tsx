@@ -4,13 +4,15 @@
 // shape. A turn does not: it is text, thinking, and calls the agent made, and
 // each of those wants to look like itself. A tool row is one line; open it to
 // see what it printed, or the patch it wrote.
+//
+// The open/closed state is Mantine's `Collapse` behind an `UnstyledButton`, so
+// the disclosure is a real button: Tab reaches it, Enter and Space work.
 
-import { cn } from '../lib/utils.ts';
-import { PROSE_CLASS } from '../lib/prose.ts';
+import { useDisclosure } from '@mantine/hooks';
+import { Badge, Box, Collapse, Group, ScrollArea, Text, UnstyledButton } from '@mantine/core';
 import type { DiffFile, Part } from '../lib/api.ts';
 import { Markdown } from './Markdown.tsx';
-import { Badge } from './ui/badge.tsx';
-import { Icon, type IconName } from './ui/Icon.tsx';
+import { Icon, type IconName } from './Icon.tsx';
 
 /** A tool's name is opencode's, so the icon is a hint, not a contract. */
 const ICONS: Record<string, IconName> = {
@@ -27,39 +29,109 @@ const ICONS: Record<string, IconName> = {
   fetch: 'external',
 };
 
-function statusVariant(status: 'running' | 'completed' | 'error') {
-  if (status === 'error') return 'destructive' as const;
-  if (status === 'running') return 'secondary' as const;
-  return 'muted' as const;
+function statusColor(status: 'running' | 'completed' | 'error'): string {
+  if (status === 'error') return 'danger';
+  if (status === 'running') return 'brand';
+  return 'gray';
 }
 
 function Patch({ file }: { file: DiffFile }) {
   const lines = file.patch.split('\n');
   return (
-    <div data-part="patch" className="overflow-hidden rounded-md border border-border">
-      <div className="border-b border-border bg-muted/50 px-2 py-1 font-mono text-[11px] text-muted-foreground">
-        {file.file}
-      </div>
-      <pre className="mr-scroll max-h-64 overflow-auto p-2 font-mono text-[11px] leading-relaxed">
-        {lines.map((line, index) => (
-          <div
-            key={index}
-            className={cn(
-              'px-1',
-              line.startsWith('+++') || line.startsWith('---') || line.startsWith('@@')
-                ? 'text-muted-foreground'
-                : line.startsWith('+')
-                  ? 'bg-success/10 text-success'
-                  : line.startsWith('-')
-                    ? 'bg-destructive/10 text-destructive'
-                    : '',
-            )}
-          >
-            {line || ' '}
-          </div>
-        ))}
-      </pre>
-    </div>
+    <Box
+      style={{
+        overflow: 'hidden',
+        borderRadius: 'var(--mantine-radius-sm)',
+        border: '1px solid var(--mantine-color-default-border)',
+      }}
+    >
+      <Box
+        px="xs"
+        py={4}
+        style={{
+          borderBottom: '1px solid var(--mantine-color-default-border)',
+          backgroundColor: 'var(--mr-subtle)',
+        }}
+      >
+        <Text size="xs" ff="monospace" c="dimmed">
+          {file.file}
+        </Text>
+      </Box>
+      <ScrollArea.Autosize mah={256} type="auto">
+        <Box p="xs" ff="monospace" fz={11} style={{ whiteSpace: 'pre' }}>
+          {lines.map((line, index) => {
+            const meta = line.startsWith('+++') || line.startsWith('---') || line.startsWith('@@');
+            const added = !meta && line.startsWith('+');
+            const removed = !meta && line.startsWith('-');
+            return (
+              <div
+                key={index}
+                style={{
+                  padding: '0 4px',
+                  color: meta
+                    ? 'var(--mr-dimmed)'
+                    : added
+                      ? 'var(--mr-success)'
+                      : removed
+                        ? 'var(--mr-danger)'
+                        : undefined,
+                  backgroundColor: added
+                    ? 'color-mix(in oklab, var(--mr-success) 10%, transparent)'
+                    : removed
+                      ? 'color-mix(in oklab, var(--mr-danger) 10%, transparent)'
+                      : undefined,
+                }}
+              >
+                {line || ' '}
+              </div>
+            );
+          })}
+        </Box>
+      </ScrollArea.Autosize>
+    </Box>
+  );
+}
+
+function Disclosure({
+  label,
+  children,
+  muted = false,
+}: {
+  label: React.ReactNode;
+  children: React.ReactNode;
+  muted?: boolean;
+}) {
+  const [open, { toggle }] = useDisclosure(false);
+  return (
+    <Box
+      style={{
+        borderTop: '1px solid var(--mantine-color-default-border)',
+      }}
+    >
+      <UnstyledButton
+        onClick={toggle}
+        aria-expanded={open}
+        w="100%"
+        px="xs"
+        py={4}
+        style={{ borderRadius: 'var(--mantine-radius-sm)' }}
+      >
+        <Group gap={4} wrap="nowrap">
+          <Icon name="chevron-down" size={12} />
+          <Text size="xs" c="dimmed">
+            {label}
+          </Text>
+        </Group>
+      </UnstyledButton>
+      <Collapse expanded={open} keepMounted>
+        <Box
+          p="xs"
+          style={{ display: 'flex', flexDirection: 'column', gap: 8, opacity: muted ? 0.85 : 1 }}
+        >
+          {children}
+        </Box>
+      </Collapse>
+    </Box>
   );
 }
 
@@ -67,86 +139,138 @@ function ToolRow({ part }: { part: Extract<Part, { kind: 'tool' }> }) {
   const icon = ICONS[part.name] ?? 'terminal';
   const hasBody = Boolean(part.output) || part.files.length > 0;
   return (
-    <div data-part="tool" className="w-full rounded-lg border border-border bg-card/60 text-xs">
-      <div className="flex items-center gap-2 px-2.5 py-1.5">
-        <Icon name={icon} className="size-3.5 shrink-0 text-muted-foreground" />
-        <span className="shrink-0 font-mono font-medium">{part.name}</span>
+    <Box
+      data-part="tool"
+      w="100%"
+      style={{
+        borderRadius: 'var(--mantine-radius-md)',
+        border: '1px solid var(--mantine-color-default-border)',
+        backgroundColor: 'var(--mr-panel)',
+      }}
+    >
+      <Group gap="xs" px="xs" py={4} wrap="nowrap">
+        <Icon name={icon} size={14} />
+        <Text size="xs" ff="monospace" fw={500} style={{ flexShrink: 0 }}>
+          {part.name}
+        </Text>
         {part.summary && (
-          <span
-            className="min-w-0 flex-1 truncate font-mono text-muted-foreground"
+          <Text
+            size="xs"
+            ff="monospace"
+            c="dimmed"
+            truncate
             title={part.summary}
+            style={{ minWidth: 0 }}
           >
             {part.summary}
-          </span>
+          </Text>
         )}
-        <span className="ml-auto flex shrink-0 items-center gap-1">
+        <Group gap={4} ml="auto" wrap="nowrap">
           {part.exit !== null && part.exit !== 0 && (
-            <Badge variant="destructive">exit {part.exit}</Badge>
+            <Badge size="xs" radius="sm" color="danger">
+              exit {part.exit}
+            </Badge>
           )}
           {part.files.length > 0 && (
-            <Badge variant="muted">
+            <Badge size="xs" radius="sm" color="gray" variant="light">
               {part.files.length} file{part.files.length > 1 ? 's' : ''}
             </Badge>
           )}
-          <Badge variant={statusVariant(part.status)}>
-            {part.status === 'running' && <Icon name="loader" className="size-3 animate-spin" />}
+          <Badge
+            size="xs"
+            radius="sm"
+            variant={part.status === 'completed' ? 'light' : 'filled'}
+            color={statusColor(part.status)}
+            leftSection={part.status === 'running' ? <Icon name="loader" size={10} /> : undefined}
+          >
             {part.status}
           </Badge>
-        </span>
-      </div>
+        </Group>
+      </Group>
 
       {hasBody && (
-        <details className="border-t border-border">
-          <summary className="cursor-pointer px-2.5 py-1 text-muted-foreground">
-            {part.files.length > 0 ? 'changes' : 'output'}
-          </summary>
-          <div className="flex flex-col gap-2 p-2">
-            {part.files.map((file) => (
-              <Patch key={file.file} file={file} />
-            ))}
-            {part.output && (
-              <pre className="mr-scroll max-h-64 overflow-auto rounded-md border border-border bg-muted/40 p-2 font-mono text-[11px] whitespace-pre-wrap">
-                {part.output}
-              </pre>
-            )}
-            {part.truncated && (
-              <p className="text-[11px] text-muted-foreground">output was truncated</p>
-            )}
-          </div>
-        </details>
+        <Disclosure label={part.files.length > 0 ? 'changes' : 'output'}>
+          {part.files.map((file) => (
+            <Patch key={file.file} file={file} />
+          ))}
+          {part.output && (
+            <ScrollArea.Autosize mah={256} type="auto">
+              <Box
+                p="xs"
+                style={{
+                  borderRadius: 'var(--mantine-radius-sm)',
+                  border: '1px solid var(--mantine-color-default-border)',
+                  backgroundColor: 'var(--mr-subtle)',
+                }}
+              >
+                <Text size="xs" ff="monospace" style={{ whiteSpace: 'pre-wrap' }}>
+                  {part.output}
+                </Text>
+              </Box>
+            </ScrollArea.Autosize>
+          )}
+          {part.truncated && (
+            <Text size="xs" c="dimmed">
+              output was truncated
+            </Text>
+          )}
+        </Disclosure>
       )}
-    </div>
+    </Box>
+  );
+}
+
+function Reasoning({ text }: { text: string }) {
+  const [open, { toggle }] = useDisclosure(false);
+  return (
+    <Box
+      data-part="reasoning"
+      w="100%"
+      style={{
+        borderRadius: 'var(--mantine-radius-md)',
+        border: '1px dashed var(--mantine-color-default-border)',
+        backgroundColor: 'var(--mr-subtle)',
+      }}
+    >
+      <UnstyledButton onClick={toggle} aria-expanded={open} w="100%" px="xs" py={4}>
+        <Group gap={6} wrap="nowrap">
+          <Icon name="sparkles" size={14} />
+          <Text size="xs" c="dimmed">
+            reasoning
+          </Text>
+        </Group>
+      </UnstyledButton>
+      <Collapse expanded={open} keepMounted>
+        <ScrollArea.Autosize mah={256} type="auto">
+          <Box px="md" pb="xs" c="dimmed">
+            <Markdown source={text} />
+          </Box>
+        </ScrollArea.Autosize>
+      </Collapse>
+    </Box>
   );
 }
 
 export function PartView({ part }: { part: Part }) {
   if (part.kind === 'text') {
     return (
-      <div
+      <Box
         data-part="text"
-        className="max-w-[95%] rounded-2xl rounded-tl-sm border border-border bg-card px-3 py-2 shadow-xs"
+        maw="95%"
+        px="sm"
+        py="xs"
+        style={{
+          borderRadius: 'var(--mantine-radius-lg)',
+          border: '1px solid var(--mantine-color-default-border)',
+          backgroundColor: 'var(--mr-panel)',
+        }}
       >
-        <Markdown source={part.text} className={PROSE_CLASS} />
-      </div>
+        <Markdown source={part.text} />
+      </Box>
     );
   }
 
-  if (part.kind === 'reasoning') {
-    return (
-      <details
-        data-part="reasoning"
-        className="w-full rounded-lg border border-dashed border-border bg-muted/30 text-xs"
-      >
-        <summary className="flex cursor-pointer items-center gap-1.5 px-2.5 py-1.5 text-muted-foreground">
-          <Icon name="sparkles" className="size-3.5" />
-          reasoning
-        </summary>
-        <div className="mr-scroll max-h-64 overflow-auto px-3 pb-2 text-muted-foreground">
-          <Markdown source={part.text} className={PROSE_CLASS} />
-        </div>
-      </details>
-    );
-  }
+  if (part.kind === 'reasoning') return <Reasoning text={part.text} />;
 
   return <ToolRow part={part} />;
 }

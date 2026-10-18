@@ -2,8 +2,27 @@
 //
 // The server derives the list, the facets and the search results from the docs'
 // frontmatter on every request; this only decides what to show and in which order.
+//
+// The filters are `FacetFilter` (see FacetFilter.tsx) and their state lives in
+// the URL, so a narrowed view is shareable and survives a reload.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AppShell,
+  Box,
+  Button,
+  Card,
+  Checkbox,
+  Code,
+  Group,
+  Pill,
+  SimpleGrid,
+  Skeleton,
+  Text,
+  TextInput,
+  Title,
+  Tooltip,
+} from '@mantine/core';
 import {
   getRooms,
   searchRooms,
@@ -12,17 +31,11 @@ import {
   type SearchHit,
 } from '../lib/api.ts';
 import { stamp } from '../lib/format.ts';
-import { cn } from '../lib/utils.ts';
 import { useServerEvent, useServerEvents } from '../hooks/useServerEvents.tsx';
+import { AgentStatus, ToneBadge, toneForStatus } from '../components/Status.tsx';
+import { Icon } from '../components/Icon.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
-import { Badge } from '../components/ui/badge.tsx';
-import { Button } from '../components/ui/button.tsx';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card.tsx';
-import { Checkbox } from '../components/ui/checkbox.tsx';
-import { Icon } from '../components/ui/Icon.tsx';
-import { Input } from '../components/ui/input.tsx';
-import { Select } from '../components/ui/select.tsx';
-import { Skeleton } from '../components/ui/skeleton.tsx';
+import { FacetFilter } from './FacetFilter.tsx';
 
 const ESCAPES: Record<string, string> = {
   '&': '&amp;',
@@ -35,12 +48,8 @@ const ESCAPES: Record<string, string> = {
 const escapeHtml = (value: string): string =>
   value.replace(/[&<>"']/g, (character) => ESCAPES[character] as string);
 
-const statusVariant = (status: string | null): 'success' | 'warning' | 'muted' => {
-  const value = String(status ?? '').toLowerCase();
-  if (/adopt|approv|done|complete|accept/.test(value)) return 'success';
-  if (/review/.test(value)) return 'warning';
-  return 'muted';
-};
+const MARK =
+  'background-color: color-mix(in oklab, var(--mr-warning) 40%, transparent); border-radius: 3px; padding: 0 2px; color: inherit;';
 
 function RoomCard({
   room,
@@ -61,17 +70,18 @@ function RoomCard({
       '(' + tokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')',
       'gi',
     );
-    return safe.replace(pattern, '<mark class="rounded bg-warning/40 px-0.5">$1</mark>');
+    return safe.replace(pattern, `<mark style="${MARK}">$1</mark>`);
   };
 
   return (
-    <a
+    <Card
+      component="a"
       href={`/room/${encodeURIComponent(room.name)}`}
-      className={cn(
-        'group flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xs transition-all',
-        'hover:-translate-y-0.5 hover:shadow-md',
-        room.deprecated && 'opacity-60',
-      )}
+      withBorder
+      radius="md"
+      p={0}
+      opacity={room.deprecated ? 0.6 : 1}
+      style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
     >
       {room.hasThumb && room.thumbUrl ? (
         <img
@@ -81,133 +91,77 @@ function RoomCard({
           loading="lazy"
         />
       ) : (
-        <div className="mr-card-artifact grid place-items-center text-xs text-muted-foreground">
-          {room.hasArtifact ? 'no thumbnail yet' : 'no artifact yet'}
-        </div>
+        <Box className="mr-card-artifact" style={{ display: 'grid', placeItems: 'center' }}>
+          <Text size="xs" c="dimmed">
+            {room.hasArtifact ? 'no thumbnail yet' : 'no artifact yet'}
+          </Text>
+        </Box>
       )}
 
-      <div className="flex flex-1 flex-col gap-1 p-3">
-        <div className="flex items-center gap-2">
-          <span className="truncate font-medium">{room.title || room.name}</span>
+      <Box p="sm" style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 4 }}>
+        <Group gap="xs" wrap="nowrap">
+          <Text fw={500} truncate style={{ minWidth: 0 }}>
+            {room.title || room.name}
+          </Text>
           {room.version !== null && room.version !== undefined && (
-            <Badge variant="outline" className="font-mono">
+            <ToneBadge tone="outline" ff="monospace">
               v{room.version}
-            </Badge>
+            </ToneBadge>
           )}
           {room.running && (
-            <Badge variant="secondary" className="gap-1">
-              <Icon name="loader" className="size-3 animate-spin" />
+            <ToneBadge tone="secondary" leftSection={<Icon name="loader" size={11} />}>
               running
-            </Badge>
+            </ToneBadge>
           )}
-        </div>
+        </Group>
 
-        <div className="truncate font-mono text-xs text-muted-foreground">rooms/{room.name}</div>
+        <Text size="xs" ff="monospace" c="dimmed" truncate>
+          rooms/{room.name}
+        </Text>
 
         {room.summary && (
-          <p className="line-clamp-2 text-xs text-muted-foreground">{room.summary}</p>
+          <Text size="xs" c="dimmed" lineClamp={2}>
+            {room.summary}
+          </Text>
         )}
 
         {snippet && (
-          <p
-            className="rounded bg-muted/60 px-2 py-1 text-xs text-muted-foreground"
-            // The snippet is already escaped text; only the match is marked up.
-            dangerouslySetInnerHTML={{ __html: highlight(snippet.text) }}
-          />
+          <Box
+            px="xs"
+            py={4}
+            style={{
+              borderRadius: 'var(--mantine-radius-sm)',
+              backgroundColor: 'var(--mr-subtle)',
+            }}
+          >
+            <Text
+              size="xs"
+              c="dimmed"
+              // The snippet is already escaped text; only the match is marked up.
+              dangerouslySetInnerHTML={{ __html: highlight(snippet.text) }}
+            />
+          </Box>
         )}
 
-        <div className="mt-1 flex flex-wrap items-center gap-1">
-          {room.status && <Badge variant={statusVariant(room.status)}>{room.status}</Badge>}
-          {room.deprecated && <Badge variant="destructive">archived</Badge>}
+        <Group gap={4} mt={4} wrap="wrap">
+          {room.status && <ToneBadge tone={toneForStatus(room.status)}>{room.status}</ToneBadge>}
+          {room.deprecated && <ToneBadge tone="destructive">archived</ToneBadge>}
           {room.tags.slice(0, 4).map((tag) => (
-            <Badge key={tag} variant="outline">
+            <ToneBadge key={tag} tone="outline">
               {tag}
-            </Badge>
+            </ToneBadge>
           ))}
           {room.behaviourIds.length > 0 && (
-            <Badge variant="outline">
+            <ToneBadge tone="outline">
               {room.behaviourIds.length} behaviour{room.behaviourIds.length > 1 ? 's' : ''}
-            </Badge>
+            </ToneBadge>
           )}
-          <span className="ml-auto text-xs text-muted-foreground">{stamp(room.updatedAt)}</span>
-        </div>
-      </div>
-    </a>
-  );
-}
-
-function FacetControl({
-  facet,
-  selected,
-  onToggle,
-  onPick,
-}: {
-  facet: Facet;
-  selected: string[];
-  onToggle: (value: string) => void;
-  onPick: (value: string) => void;
-}) {
-  return (
-    <fieldset className="max-w-[16rem] min-w-[9rem]">
-      <legend className="mb-1 text-[11px] tracking-wide text-muted-foreground uppercase">
-        {facet.key}
-      </legend>
-
-      {facet.control === 'checkboxes' && (
-        <div className="flex flex-col gap-1">
-          {facet.values.map((entry) => (
-            <label key={entry.value} className="flex cursor-pointer items-center gap-2 text-sm">
-              <Checkbox
-                checked={selected.includes(entry.value)}
-                onCheckedChange={() => onToggle(entry.value)}
-              />
-              <span className="truncate">{entry.value}</span>
-              <span className="ml-auto text-xs text-muted-foreground">{entry.count}</span>
-            </label>
-          ))}
-        </div>
-      )}
-
-      {facet.control === 'radio' && (
-        <div className="flex flex-col gap-1">
-          {[{ value: '', count: null }, ...facet.values].map((entry) => (
-            <label
-              key={entry.value || 'any'}
-              className="flex cursor-pointer items-center gap-2 text-sm"
-            >
-              <input
-                type="radio"
-                name={`facet-${facet.key}`}
-                className="size-3.5 accent-primary"
-                checked={entry.value ? selected.includes(entry.value) : selected.length === 0}
-                onChange={() => onPick(entry.value)}
-              />
-              <span className={cn('truncate', !entry.value && 'text-muted-foreground')}>
-                {entry.value || 'any'}
-              </span>
-              {entry.count !== null && (
-                <span className="ml-auto text-xs text-muted-foreground">{entry.count}</span>
-              )}
-            </label>
-          ))}
-        </div>
-      )}
-
-      {facet.control === 'select' && (
-        <Select
-          value={selected[0] ?? ''}
-          onChange={(event) => onPick(event.target.value)}
-          aria-label={facet.key}
-        >
-          <option value="">any</option>
-          {facet.values.map((entry) => (
-            <option key={entry.value} value={entry.value}>
-              {entry.value} ({entry.count})
-            </option>
-          ))}
-        </Select>
-      )}
-    </fieldset>
+          <Text size="xs" c="dimmed" ml="auto">
+            {stamp(room.updatedAt)}
+          </Text>
+        </Group>
+      </Box>
+    </Card>
   );
 }
 
@@ -313,18 +267,15 @@ export function DashboardApp() {
     syncUrl({ filters: cleaned, archived: nextArchived });
   };
 
+  const setFacet = (key: string, values: string[]) => {
+    applyFilters({ ...filters, [key]: values });
+  };
+
   const toggleFilter = (key: string, value: string) => {
     const set = new Set(filters[key] ?? []);
     if (set.has(value)) set.delete(value);
     else set.add(value);
     applyFilters({ ...filters, [key]: [...set] });
-  };
-
-  const setFilter = (key: string, value: string) => {
-    const next = { ...filters };
-    if (value) next[key] = [value];
-    else delete next[key];
-    applyFilters(next);
   };
 
   const setArchivedFilter = (value: boolean) => {
@@ -366,6 +317,7 @@ export function DashboardApp() {
   const total = rooms.filter((room) => archived || !room.deprecated).length;
   const archivedCount = rooms.filter((room) => room.deprecated).length;
   const filtered = Boolean(query) || Object.keys(filters).length > 0;
+  const activeCount = (query ? 1 : 0) + Object.values(filters).reduce((n, v) => n + v.length, 0);
 
   // `/` focuses the search, Escape leaves it.
   useEffect(() => {
@@ -385,164 +337,153 @@ export function DashboardApp() {
   const busy = status?.phase === 'chat' || status?.phase === 'rendering';
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
-      <header className="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-border bg-card px-4">
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="text-lg font-semibold tracking-tight">modelroom</span>
-          <Badge variant="secondary">
-            {visible.length === total ? `rooms ${total}` : `${visible.length} / ${total}`}
-          </Badge>
-        </div>
+    <AppShell header={{ height: 48 }} padding={0}>
+      <AppShell.Header>
+        <Group h="100%" gap="sm" px="md" wrap="nowrap">
+          <Group gap="xs" wrap="nowrap">
+            <Title order={1} fz="lg" fw={600} style={{ letterSpacing: '-0.01em' }}>
+              modelroom
+            </Title>
+            <ToneBadge tone="secondary">
+              {visible.length === total ? `rooms ${total}` : `${visible.length} / ${total}`}
+            </ToneBadge>
+          </Group>
 
-        <div className="relative flex-1">
-          <Input
-            ref={searchBox}
-            type="search"
-            value={query}
-            onChange={(event) => onQuery(event.target.value)}
-            placeholder="Search rooms, docs, tags…  ( / )"
-            className="max-w-xl pl-8"
-            autoComplete="off"
-            aria-label="Search rooms"
-          />
-          <Icon
-            name="search"
-            className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
-          />
-        </div>
+          <Box style={{ flex: 1, minWidth: 0, maxWidth: 640 }}>
+            <TextInput
+              ref={searchBox}
+              type="search"
+              value={query}
+              onChange={(event) => onQuery(event.currentTarget.value)}
+              placeholder="Search rooms, docs, tags…  ( / )"
+              leftSection={<Icon name="search" size={14} />}
+              autoComplete="off"
+              aria-label="Search rooms"
+              size="sm"
+            />
+          </Box>
 
-        <div className="ml-auto flex shrink-0 items-center gap-1.5">
-          <Badge
-            variant="outline"
-            className={cn(!connected && 'border-destructive text-destructive')}
-          >
-            {busy ? (
-              <Icon name="loader" className="size-3 animate-spin" />
-            ) : (
-              <span
-                className={cn('size-1.5 rounded-full', connected ? 'bg-success' : 'bg-destructive')}
-              />
-            )}
-            {connected ? (status?.message ?? 'ready') : 'reconnecting…'}
-          </Badge>
-          <ThemeToggle />
-          <Button variant="ghost" size="sm" asChild>
-            <a href="/settings">Settings</a>
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => void load()}>
-            <Icon name="refresh" className="size-3.5" />
-            Refresh
-          </Button>
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-[1600px] p-5">
-        {facets.length > 0 || archivedCount > 0 ? (
-          <div className="mb-4 flex flex-wrap items-start gap-5">
-            {facets.map((facet) => (
-              <FacetControl
-                key={facet.key}
-                facet={facet}
-                selected={filters[facet.key] ?? []}
-                onToggle={(value) => toggleFilter(facet.key, value)}
-                onPick={(value) => setFilter(facet.key, value)}
-              />
-            ))}
-            {archivedCount > 0 && (
-              <label className="ml-auto flex cursor-pointer items-center gap-2 text-sm">
-                <Checkbox
-                  checked={archived}
-                  onCheckedChange={(checked) => setArchivedFilter(checked === true)}
-                />
-                <span className="text-muted-foreground">archived ({archivedCount})</span>
-              </label>
-            )}
-          </div>
-        ) : null}
-
-        {filtered && (
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            {query && <Badge variant="secondary">search: {query}</Badge>}
-            {Object.entries(filters).flatMap(([key, values]) =>
-              values.map((value) => (
-                <Button
-                  key={`${key}-${value}`}
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => toggleFilter(key, value)}
-                >
-                  {key}: {value}
-                  <span className="text-muted-foreground">×</span>
-                </Button>
-              )),
-            )}
-            {(query ? 1 : 0) + Object.values(filters).reduce((n, v) => n + v.length, 0) > 1 && (
-              <Button variant="link" size="xs" onClick={clearAll}>
-                clear all
+          <Group gap="xs" ml="auto" wrap="nowrap">
+            <AgentStatus connected={connected} busy={busy} message={status?.message} />
+            <ThemeToggle />
+            <Button component="a" href="/settings" variant="subtle" color="gray" size="compact-sm">
+              Settings
+            </Button>
+            <Tooltip label="Reload the room list" withArrow>
+              <Button
+                variant="subtle"
+                color="gray"
+                size="compact-sm"
+                onClick={() => void load()}
+                leftSection={<Icon name="refresh" size={14} />}
+              >
+                Refresh
               </Button>
-            )}
-          </div>
-        )}
+            </Tooltip>
+          </Group>
+        </Group>
+      </AppShell.Header>
 
-        {loading ? (
-          <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))]">
-            {Array.from({ length: 6 }, (_, index) => (
-              <Card key={index} className="overflow-hidden">
-                <Skeleton className="aspect-[16/10] w-full rounded-none" />
-                <CardContent className="flex flex-col gap-2 pt-4">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-24" />
-                  <Skeleton className="h-3 w-40" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : visible.length > 0 ? (
-          <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))]">
-            {visible.map((room) => (
-              <RoomCard
-                key={room.name}
-                room={room}
-                hit={(hits ?? []).find((entry) => entry.name === room.name) ?? null}
-                query={query}
-              />
-            ))}
-          </div>
-        ) : (
-          <Card className="max-w-2xl">
-            <CardHeader>
-              <CardTitle>{filtered ? 'Nothing matches' : 'No rooms yet'}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
-              {filtered ? (
-                <p>Loosen a filter, or search for something else.</p>
-              ) : (
-                <p>
-                  A room is one screen: <code className="font-mono">rooms/&lt;name&gt;/</code> with{' '}
-                  <code className="font-mono">BRIEF.md</code>,{' '}
-                  <code className="font-mono">SPEC.md</code>,{' '}
-                  <code className="font-mono">BEHAVIOUR.md</code> and an artifact.
-                </p>
+      <AppShell.Main style={{ backgroundColor: 'var(--mr-page)' }}>
+        <Box maw={1600} mx="auto" p="md">
+          {(facets.length > 0 || archivedCount > 0) && (
+            <Group align="flex-start" gap="lg" mb="md" wrap="wrap">
+              {facets.map((facet) => (
+                <FacetFilter
+                  key={facet.key}
+                  facet={facet}
+                  selected={filters[facet.key] ?? []}
+                  onChange={(values) => setFacet(facet.key, values)}
+                />
+              ))}
+              {archivedCount > 0 && (
+                <Box ml="auto" pt={20}>
+                  <Checkbox
+                    size="xs"
+                    checked={archived}
+                    onChange={(event) => setArchivedFilter(event.currentTarget.checked)}
+                    label={`archived (${archivedCount})`}
+                  />
+                </Box>
               )}
-              {!filtered && (
-                <pre className="mr-scroll overflow-x-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-xs">
-                  <code>$ npx modelroom init my-first-room{'\n'}$ npx modelroom serve</code>
-                </pre>
+            </Group>
+          )}
+
+          {filtered && (
+            <Group gap="xs" mb="sm" wrap="wrap">
+              {query && <ToneBadge tone="secondary">search: {query}</ToneBadge>}
+              {Object.entries(filters).flatMap(([key, values]) =>
+                values.map((value) => (
+                  <Pill
+                    key={`${key}-${value}`}
+                    withRemoveButton
+                    onRemove={() => toggleFilter(key, value)}
+                    size="sm"
+                  >
+                    {key}: {value}
+                  </Pill>
+                )),
               )}
-              {filtered && (
-                <Button variant="outline" size="sm" className="self-start" onClick={clearAll}>
-                  Clear search and filters
+              {activeCount > 1 && (
+                <Button variant="subtle" size="compact-xs" onClick={clearAll}>
+                  clear all
                 </Button>
               )}
-            </CardContent>
-          </Card>
-        )}
-      </main>
+            </Group>
+          )}
 
-      <footer className="mx-auto w-full max-w-[1600px] px-5 pb-8 text-xs text-muted-foreground">
-        Agent-agnostic: modelroom drives the coding agent you configure. Artifacts are served
-        unmodified (no injection).
-      </footer>
-    </div>
+          {loading ? (
+            <SimpleGrid minColWidth={240} spacing="md">
+              {Array.from({ length: 6 }, (_, index) => (
+                <Card key={index} withBorder radius="md" p={0} style={{ overflow: 'hidden' }}>
+                  <Skeleton h={150} radius={0} />
+                  <Box p="sm" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <Skeleton h={16} w={128} />
+                    <Skeleton h={12} w={96} />
+                    <Skeleton h={12} w={160} />
+                  </Box>
+                </Card>
+              ))}
+            </SimpleGrid>
+          ) : visible.length > 0 ? (
+            <SimpleGrid minColWidth={240} spacing="md">
+              {visible.map((room) => (
+                <RoomCard
+                  key={room.name}
+                  room={room}
+                  hit={(hits ?? []).find((entry) => entry.name === room.name) ?? null}
+                  query={query}
+                />
+              ))}
+            </SimpleGrid>
+          ) : (
+            <Card withBorder radius="md" maw={640}>
+              <Text fw={600}>{filtered ? 'Nothing matches' : 'No rooms yet'}</Text>
+              <Box mt="xs" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {filtered ? (
+                  <Text size="sm" c="dimmed">
+                    Loosen a filter, or search for something else.
+                  </Text>
+                ) : (
+                  <Text size="sm" c="dimmed">
+                    A room is one screen: <Code>rooms/&lt;name&gt;/</Code> with{' '}
+                    <Code>BRIEF.md</Code>, <Code>SPEC.md</Code>, <Code>BEHAVIOUR.md</Code> and an
+                    artifact.
+                  </Text>
+                )}
+                {!filtered && (
+                  <Code block>$ npx modelroom init my-first-room{'\n'}$ npx modelroom serve</Code>
+                )}
+                {filtered && (
+                  <Button variant="default" size="compact-sm" onClick={clearAll} w="fit-content">
+                    Clear search and filters
+                  </Button>
+                )}
+              </Box>
+            </Card>
+          )}
+        </Box>
+      </AppShell.Main>
+    </AppShell>
   );
 }

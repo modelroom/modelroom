@@ -2,24 +2,34 @@
 // both at once — and split across or down depending on how you like to read.
 //
 // The file is still the source of truth. Autosave writes it back through the same
-// mtime-checked PUT the old UI used, and a conflict (someone else wrote the file)
+// hash-checked PUT the old UI used, and a conflict (someone else wrote the file)
 // stops and asks instead of overwriting.
+//
+// The chrome is Mantine: `Tabs` for the docs, `SegmentedControl` for the three
+// switches, `DataList` for the frontmatter, `Alert` for a conflict.
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  Alert,
+  Box,
+  Button,
+  DataList,
+  Group,
+  SegmentedControl,
+  SimpleGrid,
+  Tabs,
+  Text,
+  VisuallyHidden,
+} from '@mantine/core';
 import { getDoc, putDoc } from '../lib/api.ts';
-import { clock, docLabel, splitFrontmatter, type FrontmatterRow } from '../lib/format.ts';
+import { clock, docLabel, splitFrontmatter } from '../lib/format.ts';
 import { renderDoc } from '../lib/markdown.ts';
-import { PROSE_CLASS } from '../lib/prose.ts';
 import { load, save } from '../lib/storage.ts';
-import { cn } from '../lib/utils.ts';
 import { useServerEvent } from '../hooks/useServerEvents.tsx';
+import { Icon } from './Icon.tsx';
 import { Markdown } from './Markdown.tsx';
 import { MarkdownEditor } from './MarkdownEditor.tsx';
-import { Button } from './ui/button.tsx';
-import { Icon } from './ui/Icon.tsx';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from './ui/resizable.tsx';
-import { Segmented, type Segment } from './ui/Segmented.tsx';
-import { Tabs, TabsList, TabsTrigger } from './ui/tabs.tsx';
+import { Split, SplitHandle, SplitPanel } from './Split.tsx';
 
 type Mode = 'edit' | 'split' | 'preview';
 type Layout = 'tabs' | 'tiles';
@@ -43,53 +53,119 @@ interface DocEntry {
 
 const AUTOSAVE_MS = 800;
 
-const MODES: ReadonlyArray<Segment<Mode>> = [
-  { value: 'edit', label: <Icon name="pencil" className="size-3.5" />, title: 'Edit' },
+const MODES = [
+  {
+    value: 'edit',
+    label: (
+      <>
+        <Icon name="pencil" size={14} />
+        <VisuallyHidden>Edit</VisuallyHidden>
+      </>
+    ),
+  },
   {
     value: 'split',
-    label: <Icon name="columns" className="size-3.5" />,
-    title: 'Edit and preview',
+    label: (
+      <>
+        <Icon name="columns" size={14} />
+        <VisuallyHidden>Edit and preview</VisuallyHidden>
+      </>
+    ),
   },
-  { value: 'preview', label: <Icon name="eye" className="size-3.5" />, title: 'Preview' },
+  {
+    value: 'preview',
+    label: (
+      <>
+        <Icon name="eye" size={14} />
+        <VisuallyHidden>Preview</VisuallyHidden>
+      </>
+    ),
+  },
 ];
 
-const ORIENTATIONS: ReadonlyArray<Segment<Orientation>> = [
-  { value: 'row', label: <Icon name="columns" className="size-3.5" />, title: 'Side by side' },
-  { value: 'column', label: <Icon name="rows" className="size-3.5" />, title: 'Stacked' },
+const ORIENTATIONS = [
+  {
+    value: 'row',
+    label: (
+      <>
+        <Icon name="columns" size={14} />
+        <VisuallyHidden>Side by side</VisuallyHidden>
+      </>
+    ),
+  },
+  {
+    value: 'column',
+    label: (
+      <>
+        <Icon name="rows" size={14} />
+        <VisuallyHidden>Stacked</VisuallyHidden>
+      </>
+    ),
+  },
 ];
 
-function statusOf(entry: DocEntry): { text: string; tone: string } {
-  if (entry.tone === 'error')
-    return { text: `failed: ${entry.error ?? ''}`, tone: 'text-destructive' };
-  if (entry.tone === 'conflict') return { text: 'changed elsewhere', tone: 'text-warning' };
-  if (entry.tone === 'saving') return { text: 'saving…', tone: 'text-muted-foreground' };
-  if (entry.text !== entry.savedText) return { text: 'unsaved…', tone: 'text-muted-foreground' };
+const LAYOUTS = [
+  { value: 'tabs', label: 'Tabs' },
+  { value: 'tiles', label: 'Tiles' },
+];
+
+function statusOf(entry: DocEntry): { text: string; tone: 'danger' | 'warning' | 'dimmed' } {
+  if (entry.tone === 'error') return { text: `failed: ${entry.error ?? ''}`, tone: 'danger' };
+  if (entry.tone === 'conflict') return { text: 'changed elsewhere', tone: 'warning' };
+  if (entry.tone === 'saving') return { text: 'saving…', tone: 'dimmed' };
+  if (entry.text !== entry.savedText) return { text: 'unsaved…', tone: 'dimmed' };
   if (entry.savedAt) {
     // "on disk" until we have written it — the file's mtime is not our save.
     const what = entry.origin === 'saved' ? 'saved' : 'on disk';
-    return { text: `${what} ${clock(entry.savedAt)}`, tone: 'text-muted-foreground' };
+    return { text: `${what} ${clock(entry.savedAt)}`, tone: 'dimmed' };
   }
-  return { text: '', tone: '' };
+  return { text: '', tone: 'dimmed' };
+}
+
+function StatusText({ entry }: { entry: DocEntry }) {
+  const status = statusOf(entry);
+  return (
+    <Text size="xs" c={status.tone} style={{ whiteSpace: 'nowrap' }}>
+      {status.text}
+    </Text>
+  );
 }
 
 function Preview({ text }: { text: string }) {
   const { rows, body } = useMemo(() => splitFrontmatter(text), [text]);
   return (
-    <div className="mr-scroll h-full overflow-y-auto bg-card p-4">
+    <Box
+      className="mr-scroll"
+      h="100%"
+      p="md"
+      style={{ overflowY: 'auto', backgroundColor: 'var(--mr-panel)' }}
+    >
       {rows.length > 0 && (
-        <dl className="mb-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 rounded-lg border border-border bg-muted/40 p-3 text-xs">
-          {rows.map((row: FrontmatterRow) => (
-            <Fragment key={row.key}>
-              <dt className="font-mono text-muted-foreground">{row.key}</dt>
-              <dd className="truncate" title={row.value}>
-                {row.value || '—'}
-              </dd>
-            </Fragment>
-          ))}
-        </dl>
+        <Box
+          mb="md"
+          p="xs"
+          style={{
+            borderRadius: 'var(--mantine-radius-md)',
+            border: '1px solid var(--mantine-color-default-border)',
+            backgroundColor: 'var(--mr-subtle)',
+          }}
+        >
+          <DataList size="xs" gap="xs" labelWidth="6rem">
+            {rows.map((row) => (
+              <DataList.Item key={row.key}>
+                <DataList.ItemLabel ff="monospace" c="dimmed">
+                  {row.key}
+                </DataList.ItemLabel>
+                <DataList.ItemValue style={{ overflowWrap: 'anywhere' }}>
+                  {row.value || '—'}
+                </DataList.ItemValue>
+              </DataList.Item>
+            ))}
+          </DataList>
+        </Box>
       )}
-      <Markdown source={body} render={renderDoc} className={PROSE_CLASS} />
-    </div>
+      <Markdown source={body} render={renderDoc} />
+    </Box>
   );
 }
 
@@ -104,20 +180,30 @@ function ConflictBanner({
 }) {
   if (entry.tone !== 'conflict') return null;
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-destructive/40 bg-destructive/10 px-3 py-1.5 text-xs">
-      <Icon name="alert" className="size-3.5 text-destructive" />
-      <span>
-        <span className="font-mono">{entry.name}</span> changed on disk while you were typing.
-      </span>
-      <div className="ml-auto flex gap-1">
-        <Button variant="outline" size="xs" onClick={onKeep}>
-          Keep mine
-        </Button>
-        <Button variant="destructive" size="xs" onClick={onTake}>
-          Take theirs
-        </Button>
-      </div>
-    </div>
+    <Alert
+      variant="light"
+      color="danger"
+      radius={0}
+      py={6}
+      px="sm"
+      icon={<Icon name="alert" size={14} />}
+      styles={{ message: { width: '100%' } }}
+    >
+      <Group gap="xs" wrap="nowrap">
+        <Text size="xs">
+          <span style={{ fontFamily: 'var(--mr-mono)' }}>{entry.name}</span> changed on disk while
+          you were typing.
+        </Text>
+        <Group gap={6} ml="auto" wrap="nowrap">
+          <Button size="compact-xs" variant="default" onClick={onKeep}>
+            Keep mine
+          </Button>
+          <Button size="compact-xs" color="danger" onClick={onTake}>
+            Take theirs
+          </Button>
+        </Group>
+      </Group>
+    </Alert>
   );
 }
 
@@ -298,20 +384,14 @@ export function DocsPanel({
   };
 
   const activeEntry = entries[active] ?? Object.values(entries)[0];
-  // Tiles wrap when they would get too narrow to read: 260px is about a
-  // comfortable column of prose. A tile never gets shorter than 200px, so the
-  // grid scrolls rather than squeezing an editor down to nothing.
-  const gridStyle =
-    orientation === 'row'
-      ? {
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gridAutoRows: 'minmax(200px, 1fr)',
-        }
-      : { gridTemplateColumns: 'minmax(0, 1fr)', gridAutoRows: 'minmax(200px, 1fr)' };
 
   const pane = (entry: DocEntry, withHeader: boolean): ReactNode => {
     const editor = (
-      <MarkdownEditor value={entry.text} onChange={(text) => onText(entry.name, text)} />
+      <MarkdownEditor
+        value={entry.text}
+        onChange={(text) => onText(entry.name, text)}
+        ariaLabel={`${entry.name} — markdown source`}
+      />
     );
     const preview = <Preview text={entry.text} />;
     const vertical = orientation === 'column';
@@ -321,110 +401,208 @@ export function DocsPanel({
       ) : mode === 'preview' ? (
         preview
       ) : (
-        <ResizablePanelGroup
+        <Split
           direction={vertical ? 'vertical' : 'horizontal'}
           autoSaveId="modelroom.docs.split"
+          style={{ flex: 1, minHeight: 0 }}
         >
-          <ResizablePanel defaultSize={50} minSize={15}>
+          <SplitPanel defaultSize={50} minSize={15}>
             {editor}
-          </ResizablePanel>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={50} minSize={15}>
+          </SplitPanel>
+          <SplitHandle withHandle />
+          <SplitPanel defaultSize={50} minSize={15}>
             {preview}
-          </ResizablePanel>
-        </ResizablePanelGroup>
+          </SplitPanel>
+        </Split>
       );
     return (
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <Box style={{ display: 'flex', flex: 1, minWidth: 0, minHeight: 0, flexDirection: 'column' }}>
         {withHeader && (
-          <div className="flex items-center gap-2 border-b border-border px-3 py-1">
-            <Icon name="file" className="size-3.5 text-muted-foreground" />
-            <span className="font-mono text-xs">{entry.name}</span>
-            <span className={cn('ml-auto text-[11px]', statusOf(entry).tone)}>
-              {statusOf(entry).text}
-            </span>
-          </div>
+          <Group
+            gap="xs"
+            px="sm"
+            py={4}
+            wrap="nowrap"
+            style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
+          >
+            <Icon name="file" size={14} />
+            <Text size="xs" ff="monospace">
+              {entry.name}
+            </Text>
+            <Box ml="auto">
+              <StatusText entry={entry} />
+            </Box>
+          </Group>
         )}
         <ConflictBanner
           entry={entry}
           onKeep={() => void conflictKeep(entry.name)}
           onTake={() => conflictTake(entry.name)}
         />
-        <div className="min-h-0 flex-1">{body}</div>
-      </div>
+        <Box style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          {body}
+        </Box>
+      </Box>
     );
   };
 
   if (!activeEntry) {
-    return <div className="p-4 text-sm text-muted-foreground">No docs configured.</div>;
+    return (
+      <Text size="sm" c="dimmed" p="md">
+        No docs configured.
+      </Text>
+    );
   }
 
   const controls = (
-    <div className="ml-auto flex items-center gap-2">
-      {layout === 'tabs' && (
-        <span className={cn('text-[11px]', statusOf(activeEntry).tone)}>
-          {statusOf(activeEntry).text}
-        </span>
-      )}
-      <Segmented value={mode} onChange={setMode} options={MODES} />
-      {mode === 'split' && (
-        <Segmented value={orientation} onChange={setOrientation} options={ORIENTATIONS} />
-      )}
-      <Segmented
-        value={layout}
-        onChange={setLayout}
-        options={[
-          { value: 'tabs', label: 'Tabs', title: 'One doc at a time' },
-          { value: 'tiles', label: 'Tiles', title: 'Every doc at once' },
-        ]}
+    <Group gap="xs" ml="auto" wrap="nowrap">
+      {layout === 'tabs' && <StatusText entry={activeEntry} />}
+      <SegmentedControl
+        size="xs"
+        value={mode}
+        onChange={(value) => setMode(value as Mode)}
+        data={MODES}
+        aria-label="Doc view mode"
       />
-    </div>
+      {mode === 'split' && (
+        <SegmentedControl
+          size="xs"
+          value={orientation}
+          onChange={(value) => setOrientation(value as Orientation)}
+          data={ORIENTATIONS}
+          aria-label="Split orientation"
+        />
+      )}
+      <SegmentedControl
+        size="xs"
+        value={layout}
+        onChange={(value) => setLayout(value as Layout)}
+        data={LAYOUTS}
+        aria-label="Doc layout"
+      />
+    </Group>
   );
 
   if (layout === 'tabs') {
     return (
       <Tabs
         value={active}
-        onValueChange={setActive}
-        className="flex min-h-0 min-w-0 flex-1 flex-col bg-card"
+        onChange={(value) => setActive(value ?? active)}
+        style={{
+          display: 'flex',
+          flex: 1,
+          minWidth: 0,
+          minHeight: 0,
+          flexDirection: 'column',
+          backgroundColor: 'var(--mr-panel)',
+        }}
       >
-        <header className="flex flex-wrap items-center gap-2 border-b border-border px-2 py-1.5">
-          <TabsList className="mr-scroll min-w-0 overflow-x-auto">
+        <Group
+          gap="xs"
+          px="xs"
+          py={4}
+          wrap="wrap"
+          style={{
+            borderBottom: '1px solid var(--mantine-color-default-border)',
+            flexShrink: 0,
+          }}
+        >
+          <Tabs.List
+            className="mr-scroll"
+            style={{ flexWrap: 'nowrap', overflowX: 'auto', borderBottom: 'none' }}
+          >
             {docs.map((name) => (
-              <TabsTrigger key={name} value={name}>
+              <Tabs.Tab
+                key={name}
+                value={name}
+                leftSection={
+                  entries[name] && entries[name].text !== entries[name].savedText ? (
+                    <Box
+                      w={6}
+                      h={6}
+                      style={{
+                        borderRadius: 999,
+                        backgroundColor: 'var(--mantine-primary-color-filled)',
+                      }}
+                    />
+                  ) : undefined
+                }
+              >
                 {docLabel(name)}
-                {entries[name] && entries[name].text !== entries[name].savedText && (
-                  <span className="size-1.5 rounded-full bg-primary" />
-                )}
-              </TabsTrigger>
+              </Tabs.Tab>
             ))}
-          </TabsList>
+          </Tabs.List>
           {controls}
-        </header>
-        <div className="flex min-h-0 flex-1 flex-col">{pane(activeEntry, false)}</div>
+        </Group>
+        <Tabs.Panel
+          value={active}
+          style={{ display: 'flex', flex: 1, minHeight: 0, flexDirection: 'column' }}
+        >
+          {pane(activeEntry, false)}
+        </Tabs.Panel>
       </Tabs>
     );
   }
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col bg-card">
-      <header className="flex flex-wrap items-center gap-2 border-b border-border px-2 py-1.5">
-        <span className="px-1 text-sm font-medium">Docs</span>
+    <Box
+      style={{
+        display: 'flex',
+        flex: 1,
+        minWidth: 0,
+        minHeight: 0,
+        flexDirection: 'column',
+        backgroundColor: 'var(--mr-panel)',
+      }}
+    >
+      <Group
+        gap="xs"
+        px="xs"
+        py={4}
+        wrap="wrap"
+        style={{ borderBottom: '1px solid var(--mantine-color-default-border)', flexShrink: 0 }}
+      >
+        <Text size="sm" fw={500} px={4}>
+          Docs
+        </Text>
         {controls}
-      </header>
-      <div
-        className="mr-scroll grid min-h-0 flex-1 gap-px overflow-y-auto bg-border"
-        style={gridStyle}
+      </Group>
+      <SimpleGrid
+        className="mr-scroll"
+        cols={1}
+        spacing={1}
+        verticalSpacing={1}
+        style={{
+          display: 'grid',
+          gridAutoRows: 'minmax(200px, 1fr)',
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          backgroundColor: 'var(--mantine-color-default-border)',
+          ...(orientation === 'row'
+            ? { gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }
+            : { gridTemplateColumns: 'minmax(0, 1fr)' }),
+        }}
       >
         {docs.map((name) => {
           const entry = entries[name];
           return entry ? (
-            <div key={name} className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-card">
+            <Box
+              key={name}
+              style={{
+                display: 'flex',
+                minWidth: 0,
+                minHeight: 0,
+                flexDirection: 'column',
+                overflow: 'hidden',
+                backgroundColor: 'var(--mr-panel)',
+              }}
+            >
               {pane(entry, true)}
-            </div>
+            </Box>
           ) : null;
         })}
-      </div>
-    </section>
+      </SimpleGrid>
+    </Box>
   );
 }

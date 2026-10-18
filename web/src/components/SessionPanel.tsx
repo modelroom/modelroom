@@ -2,31 +2,29 @@
 // Cost, tokens, context window, MCP servers and skills, straight from the API.
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { Box, Button, Group, Loader, Progress, Text } from '@mantine/core';
 import { clampPct, getSession, type SessionView } from '../lib/api.ts';
 import { fmtNum } from '../lib/format.ts';
 import { useServerEvent } from '../hooks/useServerEvents.tsx';
-import { Button } from './ui/button.tsx';
-import { Icon } from './ui/Icon.tsx';
+import { Icon } from './Icon.tsx';
+import { Panel } from './Status.tsx';
 
 const Head = ({ children }: { children: ReactNode }) => (
-  <div className="text-[11px] tracking-wide text-muted-foreground uppercase">{children}</div>
+  <Text size="xs" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.04em' }}>
+    {children}
+  </Text>
 );
 
-const Row = ({ label, value }: { label: string; value: ReactNode }) => (
-  <div className="flex items-baseline justify-between gap-2 text-sm">
-    <span className="text-muted-foreground">{label}</span>
-    <span className="text-right font-mono break-all">{value}</span>
-  </div>
+const Row = ({ label, value }: { label: ReactNode; value: ReactNode }) => (
+  <Group gap="xs" justify="space-between" wrap="nowrap" align="baseline">
+    <Text size="sm" c="dimmed">
+      {label}
+    </Text>
+    <Text size="sm" ff="monospace" ta="right" style={{ overflowWrap: 'anywhere' }}>
+      {value}
+    </Text>
+  </Group>
 );
-
-function Bar({ pct }: { pct: number }) {
-  const color = pct >= 85 ? 'bg-destructive' : pct >= 70 ? 'bg-warning' : 'bg-success';
-  return (
-    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-      <div className={`h-full ${color}`} style={{ width: `${clampPct(pct)}%` }} />
-    </div>
-  );
-}
 
 export function SessionPanel({ room }: { room: string }) {
   const [view, setView] = useState<SessionView | null>(null);
@@ -53,49 +51,75 @@ export function SessionPanel({ room }: { room: string }) {
   const cached = totalIn > 0 && tokens ? Math.round((tokens.cacheRead / totalIn) * 100) : 0;
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-col bg-card">
-      <header className="flex items-center gap-2 border-b border-border px-3 py-2">
-        <span className="text-sm font-medium">セッション</span>
-        {loading && <Icon name="loader" className="size-3.5 animate-spin text-muted-foreground" />}
-        <Button
-          variant="ghost"
-          size="xs"
-          className="ml-auto"
-          onClick={() => void load()}
-          title="refresh"
-        >
-          <Icon name="refresh" className="size-3.5" />
-          refresh
-        </Button>
-      </header>
-
-      <div className="mr-scroll flex flex-1 flex-col gap-3 overflow-y-auto p-3">
+    <Panel
+      title="セッション"
+      right={
+        <Group gap="xs" wrap="nowrap">
+          {loading && <Loader size={13} color="gray" />}
+          <Button
+            size="compact-xs"
+            variant="subtle"
+            color="gray"
+            onClick={() => void load()}
+            leftSection={<Icon name="refresh" size={13} />}
+          >
+            refresh
+          </Button>
+        </Group>
+      }
+    >
+      <Box
+        className="mr-scroll"
+        p="sm"
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+      >
         {!view || !view.available ? (
-          <p className="text-sm text-muted-foreground">
+          <Text size="sm" c="dimmed">
             この部屋のセッション情報は opencode アダプタのときだけ表示します。
-          </p>
+          </Text>
         ) : (
           <>
             <Head>セッション</Head>
             {view.context ? (
               <>
-                <div className="flex items-baseline justify-between gap-2 text-sm">
-                  <span className="text-muted-foreground">コンテキスト</span>
-                  <span className="font-mono">
+                <Group gap="xs" justify="space-between" align="baseline">
+                  <Text size="sm" c="dimmed">
+                    コンテキスト
+                  </Text>
+                  <Text size="sm" ff="monospace">
                     {view.context.pct}% ・ {fmtNum(view.context.used)}
-                  </span>
-                </div>
-                <Bar pct={view.context.pct} />
+                  </Text>
+                </Group>
+                <Progress
+                  value={clampPct(view.context.pct)}
+                  size="sm"
+                  radius="xl"
+                  color={
+                    view.context.pct >= 85
+                      ? 'danger'
+                      : view.context.pct >= 70
+                        ? 'warning'
+                        : 'success'
+                  }
+                  aria-label="Context window used"
+                />
                 {view.context.pct >= 70 && (
-                  <div className="text-xs text-warning">
+                  <Text size="xs" c="warning">
                     {view.context.pct}% — compact を検討（上限 {fmtNum(view.context.limit)}）
-                  </div>
+                  </Text>
                 )}
               </>
             ) : (
-              <div className="text-xs text-muted-foreground">
+              <Text size="xs" c="dimmed">
                 コンテキスト: 計測できません（まだ実行がないか、上限が不明）
-              </div>
+              </Text>
             )}
 
             <Row
@@ -131,7 +155,7 @@ export function SessionPanel({ room }: { room: string }) {
             )}
           </>
         )}
-      </div>
-    </section>
+      </Box>
+    </Panel>
   );
 }

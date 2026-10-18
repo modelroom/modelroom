@@ -1,11 +1,20 @@
 // The artifact column: the room's screen, at a device width, as HTML or its PNG.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Anchor,
+  Box,
+  Button,
+  Checkbox,
+  Group,
+  Loader,
+  SegmentedControl,
+  Text,
+} from '@mantine/core';
 import { postRender, type RoomInfo } from '../lib/api.ts';
 import { useServerEvent } from '../hooks/useServerEvents.tsx';
-import { Button } from './ui/button.tsx';
-import { Icon } from './ui/Icon.tsx';
-import { Segmented } from './ui/Segmented.tsx';
+import { Icon } from './Icon.tsx';
+import { Panel } from './Status.tsx';
 
 const DEVICES = [
   { value: 'sp', label: 'sp 390', width: 390 },
@@ -102,84 +111,135 @@ export function ArtifactPanel({
 
   const src = `/files/${roomsPath}/${room}/${artifact}?v=${nonce}`;
   const pngSrc = `/files/${roomsPath}/${room}/${artifact.replace(/\.html?$/i, '.png')}?v=${pngNonce}`;
+  const rawHref = `/files/${roomsPath}/${room}/${artifact}`;
+
+  const Empty = ({ children }: { children: React.ReactNode }) => (
+    <Box
+      mx="auto"
+      mt={64}
+      maw={380}
+      p="lg"
+      style={{
+        borderRadius: 'var(--mantine-radius-md)',
+        border: '1px dashed var(--mantine-color-default-border)',
+        backgroundColor: 'var(--mr-panel)',
+        textAlign: 'center',
+      }}
+    >
+      <Text size="sm" c="dimmed">
+        {children}
+      </Text>
+    </Box>
+  );
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-col bg-card">
-      <header className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-1.5">
-        <Segmented
-          value={device}
-          onChange={setDevice}
-          options={DEVICES.map((entry) => ({ value: entry.value, label: entry.label }))}
-        />
-        <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
-          <input
-            type="checkbox"
-            className="size-3.5 accent-primary"
+    <Panel
+      title={
+        <Group gap="xs" wrap="wrap">
+          <SegmentedControl
+            size="xs"
+            value={device}
+            onChange={(value) => setDevice(value as Device)}
+            data={DEVICES.map((entry) => ({ value: entry.value, label: entry.label }))}
+            aria-label="Device width"
+          />
+          <Checkbox
+            size="xs"
+            label="fit"
             checked={fit}
-            onChange={(event) => setFit(event.target.checked)}
+            onChange={(event) => setFit(event.currentTarget.checked)}
           />
-          fit
-        </label>
-        <Segmented
-          value={view}
-          onChange={setView}
-          options={[
-            { value: 'artifact', label: 'artifact' },
-            { value: 'png', label: 'png' },
-          ]}
-        />
-        <Button variant="outline" size="xs" disabled={busy} onClick={() => void render()}>
-          <Icon
-            name={busy ? 'loader' : 'image'}
-            className={busy ? 'size-3.5 animate-spin' : 'size-3.5'}
+          <SegmentedControl
+            size="xs"
+            value={view}
+            onChange={(value) => setView(value as View)}
+            data={[
+              { value: 'artifact', label: 'artifact' },
+              { value: 'png', label: 'png' },
+            ]}
+            aria-label="Artifact view"
           />
-          make png
-        </Button>
-        <Button variant="ghost" size="xs" className="ml-auto" asChild>
-          <a
-            href={`/files/${roomsPath}/${room}/${artifact}`}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Button
+            size="compact-xs"
+            variant="default"
+            disabled={busy}
+            onClick={() => void render()}
+            leftSection={busy ? <Loader size={12} color="gray" /> : <Icon name="image" size={13} />}
           >
+            make png
+          </Button>
+        </Group>
+      }
+      right={
+        <Anchor href={rawHref} target="_blank" rel="noopener noreferrer" size="xs">
+          <Group gap={4} wrap="nowrap">
             open raw
-            <Icon name="external" className="size-3.5" />
-          </a>
-        </Button>
-      </header>
-
-      <div ref={stage} className="mr-scroll relative flex-1 overflow-auto bg-muted/20 p-3">
+            <Icon name="external" size={13} />
+          </Group>
+        </Anchor>
+      }
+    >
+      <Box
+        ref={stage}
+        className="mr-scroll"
+        p="md"
+        style={{
+          position: 'relative',
+          flex: 1,
+          minHeight: 0,
+          overflow: 'auto',
+          backgroundColor: 'var(--mr-page)',
+        }}
+      >
         {!info.hasArtifact ? (
-          <div className="mx-auto mt-16 max-w-sm rounded-lg border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground">
-            No artifact yet — <span className="font-mono">{artifact}</span>. Ask the agent to create
-            it.
-          </div>
+          <Empty>
+            No artifact yet — <span style={{ fontFamily: 'var(--mr-mono)' }}>{artifact}</span>. Ask
+            the agent to create it.
+          </Empty>
         ) : view === 'artifact' ? (
-          <div ref={inner} className="relative mx-auto">
-            <div
+          <Box ref={inner} style={{ position: 'relative' }} mx="auto">
+            <Box
               ref={frame}
-              className="absolute top-0 left-0 origin-top-left overflow-hidden rounded-lg border border-border bg-card shadow-sm"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                transformOrigin: 'top left',
+                overflow: 'hidden',
+                borderRadius: 'var(--mantine-radius-md)',
+                border: '1px solid var(--mantine-color-default-border)',
+                backgroundColor: 'var(--mr-panel)',
+              }}
             >
               <iframe
                 ref={iframe}
                 src={src}
                 onLoad={fitFrame}
                 title="artifact"
-                className="block h-full w-full border-0 bg-white"
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  height: '100%',
+                  border: 0,
+                  backgroundColor: '#fff',
+                }}
               />
-            </div>
-          </div>
+            </Box>
+          </Box>
         ) : thumb ? (
           <img
             src={pngSrc}
             alt="artifact thumbnail"
-            className="w-full rounded-lg border border-border bg-card"
+            style={{
+              width: '100%',
+              borderRadius: 'var(--mantine-radius-md)',
+              border: '1px solid var(--mantine-color-default-border)',
+            }}
           />
         ) : (
-          <div className="mx-auto mt-16 max-w-sm rounded-lg border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground">
-            No PNG yet. Use “make png” — it needs Playwright.
-          </div>
+          <Empty>No PNG yet. Use “make png” — it needs Playwright.</Empty>
         )}
-      </div>
-    </section>
+      </Box>
+    </Panel>
   );
 }
