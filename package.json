@@ -1,18 +1,20 @@
 {
   "name": "modelroom",
   "version": "0.0.1",
-  "description": "A full-scale model room for UI. Design screens with any coding agent — BRIEF, SPEC, BEHAVIOUR and the artifact in one place.",
+  "description": "A local workspace to design UI screens with any coding agent — one room per screen: BRIEF, SPEC, BEHAVIOUR and the artifact.",
   "keywords": [
     "agent-agnostic",
     "ai-agents",
     "claude-code",
+    "codex",
     "coding-agents",
     "design",
     "design-system",
     "design-workflow",
     "live-preview",
     "opencode",
-    "spec-driven"
+    "spec-driven",
+    "ui-design"
   ],
   "homepage": "https://github.com/modelroom/modelroom#readme",
   "bugs": {
