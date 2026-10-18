@@ -76,9 +76,18 @@ test('the server keeps its promises', async () => {
     check(dash.status === 200 && dashHtml.includes('modelroom'), 'GET / serves the dashboard');
 
     const roomPage = await fetch(`${base}/room/${room}`);
+    const roomHtml = await roomPage.text();
     check(
-      roomPage.status === 200 && (await roomPage.text()).includes('Chat'),
-      'GET /room/<name> serves the workspace',
+      roomPage.status === 200 &&
+        roomHtml.includes('id="root"') &&
+        roomHtml.includes('/ui/assets/app.js'),
+      'GET /room/<name> serves the workspace shell',
+    );
+
+    const bundle = await fetch(`${base}/ui/assets/app.js`);
+    check(
+      bundle.status === 200 && (bundle.headers.get('content-type') ?? '').includes('javascript'),
+      'the room UI bundle is served as JavaScript',
     );
 
     const settings = await fetch(`${base}/settings`);
