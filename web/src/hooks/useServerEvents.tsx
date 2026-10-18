@@ -14,6 +14,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { SERVER_EVENTS } from '../lib/events.ts';
 
 export interface StatusEvent {
   phase: string;
@@ -35,19 +36,6 @@ export const useServerEvents = (): ServerEventsValue => {
   return value;
 };
 
-const EVENTS = [
-  'hello',
-  'status',
-  'change',
-  'chat-start',
-  'chat',
-  'chat-done',
-  'render-start',
-  'render-done',
-  'doc-saved',
-  'settings',
-] as const;
-
 export function ServerEventsProvider({ children }: { children: ReactNode }) {
   const listeners = useRef(new Map<string, Set<(data: unknown) => void>>());
   const [status, setStatus] = useState<StatusEvent | null>(null);
@@ -65,7 +53,7 @@ export function ServerEventsProvider({ children }: { children: ReactNode }) {
       if (event === 'status') setStatus(data as StatusEvent);
       for (const handler of listeners.current.get(event) ?? []) handler(data);
     };
-    const bound = EVENTS.map((event) => {
+    const bound = SERVER_EVENTS.map((event) => {
       const handler = emit(event);
       es.addEventListener(event, handler);
       return [event, handler] as const;

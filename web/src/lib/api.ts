@@ -98,6 +98,13 @@ export interface Turn {
   parts: Part[];
 }
 
+/** The words of a turn: what the copy button takes, and what the plain view shows. */
+export const partsText = (parts: Part[]): string =>
+  parts
+    .filter((part): part is Extract<Part, { kind: 'text' }> => part.kind === 'text')
+    .map((part) => part.text)
+    .join('\n\n');
+
 export interface SessionView {
   available: boolean;
   room: string;

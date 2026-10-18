@@ -67,6 +67,9 @@ function MessageRow({ message }: { message: ChatMessage }) {
           {message.parts.map((part, index) => (
             <PartView key={`${message.id}-${index}`} part={part} />
           ))}
+          {!message.done && (
+            <span className="h-3.5 w-1.5 animate-pulse rounded-sm bg-primary" aria-hidden />
+          )}
         </div>
       ) : (
         <div className="max-w-[95%] rounded-2xl rounded-tl-sm border border-border bg-card px-3 py-2 shadow-xs">

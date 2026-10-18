@@ -8,12 +8,14 @@
 
 import { spawn, type ChildProcess } from 'node:child_process';
 import type { Config } from './config.ts';
-import { toTurns, type Turn } from './parts.ts';
+import { parseParts, toTurns, type Part, type Turn } from './parts.ts';
 
 const MAX_OUTPUT = 8 * 1024 * 1024; // a runaway response must not grow without bound
 const TIMEOUT_MS = 15_000;
 const MODEL_TTL = 10 * 60_000;
 const EXTRAS_TTL = 60_000;
+const POLL_MS = 700; // how often to look at an answer that is being written
+const MAX_FAILURES = 3; // then stop asking: the CLI's own text is the answer
 
 export interface TokenUsage {
   input: number;
@@ -238,4 +240,110 @@ export async function sessionView(
   const workspace = isRecord(info) && isRecord(info.location) ? str(info.location.directory) : null;
 
   return { stats, context, turns: toTurns(messages), mcp, skills, workspace };
+}
+
+// ── an answer that is still being written ────────────────────────────────────
+//
+// The chat used to have one source for a running turn: the CLI's stdout, which is
+// prose. The session, on the other hand, is structured the moment it is written —
+// opencode keeps the parts on its server as the agent works, so reading them back
+// while the process is still alive is the live view. That is what this is.
+
+export interface PartsSnapshot {
+  /** When the newest *filled* assistant step was written (ms since epoch). */
+  created: number;
+  /** The trailing assistant turn, every step of it merged. */
+  parts: Part[];
+}
+
+/** When the newest assistant step that has anything in it was written. */
+function newestStepAt(messages: unknown[]): number {
+  for (const raw of [...messages].sort(byTime).toReversed()) {
+    if (!isRecord(raw) || raw.type !== 'assistant') continue;
+    if (!parseParts(raw).length) continue; // created, but nothing in it yet
+    return created(raw);
+  }
+  return 0;
+}
+
+/**
+ * The answer in flight: the parts of the trailing assistant turn. `null` when the
+ * API cannot be reached, or when the session has no filled assistant step yet.
+ */
+export async function sessionParts(cfg: Config, sessionId: string): Promise<PartsSnapshot | null> {
+  const res = await apiGet(cfg, `/api/session/${sessionId}/message`);
+  if (!res) return null;
+  const messages = listOf(res);
+  const last = toTurns(messages).at(-1);
+  if (!last || last.role !== 'assistant' || !last.parts.length) return null;
+  return { created: newestStepAt(messages), parts: last.parts };
+}
+
+export interface PartsWatcher {
+  /**
+   * Stop watching. Takes one last snapshot first, so a turn that finished between
+   * two polls is not lost, and resolves when that snapshot has been handed over.
+   */
+  stop: () => Promise<void>;
+}
+
+/**
+ * Follow the turn this prompt is producing. `since` is when the run started: an
+ * answer written after it is ours, one before it is the previous prompt's, and
+ * the difference is the whole reason a run does not start by showing the last one.
+ *
+ * Gives up after a few unreachable polls — an agent whose server is not there
+ * still streams its text, and this must not spawn a process every second forever.
+ */
+export function watchParts(
+  cfg: Config,
+  sessionId: string,
+  onParts: (parts: Part[]) => void,
+  options: { since?: number; intervalMs?: number } = {},
+): PartsWatcher {
+  const since = options.since ?? Date.now();
+  const intervalMs = options.intervalMs ?? POLL_MS;
+  let stopped = false;
+  let inFlight: Promise<void> | null = null;
+  let failures = 0;
+  let lastPayload = '';
+
+  function giveUp(): void {
+    clearInterval(timer);
+  }
+
+  async function poll(): Promise<void> {
+    const snapshot = await sessionParts(cfg, sessionId);
+    if (!snapshot) {
+      failures += 1;
+      if (failures >= MAX_FAILURES) giveUp();
+      return;
+    }
+    failures = 0;
+    if (snapshot.created < since) return; // the answer before this prompt
+    const payload = JSON.stringify(snapshot.parts);
+    if (payload === lastPayload) return; // nothing moved since the last look
+    lastPayload = payload;
+    onParts(snapshot.parts);
+  }
+
+  function tick(): void {
+    if (stopped || inFlight) return; // one call at a time
+    inFlight = poll().finally(() => {
+      inFlight = null;
+    });
+  }
+
+  const timer = setInterval(tick, intervalMs);
+  tick(); // immediately: the first step should not wait for the first interval
+
+  return {
+    stop: async () => {
+      if (stopped) return;
+      stopped = true;
+      clearInterval(timer);
+      await inFlight;
+      await poll();
+    },
+  };
 }

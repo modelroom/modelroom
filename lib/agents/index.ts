@@ -7,6 +7,7 @@
 // Adapter interface (see docs/04-agents.md):
 //   name                       string
 //   newSessionId()             string        one id per room, reused across prompts
+//   structured                 boolean       the turn is readable while it runs
 //   run(options)               child handle  streams stdout/stderr
 
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -27,6 +28,12 @@ export interface RunOptions {
 export interface Adapter {
   name: string;
   newSessionId: () => string;
+  /**
+   * Does this agent keep its turn somewhere modelroom can read *while* it works —
+   * parts, tool calls, diffs — rather than only printing prose? When it does, the
+   * chat follows the turn instead of just parsing the output.
+   */
+  structured: boolean;
   run: (options: RunOptions) => ChildProcess;
 }
 
@@ -75,6 +82,7 @@ function spawnStreaming({
 
 export const opencode: Adapter = {
   name: 'opencode',
+  structured: true, // its session keeps the parts, so the chat can follow the turn
   newSessionId: () => `ses_${Date.now().toString(36)}${random()}`,
   run({ cfg, cwd, prompt, sessionId, onChunk, onExit }) {
     const a = cfg.agent;
@@ -89,6 +97,7 @@ export const opencode: Adapter = {
 
 export const command: Adapter = {
   name: 'command',
+  structured: false, // whatever it prints is all we get
   newSessionId: () => `ses_${Date.now().toString(36)}${random()}`,
   run({ cfg, cwd, prompt, sessionId, onChunk, onExit }) {
     const a = cfg.agent;
