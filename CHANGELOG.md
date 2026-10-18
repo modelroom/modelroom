@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.2](https://github.com/modelroom/modelroom/compare/modelroom-v0.0.1...modelroom-v0.0.2) (2026-10-18)
+
+
+### Bug Fixes
+
+* bin の先頭の ./ を外し、publish 時のマニフェスト補正をなくす ([f1ba67e](https://github.com/modelroom/modelroom/commit/f1ba67e8d6d91affb5f542c13b46fe620e92aab4))
+
+
+### Miscellaneous Chores
+
+* npm の説明文とキーワードを直す ([5fa6ade](https://github.com/modelroom/modelroom/commit/5fa6ade94fdbcdf236a4ab0157dce76552d02305))
+
 ## 0.0.1 (2026-10-18)
 
 
