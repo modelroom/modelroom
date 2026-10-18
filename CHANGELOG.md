@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.6](https://github.com/modelroom/modelroom/compare/modelroom-v0.0.5...modelroom-v0.0.6) (2026-10-18)
+
+
+### Features
+
+* **chat:** follow a structured turn while the agent works ([#10](https://github.com/modelroom/modelroom/issues/10)) ([4ad661a](https://github.com/modelroom/modelroom/commit/4ad661a06c15502d257b7cc48d14cee283376e32))
+
 ## [0.0.5](https://github.com/modelroom/modelroom/compare/modelroom-v0.0.4...modelroom-v0.0.5) (2026-10-18)
 
 
