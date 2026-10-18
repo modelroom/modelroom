@@ -55,7 +55,7 @@ const context = await browser.newContext({
 
 const PAGES = [
   { name: 'dashboard', path: '/' },
-  { name: 'room', path: '/room/sign-in' },
+  { name: 'room', path: '/rooms/sign-in' },
   { name: 'settings', path: '/settings' },
   { name: 'kit', path: '/ui/kit.html' },
 ];

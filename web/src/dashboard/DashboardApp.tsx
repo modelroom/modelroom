@@ -76,7 +76,7 @@ function RoomCard({
   return (
     <Card
       component="a"
-      href={`/room/${encodeURIComponent(room.name)}`}
+      href={`/rooms/${encodeURIComponent(room.name)}`}
       withBorder
       radius="md"
       p={0}

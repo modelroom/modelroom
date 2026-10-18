@@ -150,7 +150,7 @@ else if (cmd === 'init') {
 
   console.log(`created in ${cwd}:`);
   for (const w of written) console.log(`  ${w}`);
-  console.log(`\nnext\n  npx modelroom\n  open http://127.0.0.1:${cfg.port}/room/${room}`);
+  console.log(`\nnext\n  npx modelroom\n  open http://127.0.0.1:${cfg.port}/rooms/${room}`);
 }
 
 // ── check ───────────────────────────────────────────────────────────────────

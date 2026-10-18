@@ -6,7 +6,7 @@
 
 import { test, expect } from 'vitest';
 import { createServer } from 'node:http';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createModelroom } from '../lib/server.ts';
@@ -30,6 +30,10 @@ test('the server keeps its promises', async () => {
   };
 
   const port = await freePort();
+  // Local state is a real file the server writes to; the checks below exercise
+  // that write, so put the file back the way we found it when they are done.
+  const statePath = join(pkgDir, '.modelroom', 'state.json');
+  const stateBefore = await readFile(statePath, 'utf8').catch(() => null);
   const app = await createModelroom({ cwd: pkgDir, port, host: '127.0.0.1' });
   app.startWatching();
   const { url } = await app.listen();
@@ -82,13 +86,19 @@ test('the server keeps its promises', async () => {
       'GET / serves the dashboard shell',
     );
 
-    const roomPage = await fetch(`${base}/room/${room}`);
+    const roomPage = await fetch(`${base}/rooms/${room}`);
     const roomHtml = await roomPage.text();
     check(
       roomPage.status === 200 &&
         roomHtml.includes('id="root"') &&
         roomHtml.includes('/ui/assets/app.js'),
-      'GET /room/<name> serves the workspace shell',
+      'GET /rooms/<name> serves the workspace shell',
+    );
+
+    const oldRoomPage = await fetch(`${base}/room/${room}`, { redirect: 'manual' });
+    check(
+      oldRoomPage.status === 302 && oldRoomPage.headers.get('location') === `/rooms/${room}`,
+      'GET /room/<name> redirects to /rooms/<name>',
     );
 
     const bundle = await fetch(`${base}/ui/assets/app.js`);
@@ -274,6 +284,8 @@ test('the server keeps its promises', async () => {
     await app2.close();
   } finally {
     await app.close();
+    if (stateBefore !== null) await writeFile(statePath, stateBefore);
+    else await rm(statePath, { force: true });
   }
 
   for (const r of results) {

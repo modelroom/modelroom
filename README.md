@@ -35,7 +35,7 @@ application code.
 | Where | What |
 |---|---|
 | `/` | every room, side by side, with thumbnails — full-text search and filters built from the records |
-| `/room/<name>` | chat, the room's docs (editable), and the artifact — updating as the agent works |
+| `/rooms/<name>` | chat, the room's docs (editable), and the artifact — updating as the agent works |
 | `/settings` | which agent to run, and with which model |
 | `/files/<path>` | your repository, served read-only and **unmodified** (no injected scripts) |
 

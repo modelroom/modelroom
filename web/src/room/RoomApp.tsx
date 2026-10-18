@@ -44,7 +44,7 @@ const TABS = [
 ];
 
 export function RoomApp() {
-  const room = decodeURIComponent(location.pathname.replace(/^\/room\//, '').split('?')[0] ?? '');
+  const room = decodeURIComponent(location.pathname.replace(/^\/rooms\//, '').split('?')[0] ?? '');
   const [data, setData] = useState<RoomResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const chat = useChat(room);

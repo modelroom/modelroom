@@ -18,7 +18,7 @@ do not count).
 Starts the workspace on `127.0.0.1:4321` by default. `modelroom` alone does the same.
 
 - `/` — every room, side by side
-- `/room/<name>` — chat, the room's docs, the artifact
+- `/rooms/<name>` — chat, the room's docs, the artifact
 - `/settings` — which agent to run
 - `/files/<path>` — your repository, served read-only and **unmodified** (no injection)
 
