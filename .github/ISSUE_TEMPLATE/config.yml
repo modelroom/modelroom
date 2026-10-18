@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security report
+    url: https://github.com/modelroom/modelroom/security/advisories/new
+    about: Please report vulnerabilities privately.
+  - name: Read the convention first
+    url: https://github.com/modelroom/modelroom/blob/main/docs/02-convention.md
+    about: Most questions about rooms, docs, and frontmatter are answered here.

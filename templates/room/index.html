@@ -1,0 +1,53 @@
+<!doctype html>
+<!-- {{room}} — artifact (the thing you hand to implementation)
+     Self-contained on purpose: no CDN, no framework, no build. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{room}}</title>
+<style>
+  :root {
+    --bg: #faf9f7;
+    --surface: #ffffff;
+    --text: #1c1917;
+    --muted: #78716c;
+    --line: #e7e5e4;
+    --primary: #1c1917;
+    --primary-text: #fafaf9;
+    --radius: 16px;
+    --space: 24px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; display: grid; place-items: center; padding: 40px 20px; background: var(--bg); color: var(--text);
+    font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+    line-height: 1.7;
+  }
+  .card {
+    width: min(520px, 100%); background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: var(--space); display: flex; flex-direction: column; gap: var(--space);
+  }
+  h1 { font-size: 22px; margin: 0; letter-spacing: .01em; }
+  p { margin: 0; color: var(--muted); font-size: 15px; }
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+  button {
+    font: inherit; padding: 14px 22px; border-radius: var(--radius); border: 1px solid var(--line);
+    background: var(--surface); color: var(--text); cursor: pointer;
+  }
+  button.primary { background: var(--primary); color: var(--primary-text); border-color: var(--primary); }
+</style>
+</head>
+<body>
+  <main class="card">
+    <h1>{{room}}</h1>
+    <p>This is the artifact for the room. Replace it from the chat, or write it by hand.
+       The spec and the promises live next to it in SPEC.md and BEHAVIOUR.md.</p>
+    <div class="actions">
+      <button class="primary">Primary action</button>
+      <button>Secondary</button>
+    </div>
+  </main>
+</body>
+</html>

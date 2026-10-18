@@ -1,0 +1,9 @@
+node_modules/
+.modelroom/
+dist/
+coverage/
+*.tgz
+*.log
+# generated artifact thumbnails (modelroom "make png")
+examples/rooms/*/index.png
+.DS_Store

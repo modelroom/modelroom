@@ -1,0 +1,17 @@
+# OSV-Scanner policy.
+#
+# Every entry here is a deliberate exception, with a reason and an end date.
+# Remove it as soon as a fixed version exists.
+
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+ignoreUntil = 2027-01-31
+reason = """
+braces@3.0.3 — stack exhaustion via deeply nested patterns (CVSS 8.7).
+No fixed version exists (3.0.3 is the latest release and last_affected).
+
+Reached only at build time: @tailwindcss/cli -> @parcel/watcher -> micromatch ->
+braces. The patterns come from the repository's own Tailwind config, never from
+user input, and the package is a devDependency that does not ship. Revisit when
+braces publishes a fix.
+"""

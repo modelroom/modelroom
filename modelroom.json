@@ -1,0 +1,14 @@
+{
+  "root": ".",
+  "rooms": "examples/rooms",
+  "artifact": "index.html",
+  "docs": ["BRIEF.md", "SPEC.md", "BEHAVIOUR.md"],
+  "port": 4321,
+  "agent": {
+    "adapter": "opencode",
+    "command": "opencode",
+    "agent": "build",
+    "model": null,
+    "standalone": true
+  }
+}

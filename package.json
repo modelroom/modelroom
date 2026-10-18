@@ -1,0 +1,83 @@
+{
+  "name": "modelroom",
+  "version": "0.0.1",
+  "description": "A full-scale model room for UI. Design screens with any coding agent — BRIEF, SPEC, BEHAVIOUR and the artifact in one place.",
+  "keywords": [
+    "agent-agnostic",
+    "ai-agents",
+    "claude-code",
+    "coding-agents",
+    "design",
+    "design-system",
+    "design-workflow",
+    "live-preview",
+    "opencode",
+    "spec-driven"
+  ],
+  "homepage": "https://github.com/modelroom/modelroom#readme",
+  "bugs": {
+    "url": "https://github.com/modelroom/modelroom/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/modelroom/modelroom.git"
+  },
+  "bin": {
+    "modelroom": "./dist/bin/modelroom.js"
+  },
+  "files": [
+    "dist",
+    "ui",
+    "templates",
+    "examples",
+    "docs",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "types": "./dist/lib/server.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib/server.d.ts",
+      "default": "./dist/lib/server.js"
+    }
+  },
+  "scripts": {
+    "dev": "node --watch bin/modelroom.ts",
+    "modelroom": "node bin/modelroom.ts",
+    "start": "node bin/modelroom.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "build:css": "tailwindcss -i src/modelroom.css -o ui/modelroom.css --minify",
+    "dev:css": "tailwindcss -i src/modelroom.css -o ui/modelroom.css --watch",
+    "lint": "oxlint",
+    "lint:types": "oxlint --type-aware",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "verify": "npm run lint && npm run lint:types && npm run format:check && npm run typecheck && npm test && npm run build",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@tailwindcss/cli": "^4.3.3",
+    "@types/node": "^26.6.5",
+    "@vitest/coverage-v8": "^5.0.5",
+    "daisyui": "^5.7.50",
+    "lefthook": "^2.2.2",
+    "oxfmt": "^0.73.0",
+    "oxlint": "^1.88.0",
+    "oxlint-tsgolint": "^7.0.2004",
+    "playwright": "^1.64.1",
+    "publint": "^0.3.25",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
+}

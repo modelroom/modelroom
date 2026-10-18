@@ -1,0 +1,49 @@
+/* modelroom — tool UI stylesheet (Tailwind + daisyUI)
+ *
+ * The built file (ui/modelroom.css) is committed, so `npx modelroom` needs no build.
+ * Rebuild after changing ui/*.html or this file:
+ *   npm run build:css
+ *
+ * Only the tool's own UI is scanned here. Room artifacts (the HTML you hand to
+ * implementation) are deliberately framework-free.
+ */
+@import 'tailwindcss';
+
+@source "../ui/*.html";
+
+@plugin "daisyui" {
+  themes:
+    light --default,
+    dark --prefersdark;
+}
+
+@theme {
+  --font-sans:
+    'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', system-ui, -apple-system,
+    'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Small app-specific touches on top of daisyUI defaults. */
+@layer components {
+  .mr-card-artifact {
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    object-position: top center;
+    width: 100%;
+    background-color: var(--color-base-200);
+  }
+  .mr-scroll {
+    scrollbar-width: thin;
+  }
+  .mr-prose {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .mr-doc-area {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.7;
+    tab-size: 2;
+  }
+}
