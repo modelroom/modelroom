@@ -29,7 +29,7 @@ async function freePort() {
 async function collectEvents(url, action, timeoutMs = 8000) {
   const controller = new AbortController();
   const chunks = [];
-  return new Promise((resolve) => {
+  return new Promise((resolveEvents) => {
     let settled = false;
     const finish = () => {
       if (settled) return;
@@ -39,7 +39,7 @@ async function collectEvents(url, action, timeoutMs = 8000) {
       } catch {
         /* already gone */
       }
-      resolve(chunks.join(''));
+      resolveEvents(chunks.join(''));
     };
     const timer = setTimeout(finish, timeoutMs);
     void (async () => {
