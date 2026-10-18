@@ -24,7 +24,7 @@
     "url": "git+https://github.com/modelroom/modelroom.git"
   },
   "bin": {
-    "modelroom": "./dist/bin/modelroom.js"
+    "modelroom": "dist/bin/modelroom.js"
   },
   "files": [
     "dist",
