@@ -8,6 +8,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Room — modelroom</title>
 <link rel="stylesheet" href="/ui/modelroom.css">
+<script>
+// Theme before paint: the bundle is React, but the first frame should not flash.
+try {
+  var stored = localStorage.getItem('modelroom.theme');
+  document.documentElement.dataset.theme = stored
+    ? JSON.parse(stored)
+    : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+} catch (error) { /* the default is light */ }
+</script>
 </head>
 <body class="h-dvh overflow-hidden bg-background text-foreground font-sans">
 <div id="root" data-app="room" class="h-full"></div>

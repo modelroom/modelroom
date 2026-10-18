@@ -1,125 +1,23 @@
 <!doctype html>
-<!-- modelroom — settings: how modelroom talks to your agent -->
+<!-- modelroom — settings: how modelroom talks to your agent. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Settings — modelroom</title>
 <link rel="stylesheet" href="/ui/modelroom.css">
-</head>
-<body class="min-h-dvh bg-base-200 text-base-content font-sans">
-
-<div class="navbar bg-base-100 border-b border-base-300">
-  <div class="flex-1 gap-3">
-    <a class="btn btn-ghost btn-sm" href="/">← Rooms</a>
-    <span class="font-semibold">Settings</span>
-  </div>
-</div>
-
-<main class="mx-auto w-full max-w-3xl p-5 flex flex-col gap-4">
-
-  <section class="card bg-base-100 border border-base-300">
-    <div class="card-body gap-3">
-      <h2 class="card-title text-base">Agent</h2>
-      <p class="text-sm opacity-70">modelroom drives the agent you already use. Nothing here is sent anywhere by modelroom itself.</p>
-
-      <label class="form-control w-full">
-        <span class="label-text">Adapter</span>
-        <select class="select select-bordered" id="adapter">
-          <option value="opencode">opencode — OpenCode CLI (sessions, model, agent)</option>
-          <option value="command">command — any CLI, with args containing {prompt} and {session}</option>
-        </select>
-      </label>
-
-      <div class="grid gap-3 sm:grid-cols-2">
-        <label class="form-control">
-          <span class="label-text">Command</span>
-          <input class="input input-bordered font-mono text-sm" id="command" placeholder="opencode">
-        </label>
-        <label class="form-control">
-          <span class="label-text">Agent name</span>
-          <input class="input input-bordered font-mono text-sm" id="agent" placeholder="build">
-        </label>
-      </div>
-
-      <label class="form-control">
-        <span class="label-text">Model <span class="opacity-60">(optional — many agents fail on an unset default)</span></span>
-        <input class="input input-bordered font-mono text-sm" id="model" placeholder="e.g. openrouter/deepseek/deepseek-v4.1-flash">
-      </label>
-
-      <label class="label cursor-pointer justify-start gap-3">
-        <input type="checkbox" class="checkbox checkbox-sm" id="standalone">
-        <span class="label-text text-sm">Run the agent against its own server, using this process's environment (opencode)</span>
-      </label>
-
-      <div class="flex items-center gap-3">
-        <button class="btn btn-primary btn-sm" id="save">Save</button>
-        <span class="text-sm text-success" id="saved"></span>
-      </div>
-    </div>
-  </section>
-
-  <section class="card bg-base-100 border border-base-300">
-    <div class="card-body gap-2">
-      <h2 class="card-title text-base">Config</h2>
-      <div class="text-sm opacity-80 mr-prose" id="configSummary">…</div>
-      <p class="text-xs opacity-60 mr-prose">
-        Committed settings live in <code>modelroom.json</code>. Anything you save here is kept locally in
-        <code>.modelroom/state.json</code> (git-ignored). Editable room files are:
-        <span id="docList" class="font-mono"></span>.
-      </p>
-    </div>
-  </section>
-
-  <section class="card bg-base-100 border border-base-300">
-    <div class="card-body gap-2">
-      <h2 class="card-title text-base">Thumbnails</h2>
-      <p class="text-sm opacity-70 mr-prose">
-        Rendering an artifact to PNG needs Playwright and a browser:
-        <code>npm i -D playwright &amp;&amp; npx playwright install chromium</code>.
-        modelroom works without it — rooms simply show no thumbnail.
-      </p>
-      <div class="text-xs opacity-60" id="pngState"></div>
-    </div>
-  </section>
-
-</main>
-
 <script>
-'use strict';
-const $ = (id) => document.getElementById(id);
-
-function summary(cfg) {
-  return `
-    <div>root <code>${cfg.root}</code> · rooms <code>${cfg.rooms}/</code> · artifact <code>${cfg.artifact}</code></div>
-    <div>agent <code>${cfg.agent.adapter}</code> · command <code>${cfg.agent.command}</code> · agent <code>${cfg.agent.agent || '-'}</code> · model <code>${cfg.agent.model || 'default'}</code></div>`;
-}
-
-(async function init() {
-  const data = await (await fetch('/api/rooms')).json();
-  const cfg = data.config;
-  $('adapter').value = cfg.agent.adapter;
-  $('command').value = cfg.agent.command || '';
-  $('agent').value = cfg.agent.agent || '';
-  $('model').value = cfg.agent.model || '';
-  $('standalone').checked = cfg.agent.standalone !== false;
-  $('configSummary').innerHTML = summary(cfg);
-  $('docList').textContent = cfg.docs.join(', ');
-})();
-
-$('save').addEventListener('click', async () => {
-  const body = {
-    adapter: $('adapter').value,
-    command: $('command').value.trim(),
-    agent: $('agent').value.trim(),
-    model: $('model').value.trim(),
-    standalone: $('standalone').checked,
-  };
-  const res = await fetch('/api/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  const data = await res.json();
-  $('saved').textContent = res.ok ? `saved ${new Date().toLocaleTimeString()}` : `failed: ${data.error || res.status}`;
-  if (res.ok && data.config) $('configSummary').innerHTML = summary(data.config);
-});
+// Theme before paint: the bundle is React, but the first frame should not flash.
+try {
+  var stored = localStorage.getItem('modelroom.theme');
+  document.documentElement.dataset.theme = stored
+    ? JSON.parse(stored)
+    : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+} catch (error) { /* the default is light */ }
 </script>
+</head>
+<body class="bg-background text-foreground font-sans">
+<div id="root" data-app="settings"></div>
+<script type="module" src="/ui/assets/app.js"></script>
 </body>
 </html>

@@ -141,3 +141,63 @@ export const postRender = (
 
 /** `3.4%` → the width a bar should have, clamped and safe. */
 export const clampPct = (pct: number): number => Math.max(0, Math.min(100, pct));
+
+/* ── the dashboard ───────────────────────────────────────────────────────── */
+
+export interface DashboardRoom {
+  name: string;
+  title: string;
+  status: string | null;
+  summary: string | null;
+  tags: string[];
+  version: string | number | null;
+  deprecated: boolean;
+  updatedAt: number;
+  hasArtifact: boolean;
+  hasThumb: boolean;
+  thumbUrl: string | null;
+  behaviourIds: string[];
+  fields: Record<string, unknown>;
+  /** True while an agent is running a prompt in this room. */
+  running: boolean;
+}
+
+export interface FacetValue {
+  value: string;
+  count: number;
+}
+
+export interface Facet {
+  key: string;
+  kind: 'string' | 'array';
+  control: 'checkboxes' | 'radio' | 'select';
+  values: FacetValue[];
+}
+
+export interface RoomsResponse {
+  count: number;
+  rooms: DashboardRoom[];
+  facets: Facet[];
+  config: RoomConfig;
+}
+
+export interface Snippet {
+  line: number;
+  text: string;
+}
+
+export interface SearchHit {
+  name: string;
+  score: number;
+  snippets: Snippet[];
+}
+
+export const getRooms = (): Promise<RoomsResponse> => json('/api/rooms');
+
+export const searchRooms = (q: string): Promise<{ q: string; hits: SearchHit[] }> =>
+  json(`/api/search?q=${encodeURIComponent(q)}`);
+
+export const postSettings = (
+  patch: Record<string, unknown>,
+): Promise<{ applied?: Record<string, unknown>; config?: RoomConfig; error?: string }> =>
+  json('/api/settings', jsonPost(patch));

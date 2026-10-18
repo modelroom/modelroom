@@ -34,44 +34,40 @@ const theme = EditorView.theme({
   '&': {
     height: '100%',
     backgroundColor: 'transparent',
-    color: 'var(--color-base-content)',
+    color: 'var(--foreground)',
   },
   '.cm-content': {
     fontFamily: 'var(--font-mono)',
     padding: '0.75rem 0',
-    caretColor: 'var(--color-base-content)',
+    caretColor: 'var(--foreground)',
   },
   '.cm-line': { padding: '0 0.85rem' },
   '.cm-gutters': {
     backgroundColor: 'transparent',
-    color: 'color-mix(in oklab, var(--color-base-content) 40%, transparent)',
+    color: 'var(--muted-foreground)',
     border: 'none',
   },
   '.cm-activeLine': {
-    backgroundColor: 'color-mix(in oklab, var(--color-base-content) 5%, transparent)',
+    backgroundColor: 'color-mix(in oklab, var(--foreground) 5%, transparent)',
   },
   '.cm-activeLineGutter': { backgroundColor: 'transparent' },
   '.cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection': {
-    backgroundColor: 'color-mix(in oklab, var(--color-primary) 30%, transparent)',
+    backgroundColor: 'color-mix(in oklab, var(--primary) 30%, transparent)',
   },
-  '.cm-cursor': { borderLeftColor: 'var(--color-base-content)' },
+  '.cm-cursor': { borderLeftColor: 'var(--foreground)' },
 });
 
 const highlightStyle = HighlightStyle.define([
-  { tag: t.heading, color: 'var(--color-primary)', fontWeight: '600' },
+  { tag: t.heading, color: 'var(--primary)', fontWeight: '600' },
   { tag: t.strong, fontWeight: '700' },
   { tag: t.emphasis, fontStyle: 'italic' },
-  { tag: t.link, color: 'var(--color-info)', textDecoration: 'underline' },
-  { tag: t.monospace, color: 'var(--color-secondary)' },
-  { tag: t.keyword, color: 'var(--color-primary)' },
-  { tag: t.string, color: 'var(--color-success)' },
-  { tag: [t.number, t.bool, t.null], color: 'var(--color-warning)' },
-  {
-    tag: t.comment,
-    color: 'color-mix(in oklab, var(--color-base-content) 50%, transparent)',
-    fontStyle: 'italic',
-  },
-  { tag: t.meta, color: 'color-mix(in oklab, var(--color-base-content) 60%, transparent)' },
+  { tag: t.link, color: 'var(--info)', textDecoration: 'underline' },
+  { tag: t.monospace, color: 'var(--info)' },
+  { tag: t.keyword, color: 'var(--primary)' },
+  { tag: t.string, color: 'var(--success)' },
+  { tag: [t.number, t.bool, t.null], color: 'var(--warning)' },
+  { tag: t.comment, color: 'var(--muted-foreground)', fontStyle: 'italic' },
+  { tag: t.meta, color: 'var(--muted-foreground)' },
 ]);
 
 export function MarkdownEditor({

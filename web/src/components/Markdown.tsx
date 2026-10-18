@@ -29,7 +29,7 @@ export function Markdown({
       button.type = 'button';
       button.textContent = 'copy';
       button.className =
-        'btn btn-ghost btn-xs absolute right-1.5 top-1.5 opacity-60 hover:opacity-100';
+        'absolute top-1.5 right-1.5 inline-flex h-6 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
       button.addEventListener('click', () => {
         void (async () => {
           try {

@@ -20,6 +20,7 @@ import {
   Plus,
   RefreshCw,
   Rows2,
+  Search,
   Send,
   Sparkles,
   Square,
@@ -55,7 +56,8 @@ export type IconName =
   | 'alert'
   | 'clock'
   | 'file'
-  | 'loader';
+  | 'loader'
+  | 'search';
 
 export const ICON_NAMES: IconName[] = [
   'arrow-left',
@@ -83,6 +85,7 @@ export const ICON_NAMES: IconName[] = [
   'clock',
   'file',
   'loader',
+  'search',
 ];
 
 const ICONS = {
@@ -111,6 +114,7 @@ const ICONS = {
   clock: Clock,
   file: FileText,
   loader: LoaderCircle,
+  search: Search,
 } satisfies Record<IconName, LucideIcon>;
 
 export function Icon({ name, className = 'size-4' }: { name: IconName; className?: string }) {

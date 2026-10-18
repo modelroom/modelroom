@@ -384,7 +384,8 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
         const rooms = await Promise.all(names.map((n) => roomInfo(cfg, n)));
         return sendJson(res, 200, {
           count: rooms.length,
-          rooms: rooms.map(publicRoom),
+          // `running` is live state, not a record: it comes from the chat map.
+          rooms: rooms.map((info) => ({ ...publicRoom(info), running: chats.has(info.name) })),
           facets: buildFacets(rooms),
           config: publicConfig(cfg),
         });

@@ -19,15 +19,17 @@ lib/agents/index.ts     adapters: opencode | command
 lib/artifact.ts         optional HTML → PNG (Playwright, dynamically imported)
 web/                    the tool's UI source (React + shadcn/ui + CodeMirror)
   src/components/ui/    shadcn/ui primitives, source we own
-  src/components/       the room's panels (chat · docs · artifact · session)
+  src/components/       shared panels and pieces (chat · docs · artifact · session)
+  src/room/             the room app
+  src/dashboard/        the room list
+  src/settings/         the agent settings
   src/kit.tsx           the component workshop (`ui/kit.html`)
-  src/main.tsx          the one entry: room app or workshop, from `data-app`
+  src/main.tsx          the one entry: the apps, picked from the shell's `data-app`
 scripts/build-web.mjs   esbuild → ui/assets/app.js (committed)
 ui/                     the tool's UI, as served (shells + built assets, committed)
 ui/assets/app.js        the built bundle; never edited by hand
-ui/kit.html             the workshop page: every primitive in isolation
-ui/dashboard.html       the dashboard (still plain HTML + daisyUI)
-src/modelroom.css       Tailwind/daisyUI source → ui/modelroom.css
+ui/*.html               the four shells: `data-app` + the bundle, nothing else
+src/modelroom.css       Tailwind + the shadcn tokens → ui/modelroom.css
 templates/              what `modelroom init` writes
 examples/rooms/         the demo room(s) used by this repo's modelroom.json
 test/                   vitest: unit + one end-to-end pass over the server
@@ -65,7 +67,7 @@ the UI silently loses classes or ships stale code. `npm run build` does all of i
 3. **The tool UI is React + shadcn/ui.** Primitives live in `web/src/components/ui` as
    shadcn source we own — add one with `npx shadcn@latest add <name>`, then show it in the
    workshop. Tailwind classes are scanned from `web/**` and `ui/*.html`; the built CSS and
-   bundle are committed.
+   bundle are committed, and every page is a shell that loads the same bundle.
 4. **Server-rendered HTML is never modified.** `/files/...` must stay byte-identical to disk.
    Never inject scripts into served content; the tool's own UI lives in `ui/`.
 5. **The design layer never reads the application.** Do not add features that read code
@@ -76,14 +78,14 @@ the UI silently loses classes or ships stale code. `npm run build` does all of i
 
 ## The tool UI (`web/`)
 
-- **One entry, one bundle.** `web/src/main.tsx` renders the room app or the workshop from
-  the shell's `data-app`, so nothing is shipped twice. `scripts/build-web.mjs` is the only
-  build; it writes `ui/assets/app.js`.
-- **shadcn on daisyUI's palette.** shadcn's token names (`background`, `card`, `muted`,
-  `border`, `ring`, `destructive`) are mapped onto daisyUI's colours in `src/modelroom.css`,
-  so one theme switch still drives everything. The React app does **not** use daisyUI
-  component classes (`btn`, `badge`, `loading`); `dashboard.html` and `settings.html` still
-  do, until they are ported.
+- **One entry, one bundle.** `web/src/main.tsx` renders the app the shell asks for
+  (`data-app` = room | dashboard | settings | kit), so nothing is shipped twice and a page
+  is a shell plus one script. `scripts/build-web.mjs` is the only build; it writes
+  `ui/assets/app.js`.
+- **One design system, and its tokens live in `src/modelroom.css`.** shadcn's token names
+  are written out for light and dark; the switch is `data-theme` on `<html>`, set before
+  paint by a script in each shell. A new surface uses these tokens — there is no second
+  component library to borrow classes from.
 - **Panels are panels.** The four columns and the docs' edit/preview split use shadcn's
   `resizable` (`react-resizable-panels`). It is pinned to the 3.x line — 4.x renamed the
   components, and shadcn's source targets 3.x.
