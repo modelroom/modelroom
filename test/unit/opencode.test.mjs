@@ -68,10 +68,26 @@ test('sessionView normalizes an opencode session', async () => {
     assert.equal(view.stats.tokens.cacheRead, 3000);
     // context = last turn's fresh input + cache reads
     assert.deepEqual(view.context, { used: 4000, limit: 10000, pct: 40 });
-    assert.deepEqual(view.lines, [
-      { role: 'user', text: 'タイトルを変えて' },
-      { role: 'assistant', text: 'hello' },
-      { role: 'meta', text: '[shell] completed' },
+    assert.deepEqual(view.turns, [
+      { role: 'user', parts: [{ kind: 'text', text: 'タイトルを変えて' }] },
+      {
+        role: 'assistant',
+        parts: [
+          { kind: 'text', text: 'hello' },
+          {
+            kind: 'tool',
+            id: 'tool-1',
+            name: 'shell',
+            status: 'completed',
+            summary: null,
+            files: [],
+            output: null,
+            exit: null,
+            truncated: false,
+          },
+          { kind: 'reasoning', text: 'hidden thinking' },
+        ],
+      },
     ]);
     assert.equal(view.mcp[0].name, 'notion');
     assert.equal(view.mcp[0].error, 'timeout');

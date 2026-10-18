@@ -67,6 +67,37 @@ export interface TokenUsage {
   cacheWrite: number;
 }
 
+/** One file an edit touched, with the patch opencode produced for it. */
+export interface DiffFile {
+  file: string;
+  patch: string;
+}
+
+/**
+ * A turn is a list of parts. `text` is what the model said, `reasoning` is what
+ * it thought, and `tool` is one call with its input, output and patches — all of
+ * it from the session API, none of it parsed out of the CLI's stdout.
+ */
+export type Part =
+  | { kind: 'text'; text: string }
+  | { kind: 'reasoning'; text: string }
+  | {
+      kind: 'tool';
+      id: string;
+      name: string;
+      status: 'running' | 'completed' | 'error';
+      summary: string | null;
+      files: DiffFile[];
+      output: string | null;
+      exit: number | null;
+      truncated: boolean;
+    };
+
+export interface Turn {
+  role: 'user' | 'assistant';
+  parts: Part[];
+}
+
 export interface SessionView {
   available: boolean;
   room: string;
@@ -78,7 +109,7 @@ export interface SessionView {
     model: string | null;
   };
   context?: { used: number; limit: number; pct: number } | null;
-  lines?: Array<{ role: 'user' | 'assistant' | 'meta'; text: string }>;
+  turns?: Turn[];
   mcp?: Array<{ name: string; status: string; error: string | null }>;
   skills?: string[];
   workspace?: string | null;
