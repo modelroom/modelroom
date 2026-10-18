@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.5](https://github.com/modelroom/modelroom/compare/modelroom-v0.0.4...modelroom-v0.0.5) (2026-10-18)
+
+
+### Features
+
+* **chat:** show a turn as parts — tool cards, diffs, reasoning ([#8](https://github.com/modelroom/modelroom/issues/8)) ([398847b](https://github.com/modelroom/modelroom/commit/398847b833af40d3cccc1a676e87fbaade70eb7c))
+
 ## [0.0.4](https://github.com/modelroom/modelroom/compare/modelroom-v0.0.3...modelroom-v0.0.4) (2026-10-18)
 
 
