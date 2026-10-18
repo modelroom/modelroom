@@ -12,14 +12,18 @@ import { useState, type ReactNode } from 'react';
 import { Markdown } from './components/Markdown.tsx';
 import { Badge } from './components/ui/badge.tsx';
 import { Button } from './components/ui/button.tsx';
+import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card.tsx';
+import { Checkbox } from './components/ui/checkbox.tsx';
 import { CopyButton } from './components/ui/CopyButton.tsx';
 import { Icon, ICON_NAMES } from './components/ui/Icon.tsx';
+import { Input } from './components/ui/input.tsx';
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from './components/ui/resizable.tsx';
 import { Segmented } from './components/ui/Segmented.tsx';
+import { Select } from './components/ui/select.tsx';
 import { Separator } from './components/ui/separator.tsx';
 import { Skeleton } from './components/ui/skeleton.tsx';
 import { renderDoc } from './lib/markdown.ts';
@@ -172,6 +176,44 @@ export function Kit() {
         <div className="max-w-[42rem] rounded-lg border border-border p-4">
           <Markdown source={SAMPLE_DOC} render={renderDoc} className={PROSE_CLASS} />
         </div>
+      </Section>
+
+      <Section
+        title="Form controls"
+        hint="Input, Checkbox (Radix), Select — the dashboard's facets and the settings form."
+      >
+        <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium">Command</span>
+            <Input placeholder="opencode" defaultValue="opencode" className="font-mono" />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium">Model</span>
+            <Select defaultValue="default">
+              <option value="default">let the agent decide</option>
+              <option value="fast">fast</option>
+            </Select>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox defaultChecked />
+            <span className="text-muted-foreground">archived (2)</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox />
+            <span className="text-muted-foreground">unchecked</span>
+          </label>
+        </div>
+      </Section>
+
+      <Section title="Card" hint="The dashboard's surfaces.">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>No rooms yet</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            A room is one screen: <code className="font-mono">rooms/&lt;name&gt;/</code>.
+          </CardContent>
+        </Card>
       </Section>
 
       <Section

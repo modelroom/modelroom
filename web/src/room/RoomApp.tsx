@@ -14,6 +14,7 @@ import { ArtifactPanel } from '../components/ArtifactPanel.tsx';
 import { ChatPanel } from '../components/ChatPanel.tsx';
 import { DocsPanel } from '../components/DocsPanel.tsx';
 import { SessionPanel } from '../components/SessionPanel.tsx';
+import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import { Badge } from '../components/ui/badge.tsx';
 import { Button } from '../components/ui/button.tsx';
 import { Icon } from '../components/ui/Icon.tsx';
@@ -70,17 +71,6 @@ export function RoomApp() {
   useServerEvent<{ room: string }>('chat-done', (event) => {
     if (event.room === room) reload();
   });
-
-  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
-    load<'light' | 'dark'>(
-      'modelroom.theme',
-      document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
-    ),
-  );
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    save('modelroom.theme', theme);
-  }, [theme]);
 
   const narrow = useMediaQuery('(max-width: 1023px)');
   const [mobileTab, setMobileTab] = useState<MobileTab>('chat');
@@ -176,14 +166,7 @@ export function RoomApp() {
             <Icon name="plus" className="size-3.5" />
             new session
           </Button>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          >
-            <Icon name={theme === 'dark' ? 'sun' : 'moon'} className="size-4" />
-          </Button>
+          <ThemeToggle />
           {!narrow && (
             <Button
               variant="ghost"
