@@ -44,6 +44,8 @@ export interface DocResponse {
   name: string;
   text: string;
   mtime: number;
+  /** sha256 of the text, truncated — the version a save is based on. */
+  hash: string;
   missing?: boolean;
   error?: string;
 }
@@ -52,6 +54,7 @@ export interface PutDocResponse {
   room?: string;
   name?: string;
   mtime?: number;
+  hash?: string;
   error?: string;
   text?: string;
 }
@@ -110,6 +113,7 @@ export async function putDoc(body: {
   room: string;
   name: string;
   text: string;
+  hash: string;
   mtime: number;
 }): Promise<{ ok: boolean; status: number; data: PutDocResponse }> {
   const res = await fetch('/api/doc', {

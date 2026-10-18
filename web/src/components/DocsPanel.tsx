@@ -31,10 +31,14 @@ interface DocEntry {
   text: string;
   savedText: string;
   mtime: number;
+  /** The version this entry is based on: the text's hash, per doc. */
+  hash: string;
   savedAt: number;
   tone: Tone;
+  /** 'disk' = what we last read; 'saved' = what we last wrote. */
+  origin: 'disk' | 'saved';
   error?: string;
-  conflict?: { text: string; mtime: number };
+  conflict?: { text: string; hash: string };
 }
 
 const AUTOSAVE_MS = 800;
@@ -60,8 +64,11 @@ function statusOf(entry: DocEntry): { text: string; tone: string } {
   if (entry.tone === 'conflict') return { text: 'changed elsewhere', tone: 'text-warning' };
   if (entry.tone === 'saving') return { text: 'saving…', tone: 'text-muted-foreground' };
   if (entry.text !== entry.savedText) return { text: 'unsaved…', tone: 'text-muted-foreground' };
-  if (entry.savedAt)
-    return { text: `saved ${clock(entry.savedAt)}`, tone: 'text-muted-foreground' };
+  if (entry.savedAt) {
+    // "on disk" until we have written it — the file's mtime is not our save.
+    const what = entry.origin === 'saved' ? 'saved' : 'on disk';
+    return { text: `${what} ${clock(entry.savedAt)}`, tone: 'text-muted-foreground' };
+  }
   return { text: '', tone: '' };
 }
 
@@ -127,7 +134,16 @@ export function DocsPanel({
     Object.fromEntries(
       docs.map((name) => [
         name,
-        { name, text: '', savedText: '', mtime: 0, savedAt: 0, tone: 'idle' as Tone },
+        {
+          name,
+          text: '',
+          savedText: '',
+          mtime: 0,
+          hash: '',
+          savedAt: 0,
+          tone: 'idle' as Tone,
+          origin: 'disk' as const,
+        },
       ]),
     ),
   );
@@ -173,12 +189,18 @@ export function DocsPanel({
       }
       const current = ref.current[name];
       if (!force && current && current.text !== current.savedText) return; // don't clobber typing
+      // Our own save also bumps the file's mtime, so the watcher fires and we land
+      // here again. If the content is what we just wrote, it is still our save —
+      // don't relabel it "on disk".
+      const unchanged = current !== undefined && data.text === current.savedText;
       patch(name, {
         text: data.text,
         savedText: data.text,
         mtime: data.mtime,
-        savedAt: data.mtime || Date.now(),
+        hash: data.hash,
+        savedAt: unchanged && current ? current.savedAt : data.mtime || Date.now(),
         tone: 'saved',
+        origin: unchanged && current?.origin === 'saved' ? 'saved' : 'disk',
         error: undefined,
         conflict: undefined,
       });
@@ -195,14 +217,17 @@ export function DocsPanel({
         room,
         name,
         text: entry.text,
+        hash: entry.hash,
         mtime: entry.mtime,
       });
       if (ok) {
         patch(name, {
           mtime: data.mtime ?? entry.mtime,
+          hash: data.hash ?? entry.hash,
           savedText: entry.text,
           savedAt: Date.now(),
           tone: 'saved',
+          origin: 'saved',
           error: undefined,
         });
         return;
@@ -210,7 +235,7 @@ export function DocsPanel({
       if (status === 409) {
         patch(name, {
           tone: 'conflict',
-          conflict: { text: data.text ?? '', mtime: data.mtime ?? 0 },
+          conflict: { text: data.text ?? '', hash: data.hash ?? '' },
         });
         return;
       }
@@ -254,7 +279,8 @@ export function DocsPanel({
   const conflictKeep = async (name: string) => {
     const entry = ref.current[name];
     if (!entry?.conflict) return;
-    patch(name, { mtime: entry.conflict.mtime, tone: 'idle', conflict: undefined });
+    // Rebase onto theirs: their version becomes the one we are editing on top of.
+    patch(name, { hash: entry.conflict.hash, tone: 'idle', conflict: undefined });
     await saveDoc(name);
   };
   const conflictTake = (name: string) => {
@@ -263,9 +289,10 @@ export function DocsPanel({
     patch(name, {
       text: entry.conflict.text,
       savedText: entry.conflict.text,
-      mtime: entry.conflict.mtime,
+      hash: entry.conflict.hash,
       savedAt: Date.now(),
       tone: 'saved',
+      origin: 'disk',
       conflict: undefined,
     });
   };

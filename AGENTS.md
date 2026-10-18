@@ -89,6 +89,11 @@ the UI silently loses classes or ships stale code. `npm run build` does all of i
   components, and shadcn's source targets 3.x.
 - **The markdown is escaped.** markdown-it runs with `html: false`, so a doc or a reply can
   never inject markup into the tool; links get `target="_blank"` and `rel="noopener"`.
+- **Docs are written one way.** `GET /api/doc` returns the text and a content hash;
+  `PUT /api/doc` sends the text back with the hash it was based on and is refused (409,
+  with the current text) when they disagree. The mtime is still accepted as a fallback for
+  scripts. Writes to one file are queued in the server, so an autosave and the agent's edit
+  cannot interleave and silently lose one of them. `cfg.docs` is still the whole writable set.
 - **The workshop is the review surface.** A change to a primitive or a panel state should be
   visible at `/ui/kit.html` without opening a room. That is the Storybook, without the
   dependency tree.
