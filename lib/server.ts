@@ -5,6 +5,7 @@
 // room docs you allow (`cfg.docs`), and it never reads your application code.
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { createHash } from 'node:crypto';
 import { watch, type FSWatcher } from 'node:fs';
 import { readFile, mkdir, open } from 'node:fs/promises';
 import { dirname, extname, join, normalize, relative, sep } from 'node:path';
@@ -279,6 +280,32 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
     }
   }
 
+  /**
+   * The version of a doc's content. Two writes can be a millisecond apart, so the
+   * mtime is not a reliable "did this change" token; the hash is.
+   */
+  const hashOf = (text: string): string =>
+    createHash('sha256').update(text, 'utf8').digest('hex').slice(0, 16);
+
+  // One writer per file. Your autosave and the agent's edit can arrive together,
+  // and the version check alone cannot stop them interleaving — so saves to the
+  // same path are queued, and the check runs inside the queue.
+  const writeQueues = new Map<string, Promise<void>>();
+  function withFileLock<T>(file: string, work: () => Promise<T>): Promise<T> {
+    const previous = writeQueues.get(file) ?? Promise.resolve();
+    const result = previous.then(work);
+    const settled = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    writeQueues.set(file, settled);
+    void (async () => {
+      await settled;
+      if (writeQueues.get(file) === settled) writeQueues.delete(file);
+    })();
+    return result;
+  }
+
   async function readBody(req: IncomingMessage, limit = 400_000): Promise<string> {
     let size = 0;
     const chunks: Buffer[] = [];
@@ -391,9 +418,16 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
         try {
           const p = join(cfg.roomsDir, room, name);
           const { text, mtime } = await readDoc(p);
-          return sendJson(res, 200, { room, name, text, mtime });
+          return sendJson(res, 200, { room, name, text, mtime, hash: hashOf(text) });
         } catch {
-          return sendJson(res, 200, { room, name, text: '', mtime: 0, missing: true });
+          return sendJson(res, 200, {
+            room,
+            name,
+            text: '',
+            mtime: 0,
+            hash: hashOf(''),
+            missing: true,
+          });
         }
       }
 
@@ -407,34 +441,57 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
           return sendJson(res, 403, { error: 'this file is not editable' });
         }
         const p = join(cfg.roomsDir, target, name);
-        // Check and write through one handle: nobody can swap the file between
-        // the mtime comparison and the write.
-        // 'a+' creates the file when it is missing and never truncates on open,
-        // so there is no window between "does it exist" and the write.
-        const fh = await open(p, 'a+');
-        try {
-          const s = await fh.stat();
-          if (body.mtime && Number(body.mtime) !== s.mtimeMs) {
-            return sendJson(res, 409, {
-              error: 'changed elsewhere',
-              text: await fh.readFile('utf8'),
-              mtime: s.mtimeMs,
-            });
-          }
-          const text = typeof body.text === 'string' ? body.text : '';
-          await fh.truncate(0);
-          await fh.writeFile(text, 'utf8');
-          const written = await fh.stat();
+        // The version this save is based on: a content hash when the client sends
+        // one (the room UI does), otherwise the mtime. Both the check and the write
+        // run inside the file's queue, so two saves can never interleave.
+        // 'a+' creates the file when it is missing and never truncates on open, so
+        // there is no window between "does it exist" and the write.
+        const expectedHash = typeof body.hash === 'string' && body.hash ? body.hash : null;
+        const expectedMtime = body.mtime ? Number(body.mtime) : null;
+        const outcome = await withFileLock(
+          p,
+          async (): Promise<{ status: number; body: Record<string, unknown> }> => {
+            const fh = await open(p, 'a+');
+            try {
+              const s = await fh.stat();
+              const current = await fh.readFile('utf8');
+              const currentHash = hashOf(current);
+              const changed = expectedHash
+                ? currentHash !== expectedHash
+                : expectedMtime !== null && expectedMtime !== s.mtimeMs;
+              if (changed) {
+                return {
+                  status: 409,
+                  body: {
+                    error: 'changed elsewhere',
+                    text: current,
+                    mtime: s.mtimeMs,
+                    hash: currentHash,
+                  },
+                };
+              }
+              const text = typeof body.text === 'string' ? body.text : '';
+              await fh.truncate(0);
+              await fh.writeFile(text, 'utf8');
+              const written = await fh.stat();
+              return {
+                status: 200,
+                body: { room: target, name, mtime: written.mtimeMs, hash: hashOf(text) },
+              };
+            } finally {
+              await fh.close();
+            }
+          },
+        );
+        if (outcome.status === 200) {
           broadcast('doc-saved', {
             room: target,
             name,
-            mtime: written.mtimeMs,
+            mtime: outcome.body.mtime,
             at: Date.now(),
           });
-          return sendJson(res, 200, { room: target, name, mtime: written.mtimeMs });
-        } finally {
-          await fh.close();
         }
+        return sendJson(res, outcome.status, outcome.body);
       }
       if (path === '/api/doc') return sendJson(res, 405, { error: 'GET or PUT' });
 

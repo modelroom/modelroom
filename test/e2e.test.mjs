@@ -76,9 +76,18 @@ test('the server keeps its promises', async () => {
     check(dash.status === 200 && dashHtml.includes('modelroom'), 'GET / serves the dashboard');
 
     const roomPage = await fetch(`${base}/room/${room}`);
+    const roomHtml = await roomPage.text();
     check(
-      roomPage.status === 200 && (await roomPage.text()).includes('Chat'),
-      'GET /room/<name> serves the workspace',
+      roomPage.status === 200 &&
+        roomHtml.includes('id="root"') &&
+        roomHtml.includes('/ui/assets/app.js'),
+      'GET /room/<name> serves the workspace shell',
+    );
+
+    const bundle = await fetch(`${base}/ui/assets/app.js`);
+    check(
+      bundle.status === 200 && (bundle.headers.get('content-type') ?? '').includes('javascript'),
+      'the room UI bundle is served as JavaScript',
     );
 
     const settings = await fetch(`${base}/settings`);
@@ -121,6 +130,48 @@ test('the server keeps its promises', async () => {
       body: JSON.stringify({ room, name: 'BRIEF.md', text: 'x', mtime: 1 }),
     });
     check(stale.status === 409, 'PUT /api/doc refuses to overwrite a file changed elsewhere');
+    check(
+      typeof docBody.hash === 'string' && docBody.hash.length > 0,
+      'GET /api/doc returns a content hash',
+    );
+
+    const staleHash = await fetch(`${base}/api/doc`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ room, name: 'BRIEF.md', text: 'x', hash: 'not-the-hash' }),
+    });
+    const staleHashBody = await staleHash.json();
+    check(
+      staleHash.status === 409 && typeof staleHashBody.hash === 'string',
+      'PUT /api/doc refuses a stale hash and says which version is on disk',
+    );
+
+    // A real save — and the same file put back, so the working tree ends unchanged.
+    let savedHash = docBody.hash;
+    try {
+      const saved = await fetch(`${base}/api/doc`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          room,
+          name: 'BRIEF.md',
+          text: `${docBody.text}\n<!-- probe -->\n`,
+          hash: docBody.hash,
+        }),
+      });
+      const savedBody = await saved.json();
+      savedHash = savedBody.hash;
+      check(
+        saved.status === 200 && savedBody.hash !== docBody.hash,
+        'PUT /api/doc saves when the hash matches, and returns the new one',
+      );
+    } finally {
+      await fetch(`${base}/api/doc`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ room, name: 'BRIEF.md', text: docBody.text, hash: savedHash }),
+      });
+    }
 
     // SSE: a room file change must stream to connected clients
     const briefPath = join(pkgDir, rooms.config.rooms, room, 'BRIEF.md');
