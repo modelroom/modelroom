@@ -18,6 +18,7 @@
   "env": {
     "builtin": true,
     "node": true,
+    "browser": true,
     "es2024": true
   },
   "ignorePatterns": ["dist/**", "coverage/**", "ui/**", "examples/**", "templates/**"]

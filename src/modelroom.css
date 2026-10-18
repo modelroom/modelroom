@@ -1,7 +1,7 @@
-/* modelroom — tool UI stylesheet (Tailwind + daisyUI)
+/* modelroom — tool UI stylesheet (Tailwind + daisyUI + typography)
  *
  * The built file (ui/modelroom.css) is committed, so `npx modelroom` needs no build.
- * Rebuild after changing ui/*.html or this file:
+ * Rebuild after changing ui/*.html, web/** or this file:
  *   npm run build:css
  *
  * Only the tool's own UI is scanned here. Room artifacts (the HTML you hand to
@@ -10,6 +10,7 @@
 @import 'tailwindcss';
 
 @source "../ui/*.html";
+@source "../web";
 
 @plugin "daisyui" {
   themes:
@@ -17,11 +18,48 @@
     dark --prefersdark;
 }
 
+@plugin "@tailwindcss/typography";
+
+/* daisyUI switches themes with `data-theme`; make Tailwind's `dark:` follow it,
+ * not the OS. This is what lets `prose-invert` track the daisyUI theme. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
 @theme {
   --font-sans:
     'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', system-ui, -apple-system,
     'Segoe UI', sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ── shadcn/ui tokens ─────────────────────────────────────────────────────
+ * The room UI is built from shadcn/ui — component source we own, Radix
+ * primitives underneath, lucide icons, `cn()` for class merging. shadcn expects
+ * its own token names; they are mapped onto daisyUI's palette here, so a single
+ * theme switch still drives the whole tool. When the dashboard and settings
+ * move to shadcn too, daisyUI can go and these can be written out directly.
+ */
+@theme inline {
+  --color-background: var(--color-base-100);
+  --color-foreground: var(--color-base-content);
+  --color-card: var(--color-base-100);
+  --color-card-foreground: var(--color-base-content);
+  --color-popover: var(--color-base-100);
+  --color-popover-foreground: var(--color-base-content);
+  --color-muted: var(--color-base-200);
+  --color-muted-foreground: color-mix(in oklab, var(--color-base-content) 58%, transparent);
+  --color-border: var(--color-base-300);
+  --color-input: var(--color-base-300);
+  --color-ring: var(--color-primary);
+  --color-destructive: var(--color-error);
+  --color-destructive-foreground: var(--color-error-content);
+  --color-primary-foreground: var(--color-primary-content);
+  /* shadcn's `secondary` and `accent` are quiet surfaces, not brand colours.
+   * daisyUI's brand ones stay available as `--color-*` at runtime; nothing in
+   * the tool uses them as utilities. */
+  --color-secondary: var(--color-base-200);
+  --color-secondary-foreground: var(--color-base-content);
+  --color-accent: var(--color-base-200);
+  --color-accent-foreground: var(--color-base-content);
 }
 
 /* Small app-specific touches on top of daisyUI defaults. */
@@ -35,15 +73,113 @@
   }
   .mr-scroll {
     scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--color-base-content) 25%, transparent) transparent;
+  }
+  .mr-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .mr-scroll::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklab, var(--color-base-content) 20%, transparent);
+    border-radius: 999px;
   }
   .mr-prose {
     white-space: pre-wrap;
     word-break: break-word;
   }
-  .mr-doc-area {
+
+  /* Rendered markdown (chat replies and doc preview) keeps a calm rhythm and
+   * never lets a long word or a wide code block blow the panel apart. */
+  .mr-markdown {
+    overflow-wrap: anywhere;
+  }
+  .mr-markdown pre {
+    overflow-x: auto;
+    border-radius: var(--radius-box, 0.5rem);
+    background-color: color-mix(in oklab, var(--color-base-content) 6%, transparent);
+    padding: 0.75rem 0.9rem;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+  }
+  .mr-markdown :not(pre) > code {
+    background-color: color-mix(in oklab, var(--color-base-content) 8%, transparent);
+    padding: 0.1em 0.35em;
+    border-radius: 0.3rem;
+    font-size: 0.85em;
+  }
+  .mr-markdown table {
+    display: block;
+    overflow-x: auto;
+  }
+
+  /* CodeMirror: the editor fills its pane and speaks in the UI's font. */
+  .mr-editor .cm-editor {
+    height: 100%;
+  }
+  .mr-editor .cm-scroller {
     font-family: var(--font-mono);
     font-size: 0.8125rem;
     line-height: 1.7;
-    tab-size: 2;
+  }
+  .mr-editor .cm-editor.cm-focused {
+    outline: none;
+  }
+}
+
+/* Code fences, coloured from the theme so light and dark both read well.
+ * highlight.js emits these class names; the palette is ours. */
+@layer components {
+  .hljs-comment,
+  .hljs-quote {
+    color: color-mix(in oklab, var(--color-base-content) 50%, transparent);
+    font-style: italic;
+  }
+  .hljs-keyword,
+  .hljs-selector-tag,
+  .hljs-built_in,
+  .hljs-name,
+  .hljs-tag {
+    color: var(--color-primary);
+  }
+  .hljs-string,
+  .hljs-attr-value,
+  .hljs-regexp,
+  .hljs-addition {
+    color: var(--color-success);
+  }
+  .hljs-number,
+  .hljs-literal,
+  .hljs-bullet,
+  .hljs-symbol {
+    color: var(--color-warning);
+  }
+  .hljs-title,
+  .hljs-title.function_,
+  .hljs-title.class_,
+  .hljs-section,
+  .hljs-selector-id,
+  .hljs-selector-class {
+    color: var(--color-accent);
+  }
+  .hljs-attr,
+  .hljs-attribute,
+  .hljs-property,
+  .hljs-variable,
+  .hljs-template-variable,
+  .hljs-selector-attr,
+  .hljs-selector-pseudo,
+  .hljs-meta {
+    color: var(--color-info);
+  }
+  .hljs-type,
+  .hljs-params,
+  .hljs-deletion {
+    color: var(--color-secondary);
+  }
+  .hljs-emphasis {
+    font-style: italic;
+  }
+  .hljs-strong {
+    font-weight: 600;
   }
 }
