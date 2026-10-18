@@ -9,17 +9,21 @@
 <title>Room — modelroom</title>
 <link rel="stylesheet" href="/ui/modelroom.css">
 <script>
-// Theme before paint: the bundle is React, but the first frame should not flash.
+// Theme before paint: Mantine reads `data-mantine-color-scheme`, so the first
+// frame is already the right colour and nothing flashes on load.
 try {
   var stored = localStorage.getItem('modelroom.theme');
-  document.documentElement.dataset.theme = stored
-    ? JSON.parse(stored)
-    : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-} catch (error) { /* the default is light */ }
+  document.documentElement.setAttribute(
+    'data-mantine-color-scheme',
+    stored
+      ? JSON.parse(stored)
+      : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
+  );
+} catch (error) { /* Mantine falls back to the OS preference */ }
 </script>
 </head>
-<body class="h-dvh overflow-hidden bg-background text-foreground font-sans">
-<div id="root" data-app="room" class="h-full"></div>
+<body>
+<div id="root" data-app="room" class="mr-app mr-app-fixed"></div>
 <script type="module" src="/ui/assets/app.js"></script>
 </body>
 </html>

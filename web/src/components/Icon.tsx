@@ -1,5 +1,6 @@
-// One icon set — lucide, the set shadcn uses — behind a name so the workshop can
-// list them and callers do not import thirty symbols each.
+// One icon set — lucide — behind a name, so callers do not import thirty symbols
+// each and the workshop can list them. Icons are never the interactive element:
+// a `Button`/`ActionIcon` owns the click, this only draws.
 
 import {
   ArrowLeft,
@@ -117,7 +118,17 @@ const ICONS = {
   search: Search,
 } satisfies Record<IconName, LucideIcon>;
 
-export function Icon({ name, className = 'size-4' }: { name: IconName; className?: string }) {
+export function Icon({
+  name,
+  size = 16,
+  strokeWidth = 2,
+  className,
+}: {
+  name: IconName;
+  size?: number;
+  strokeWidth?: number;
+  className?: string;
+}) {
   const Component = ICONS[name];
-  return <Component className={className} aria-hidden="true" />;
+  return <Component size={size} strokeWidth={strokeWidth} className={className} aria-hidden />;
 }

@@ -35,7 +35,7 @@ application code.
 | Where | What |
 |---|---|
 | `/` | every room, side by side, with thumbnails — full-text search and filters built from the records |
-| `/room/<name>` | chat, the room's docs (editable), and the artifact — updating as the agent works |
+| `/rooms/<name>` | chat, the room's docs (editable), and the artifact — updating as the agent works |
 | `/settings` | which agent to run, and with which model |
 | `/files/<path>` | your repository, served read-only and **unmodified** (no injected scripts) |
 
@@ -99,15 +99,17 @@ Full detail, including how to scope an agent so it can only write room files, is
 
 ```bash
 git clone https://github.com/modelroom/modelroom && cd modelroom
-npm install                 # dev only: tailwind/daisyUI (CSS is committed) + playwright (optional)
+npm install                 # dev only: Mantine + React (both bundled, committed) + playwright (optional)
 npm test                    # smoke checks
 npm run modelroom           # serves examples/rooms
-npm run build:css           # after changing ui/*.html
+npm run build:css           # after changing ui/*.html or src/modelroom.css
+npm run build:web           # after changing web/**
 ```
 
-The stylesheet in `ui/` is built and committed, so users never run a build step. Artifacts (in
-`templates/` and `examples/`) are deliberately framework-free: plain HTML and CSS, no CDN, no web
-fonts — they are handed to implementation and must render with no network.
+The stylesheet and the JS bundle in `ui/` are built and committed, so users never run a build
+step. The tool's UI is React + [Mantine](https://mantine.dev); artifacts (in `templates/` and
+`examples/`) are deliberately framework-free: plain HTML and CSS, no CDN, no web fonts — they
+are handed to implementation and must render with no network.
 
 PNG thumbnails are optional and need Playwright:
 

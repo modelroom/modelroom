@@ -580,12 +580,20 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
       if (path.startsWith('/files/')) return await serveFile(res, path);
       if (path.startsWith('/ui/')) return await serveUiAsset(res, path);
 
+      // The room address is `/rooms/<name>` — plural, like `/api/rooms` and the
+      // `rooms/` directory it reads. `/room/<name>` was the old one; it still
+      // lands on the room rather than a 404.
+      if (path.startsWith('/room/')) {
+        res.writeHead(302, { location: `/rooms/${path.slice('/room/'.length)}${url.search}` });
+        return res.end();
+      }
+
       const page =
         path === '/'
           ? 'dashboard.html'
           : path === '/settings'
             ? 'settings.html'
-            : path.startsWith('/room/')
+            : path.startsWith('/rooms/')
               ? 'room.html'
               : null;
       if (page) return await serveUi(res, page);

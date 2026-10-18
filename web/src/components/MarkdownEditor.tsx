@@ -34,49 +34,51 @@ const theme = EditorView.theme({
   '&': {
     height: '100%',
     backgroundColor: 'transparent',
-    color: 'var(--foreground)',
+    color: 'var(--mr-text)',
   },
   '.cm-content': {
-    fontFamily: 'var(--font-mono)',
+    fontFamily: 'var(--mr-mono)',
     padding: '0.75rem 0',
-    caretColor: 'var(--foreground)',
+    caretColor: 'var(--mr-text)',
   },
   '.cm-line': { padding: '0 0.85rem' },
   '.cm-gutters': {
     backgroundColor: 'transparent',
-    color: 'var(--muted-foreground)',
+    color: 'var(--mr-dimmed)',
     border: 'none',
   },
   '.cm-activeLine': {
-    backgroundColor: 'color-mix(in oklab, var(--foreground) 5%, transparent)',
+    backgroundColor: 'color-mix(in oklab, var(--mr-text) 5%, transparent)',
   },
   '.cm-activeLineGutter': { backgroundColor: 'transparent' },
   '.cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection': {
-    backgroundColor: 'color-mix(in oklab, var(--primary) 30%, transparent)',
+    backgroundColor: 'color-mix(in oklab, var(--mr-primary) 30%, transparent)',
   },
-  '.cm-cursor': { borderLeftColor: 'var(--foreground)' },
+  '.cm-cursor': { borderLeftColor: 'var(--mr-text)' },
 });
 
 const highlightStyle = HighlightStyle.define([
-  { tag: t.heading, color: 'var(--primary)', fontWeight: '600' },
+  { tag: t.heading, color: 'var(--mr-primary)', fontWeight: '600' },
   { tag: t.strong, fontWeight: '700' },
   { tag: t.emphasis, fontStyle: 'italic' },
-  { tag: t.link, color: 'var(--info)', textDecoration: 'underline' },
-  { tag: t.monospace, color: 'var(--info)' },
-  { tag: t.keyword, color: 'var(--primary)' },
-  { tag: t.string, color: 'var(--success)' },
-  { tag: [t.number, t.bool, t.null], color: 'var(--warning)' },
-  { tag: t.comment, color: 'var(--muted-foreground)', fontStyle: 'italic' },
-  { tag: t.meta, color: 'var(--muted-foreground)' },
+  { tag: t.link, color: 'var(--mr-info)', textDecoration: 'underline' },
+  { tag: t.monospace, color: 'var(--mr-info)' },
+  { tag: t.keyword, color: 'var(--mr-primary)' },
+  { tag: t.string, color: 'var(--mr-success)' },
+  { tag: [t.number, t.bool, t.null], color: 'var(--mr-warning)' },
+  { tag: t.comment, color: 'var(--mr-dimmed)', fontStyle: 'italic' },
+  { tag: t.meta, color: 'var(--mr-dimmed)' },
 ]);
 
 export function MarkdownEditor({
   value,
   onChange,
+  ariaLabel = 'Markdown source',
   className = '',
 }: {
   value: string;
   onChange: (value: string) => void;
+  ariaLabel?: string;
   className?: string;
 }) {
   const host = useRef<HTMLDivElement>(null);
@@ -112,6 +114,9 @@ export function MarkdownEditor({
         ]),
         markdown(),
         EditorView.lineWrapping,
+        // The editor is a `role="textbox"` with no text of its own; without a
+        // name screen readers announce it as an empty input.
+        EditorView.contentAttributes.of({ 'aria-label': ariaLabel }),
         theme,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) onChangeRef.current(update.state.doc.toString());

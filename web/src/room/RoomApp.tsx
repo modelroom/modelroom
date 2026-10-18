@@ -3,50 +3,48 @@
 // Wide screens show all four; the handles between them move and the layout is
 // remembered by the panel group. Narrow screens show one at a time, picked from
 // the switch under the navbar.
+//
+// The shell is Mantine's `AppShell`; the nav is `Button component="a"` and
+// `ActionIcon`.
 
 import { useCallback, useEffect, useState } from 'react';
+import {
+  ActionIcon,
+  Alert,
+  AppShell,
+  Box,
+  Button,
+  Group,
+  Loader,
+  SegmentedControl,
+  Text,
+  Tooltip,
+} from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { getRoom, postSession, type RoomResponse } from '../lib/api.ts';
 import { load, save } from '../lib/storage.ts';
-import { cn } from '../lib/utils.ts';
 import { useChat } from '../hooks/useChat.ts';
 import { useServerEvent, useServerEvents } from '../hooks/useServerEvents.tsx';
 import { ArtifactPanel } from '../components/ArtifactPanel.tsx';
 import { ChatPanel } from '../components/ChatPanel.tsx';
 import { DocsPanel } from '../components/DocsPanel.tsx';
+import { Icon } from '../components/Icon.tsx';
 import { SessionPanel } from '../components/SessionPanel.tsx';
+import { Split, SplitHandle, SplitPanel } from '../components/Split.tsx';
+import { AgentStatus, ToneBadge, toneForStatus } from '../components/Status.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
-import { Badge } from '../components/ui/badge.tsx';
-import { Button } from '../components/ui/button.tsx';
-import { Icon } from '../components/ui/Icon.tsx';
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from '../components/ui/resizable.tsx';
-import { Segmented } from '../components/ui/Segmented.tsx';
 
 type MobileTab = 'chat' | 'docs' | 'artifact' | 'session';
 
-function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
-  useEffect(() => {
-    const list = window.matchMedia(query);
-    const update = () => setMatches(list.matches);
-    list.addEventListener('change', update);
-    return () => list.removeEventListener('change', update);
-  }, [query]);
-  return matches;
-}
-
-const statusVariant = (status: string | null): 'success' | 'warning' | 'muted' =>
-  /adopt|approv|done|complete|accept/i.test(status ?? '')
-    ? 'success'
-    : /review/i.test(status ?? '')
-      ? 'warning'
-      : 'muted';
+const TABS = [
+  { value: 'chat', label: 'Chat' },
+  { value: 'docs', label: 'Docs' },
+  { value: 'artifact', label: 'Artifact' },
+  { value: 'session', label: 'Session' },
+];
 
 export function RoomApp() {
-  const room = decodeURIComponent(location.pathname.replace(/^\/room\//, '').split('?')[0] ?? '');
+  const room = decodeURIComponent(location.pathname.replace(/^\/rooms\//, '').split('?')[0] ?? '');
   const [data, setData] = useState<RoomResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const chat = useChat(room);
@@ -97,23 +95,32 @@ export function RoomApp() {
 
   if (error) {
     return (
-      <div className="flex h-full items-center justify-center p-6">
-        <div className="rounded-lg border border-border bg-card p-6 text-center">
-          <p className="text-sm text-muted-foreground">{error}</p>
-          <Button variant="outline" size="sm" className="mt-3" asChild>
-            <a href="/">← Rooms</a>
+      <Box h="100%" style={{ display: 'grid', placeItems: 'center', padding: 24 }}>
+        <Alert color="danger" title="Cannot open this room" maw={420}>
+          <Text size="sm" c="dimmed">
+            {error}
+          </Text>
+          <Button
+            component="a"
+            href="/"
+            size="compact-sm"
+            variant="default"
+            mt="sm"
+            leftSection={<Icon name="arrow-left" size={14} />}
+          >
+            Rooms
           </Button>
-        </div>
-      </div>
+        </Alert>
+      </Box>
     );
   }
 
   if (!data) {
     return (
-      <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
-        <Icon name="loader" className="size-4 animate-spin" />
-        loading room…
-      </div>
+      <Group h="100%" gap="xs" justify="center" c="dimmed">
+        <Loader size="sm" />
+        <Text size="sm">loading room…</Text>
+      </Group>
     );
   }
 
@@ -137,112 +144,138 @@ export function RoomApp() {
   const sessionPanel = <SessionPanel room={room} />;
 
   return (
-    <div className="flex h-full flex-col bg-background">
-      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-card px-3">
-        <Button variant="ghost" size="sm" asChild>
-          <a href="/">
-            <Icon name="arrow-left" className="size-4" />
-            Rooms
-          </a>
-        </Button>
-        <span className="truncate font-semibold">{title}</span>
-        <Badge variant="outline" className="hidden font-mono md:inline-flex">
-          {config.rooms}/{data.room.name}
-        </Badge>
-        {data.room.status && (
-          <Badge variant={statusVariant(data.room.status)}>{data.room.status}</Badge>
-        )}
-
-        <div className="ml-auto flex items-center gap-1.5">
-          <span className="hidden font-mono text-[11px] text-muted-foreground lg:inline">
-            {sessionLabel}
-          </span>
+    <AppShell header={{ height: 48 }} padding={0} withBorder={false}>
+      <AppShell.Header>
+        <Group h="100%" gap="xs" px="sm" wrap="nowrap">
           <Button
-            variant="ghost"
-            size="xs"
-            onClick={() => void newSession()}
-            disabled={chat.running}
+            component="a"
+            href="/"
+            variant="subtle"
+            color="gray"
+            size="compact-sm"
+            leftSection={<Icon name="arrow-left" size={15} />}
           >
-            <Icon name="plus" className="size-3.5" />
-            new session
+            Rooms
           </Button>
-          <ThemeToggle />
-          {!narrow && (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className={cn(sessionOpen && 'bg-muted text-foreground')}
-              title={sessionOpen ? 'Hide session panel' : 'Show session panel'}
-              onClick={() => setSessionOpen((open) => !open)}
-            >
-              <Icon name="panel-right" className="size-4" />
-            </Button>
+          <Text fw={600} truncate>
+            {title}
+          </Text>
+          <Box visibleFrom="md">
+            <ToneBadge tone="outline" ff="monospace">
+              {config.rooms}/{data.room.name}
+            </ToneBadge>
+          </Box>
+          {data.room.status && (
+            <ToneBadge tone={toneForStatus(data.room.status)}>{data.room.status}</ToneBadge>
           )}
-          <Badge
-            variant="outline"
-            className={cn(!connected && 'border-destructive text-destructive')}
-          >
-            {busy ? (
-              <Icon name="loader" className="size-3 animate-spin" />
-            ) : (
-              <span
-                className={cn('size-1.5 rounded-full', connected ? 'bg-success' : 'bg-destructive')}
-              />
-            )}
-            {connected ? (status?.message ?? 'ready') : 'reconnecting…'}
-          </Badge>
-        </div>
-      </div>
 
-      {narrow ? (
-        <>
-          <div className="flex shrink-0 items-center gap-2 border-b border-border bg-card px-3 py-1.5">
-            <Segmented
-              value={mobileTab}
-              onChange={setMobileTab}
-              options={[
-                { value: 'chat', label: 'Chat' },
-                { value: 'docs', label: 'Docs' },
-                { value: 'artifact', label: 'Artifact' },
-                { value: 'session', label: 'Session' },
-              ]}
-            />
-          </div>
-          <main className="flex min-h-0 flex-1 flex-col">
-            {mobileTab === 'chat'
-              ? chatPanel
-              : mobileTab === 'docs'
-                ? docsPanel
-                : mobileTab === 'artifact'
-                  ? artifactPanel
-                  : sessionPanel}
-          </main>
-        </>
-      ) : (
-        <main className="flex min-h-0 flex-1">
-          <ResizablePanelGroup direction="horizontal" autoSaveId="modelroom.room.layout">
-            <ResizablePanel defaultSize={24} minSize={16}>
+          <Group gap="xs" ml="auto" wrap="nowrap">
+            {sessionLabel && (
+              <Text
+                size="xs"
+                ff="monospace"
+                c="dimmed"
+                visibleFrom="lg"
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                {sessionLabel}
+              </Text>
+            )}
+            <Button
+              variant="subtle"
+              color="gray"
+              size="compact-xs"
+              onClick={() => void newSession()}
+              disabled={chat.running}
+              leftSection={<Icon name="plus" size={14} />}
+            >
+              new session
+            </Button>
+            <ThemeToggle />
+            {!narrow && (
+              <Tooltip label={sessionOpen ? 'Hide session panel' : 'Show session panel'} withArrow>
+                <ActionIcon
+                  variant={sessionOpen ? 'light' : 'subtle'}
+                  color="gray"
+                  size="md"
+                  aria-label={sessionOpen ? 'Hide session panel' : 'Show session panel'}
+                  aria-pressed={sessionOpen}
+                  onClick={() => setSessionOpen((open) => !open)}
+                >
+                  <Icon name="panel-right" size={16} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+            <AgentStatus connected={connected} busy={busy} message={status?.message} />
+          </Group>
+        </Group>
+      </AppShell.Header>
+
+      <AppShell.Main
+        style={{
+          height: 'calc(100dvh - 48px)',
+          display: 'flex',
+          flexDirection: 'column',
+          borderTop: '1px solid var(--mantine-color-default-border)',
+        }}
+      >
+        {narrow ? (
+          <>
+            <Box
+              px="sm"
+              py={6}
+              style={{
+                borderBottom: '1px solid var(--mantine-color-default-border)',
+                flexShrink: 0,
+              }}
+            >
+              <SegmentedControl
+                size="xs"
+                value={mobileTab}
+                onChange={(value) => setMobileTab(value as MobileTab)}
+                data={TABS}
+                fullWidth
+                aria-label="Room panel"
+              />
+            </Box>
+            <Box style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+              {mobileTab === 'chat'
+                ? chatPanel
+                : mobileTab === 'docs'
+                  ? docsPanel
+                  : mobileTab === 'artifact'
+                    ? artifactPanel
+                    : sessionPanel}
+            </Box>
+          </>
+        ) : (
+          <Split
+            direction="horizontal"
+            autoSaveId="modelroom.room.layout"
+            style={{ flex: 1, minHeight: 0 }}
+          >
+            <SplitPanel defaultSize={24} minSize={16}>
               {chatPanel}
-            </ResizablePanel>
-            <ResizableHandle />
-            <ResizablePanel defaultSize={28} minSize={18}>
+            </SplitPanel>
+            <SplitHandle />
+            <SplitPanel defaultSize={28} minSize={18}>
               {docsPanel}
-            </ResizablePanel>
-            <ResizableHandle />
-            <ResizablePanel defaultSize={30} minSize={20}>
+            </SplitPanel>
+            <SplitHandle />
+            <SplitPanel defaultSize={30} minSize={20}>
               {artifactPanel}
-            </ResizablePanel>
+            </SplitPanel>
             {sessionOpen && (
               <>
-                <ResizableHandle />
-                <ResizablePanel defaultSize={18} minSize={14}>
+                <SplitHandle />
+                <SplitPanel defaultSize={18} minSize={14}>
                   {sessionPanel}
-                </ResizablePanel>
+                </SplitPanel>
               </>
             )}
-          </ResizablePanelGroup>
-        </main>
-      )}
-    </div>
+          </Split>
+        )}
+      </AppShell.Main>
+    </AppShell>
   );
 }

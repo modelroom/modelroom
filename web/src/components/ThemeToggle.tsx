@@ -1,19 +1,22 @@
-import { Button } from './ui/button.tsx';
-import { Icon } from './ui/Icon.tsx';
+import { ActionIcon, Tooltip } from '@mantine/core';
+import { Icon } from './Icon.tsx';
 import { useTheme } from '../lib/theme.ts';
 
-export function ThemeToggle({ className = '' }: { className?: string }) {
+export function ThemeToggle() {
   const [theme, setTheme] = useTheme();
   const dark = theme === 'dark';
+  const label = dark ? 'Light theme' : 'Dark theme';
   return (
-    <Button
-      variant="ghost"
-      size="icon-xs"
-      className={className}
-      title={dark ? 'Light theme' : 'Dark theme'}
-      onClick={() => setTheme(dark ? 'light' : 'dark')}
-    >
-      <Icon name={dark ? 'sun' : 'moon'} className="size-4" />
-    </Button>
+    <Tooltip label={label} withArrow>
+      <ActionIcon
+        variant="subtle"
+        color="gray"
+        size="md"
+        aria-label={label}
+        onClick={() => setTheme(dark ? 'light' : 'dark')}
+      >
+        <Icon name={dark ? 'sun' : 'moon'} />
+      </ActionIcon>
+    </Tooltip>
   );
 }

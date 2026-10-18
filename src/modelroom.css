@@ -1,249 +1,223 @@
-/* modelroom — tool UI stylesheet (Tailwind v4 + shadcn/ui tokens + typography)
+/* modelroom — tool UI stylesheet.
  *
- * The built file (ui/modelroom.css) is committed, so `npx modelroom` needs no build.
- * Rebuild after changing ui/*.html, web/** or this file:
+ * The design system is Mantine. `@mantine/core/styles.css` carries every
+ * component's styles and the colour-scheme variables; what is left here is the
+ * handful of things that belong to *this* tool and are not a component:
+ *
+ *   · the thin scrollbars and card thumbnail
+ *   · the reading rhythm of rendered markdown that Mantine's own `Typography`
+ *     does not decide (long tokens, wraps)
+ *   · the CodeMirror shell (the editor is CodeMirror's, not ours)
+ *   · the highlight.js palette, keyed off the theme's own colours
+ *
+ * The built file (ui/modelroom.css) is committed, so `npx modelroom` needs no
+ * build. Rebuild after changing ui/*.html, web/** or this file:
  *   npm run build:css
  *
  * Only the tool's own UI is scanned here. Room artifacts (the HTML you hand to
  * implementation) are deliberately framework-free.
- *
- * There is one design system: shadcn/ui. The tokens below are written out in full
- * for light and dark, and the theme is a `data-theme` attribute, set before paint
- * by a tiny script in each shell.
  */
-@import 'tailwindcss';
 
-@source "../ui/*.html";
-@source "../web";
+@import '@mantine/core/styles.css';
 
-@plugin "@tailwindcss/typography";
-
-/* `data-theme` is the switch, not the OS: this makes `dark:` follow it, which is
- * what lets `prose-invert` track the app theme. */
-@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
-
-@theme {
-  --font-sans:
-    'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', system-ui, -apple-system,
-    'Segoe UI', sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
-/* ── tokens ─────────────────────────────────────────────────────────────── */
+/* ── the tool's own names for the theme's colours ────────────────────────── */
 
 :root {
-  --radius: 0.625rem;
-
-  --background: oklch(0.994 0.002 265);
-  --foreground: oklch(0.17 0.01 265);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.17 0.01 265);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.17 0.01 265);
-  --primary: oklch(0.52 0.19 276);
-  --primary-foreground: oklch(0.99 0.002 276);
-  --secondary: oklch(0.964 0.005 265);
-  --secondary-foreground: oklch(0.26 0.012 265);
-  --muted: oklch(0.964 0.005 265);
-  --muted-foreground: oklch(0.52 0.012 265);
-  --accent: oklch(0.964 0.005 265);
-  --accent-foreground: oklch(0.26 0.012 265);
-  --destructive: oklch(0.58 0.22 27);
-  --destructive-foreground: oklch(0.99 0.002 27);
-  --success: oklch(0.62 0.14 152);
-  --success-foreground: oklch(0.99 0.002 152);
-  --warning: oklch(0.76 0.15 75);
-  --warning-foreground: oklch(0.22 0.03 75);
-  --info: oklch(0.6 0.13 240);
-  --info-foreground: oklch(0.99 0.002 240);
-  --border: oklch(0.918 0.005 265);
-  --input: oklch(0.918 0.005 265);
-  --ring: oklch(0.52 0.19 276);
+  --mr-text: var(--mantine-color-text);
+  --mr-dimmed: var(--mantine-color-dimmed);
+  --mr-primary: var(--mantine-primary-color-filled);
+  --mr-border: var(--mantine-color-default-border);
+  --mr-surface: var(--mantine-color-body);
+  --mr-subtle: var(--mantine-color-default-hover);
+  /* Panels sit on the page the way cards did: white on off-white, dark-6 on
+   * dark-8. Mantine resolves `light-dark()` from the scheme attribute. */
+  --mr-page: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8));
+  --mr-panel: light-dark(var(--mantine-color-white), var(--mantine-color-dark-6));
+  --mr-info: var(--mantine-color-info-6);
+  --mr-success: var(--mantine-color-success-6);
+  --mr-warning: var(--mantine-color-warning-6);
+  --mr-danger: var(--mantine-color-danger-6);
+  --mr-mono: var(--mantine-font-family-monospace);
 }
 
-[data-theme='dark'] {
-  --background: oklch(0.155 0.008 265);
-  --foreground: oklch(0.97 0.003 265);
-  --card: oklch(0.196 0.008 265);
-  --card-foreground: oklch(0.97 0.003 265);
-  --popover: oklch(0.215 0.008 265);
-  --popover-foreground: oklch(0.97 0.003 265);
-  --primary: oklch(0.68 0.16 276);
-  --primary-foreground: oklch(0.16 0.02 276);
-  --secondary: oklch(0.27 0.009 265);
-  --secondary-foreground: oklch(0.97 0.003 265);
-  --muted: oklch(0.27 0.009 265);
-  --muted-foreground: oklch(0.72 0.012 265);
-  --accent: oklch(0.29 0.01 265);
-  --accent-foreground: oklch(0.97 0.003 265);
-  --destructive: oklch(0.68 0.19 25);
-  --destructive-foreground: oklch(0.16 0.02 25);
-  --success: oklch(0.71 0.15 152);
-  --success-foreground: oklch(0.14 0.02 152);
-  --warning: oklch(0.81 0.15 80);
-  --warning-foreground: oklch(0.18 0.03 80);
-  --info: oklch(0.71 0.13 240);
-  --info-foreground: oklch(0.15 0.02 240);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.68 0.16 276);
-}
-
-/* `inline` keeps the utilities pointing at the variables above, so one attribute
- * on <html> re-themes everything — utilities, prose, the editor and highlight.js. */
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-success: var(--success);
-  --color-success-foreground: var(--success-foreground);
-  --color-warning: var(--warning);
-  --color-warning-foreground: var(--warning-foreground);
-  --color-info: var(--info);
-  --color-info-foreground: var(--info-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+/* The dark scheme reads at a lighter luminance, the same way the tokens did. */
+[data-mantine-color-scheme='dark'] {
+  --mr-info: var(--mantine-color-info-4);
+  --mr-success: var(--mantine-color-success-4);
+  --mr-warning: var(--mantine-color-warning-4);
+  --mr-danger: var(--mantine-color-danger-4);
 }
 
 /* ── app-specific touches ───────────────────────────────────────────────── */
 
-@layer components {
-  .mr-card-artifact {
-    aspect-ratio: 16 / 10;
-    object-fit: cover;
-    object-position: top center;
-    width: 100%;
-    background-color: var(--muted);
-  }
-  .mr-scroll {
-    scrollbar-width: thin;
-    scrollbar-color: color-mix(in oklab, var(--foreground) 22%, transparent) transparent;
-  }
-  .mr-scroll::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-  .mr-scroll::-webkit-scrollbar-thumb {
-    background-color: color-mix(in oklab, var(--foreground) 18%, transparent);
-    border-radius: 999px;
-  }
-  .mr-prose {
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  /* Rendered markdown (chat replies and doc preview) keeps a calm rhythm and
-   * never lets a long word or a wide code block blow the panel apart. */
-  .mr-markdown {
-    overflow-wrap: anywhere;
-  }
-  .mr-markdown pre {
-    position: relative;
-    overflow-x: auto;
-    border-radius: var(--radius-md);
-    background-color: color-mix(in oklab, var(--foreground) 6%, transparent);
-    padding: 0.75rem 0.9rem;
-    font-size: 0.8125rem;
-    line-height: 1.6;
-  }
-  .mr-markdown :not(pre) > code {
-    background-color: color-mix(in oklab, var(--foreground) 8%, transparent);
-    padding: 0.1em 0.35em;
-    border-radius: 0.3rem;
-    font-size: 0.85em;
-  }
-  .mr-markdown table {
-    display: block;
-    overflow-x: auto;
-  }
-
-  /* CodeMirror: the editor fills its pane and speaks in the UI's font. */
-  .mr-editor .cm-editor {
-    height: 100%;
-  }
-  .mr-editor .cm-scroller {
-    font-family: var(--font-mono);
-    font-size: 0.8125rem;
-    line-height: 1.7;
-  }
-  .mr-editor .cm-editor.cm-focused {
-    outline: none;
-  }
+.mr-app {
+  min-height: 100dvh;
+  background-color: var(--mantine-color-body);
+  color: var(--mantine-color-text);
 }
 
-/* Code fences, coloured from the theme so light and dark both read well.
- * highlight.js emits these class names; the palette is ours. */
-@layer components {
-  .hljs-comment,
-  .hljs-quote {
-    color: var(--muted-foreground);
-    font-style: italic;
-  }
-  .hljs-keyword,
-  .hljs-selector-tag,
-  .hljs-built_in,
-  .hljs-name,
-  .hljs-tag {
-    color: var(--primary);
-  }
-  .hljs-string,
-  .hljs-attr-value,
-  .hljs-regexp,
-  .hljs-addition {
-    color: var(--success);
-  }
-  .hljs-number,
-  .hljs-literal,
-  .hljs-bullet,
-  .hljs-symbol {
-    color: var(--warning);
-  }
-  .hljs-title,
-  .hljs-title.function_,
-  .hljs-title.class_,
-  .hljs-section,
-  .hljs-selector-id,
-  .hljs-selector-class {
-    color: var(--primary);
-  }
-  .hljs-attr,
-  .hljs-attribute,
-  .hljs-property,
-  .hljs-variable,
-  .hljs-template-variable,
-  .hljs-selector-attr,
-  .hljs-selector-pseudo,
-  .hljs-meta {
-    color: var(--info);
-  }
-  .hljs-type,
-  .hljs-params,
-  .hljs-deletion {
-    color: var(--secondary-foreground);
-  }
-  .hljs-emphasis {
-    font-style: italic;
-  }
-  .hljs-strong {
-    font-weight: 600;
-  }
+/* The room fills the viewport and scrolls inside its panels, never the page. */
+.mr-app-fixed {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.mr-card-artifact {
+  aspect-ratio: 16 / 10;
+  width: 100%;
+  object-fit: cover;
+  object-position: top center;
+  background-color: var(--mantine-color-default);
+}
+
+.mr-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--mr-text) 22%, transparent) transparent;
+}
+.mr-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.mr-scroll::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklab, var(--mr-text) 18%, transparent);
+  border-radius: 999px;
+}
+
+/* A long word, a wide table or a code fence never blows a panel apart. */
+.mr-markdown {
+  overflow-wrap: anywhere;
+}
+
+/* The copy button the markdown renderer adds to each code fence. */
+.mr-copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-sm);
+  background-color: var(--mantine-color-body);
+  color: var(--mantine-color-dimmed);
+  font-family: var(--mr-mono);
+  font-size: 11px;
+  cursor: pointer;
+}
+.mr-copy:hover {
+  color: var(--mantine-color-text);
+}
+
+/* The handles between panels: a hairline you can still hit. */
+.mr-split-handle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--mantine-color-default-border);
+  transition: background-color 120ms ease;
+}
+.mr-split-handle[data-panel-group-direction='horizontal'] {
+  width: 1px;
+}
+.mr-split-handle[data-panel-group-direction='vertical'] {
+  width: 100%;
+  height: 1px;
+}
+.mr-split-handle::after {
+  content: '';
+  position: absolute;
+  inset: 0 -4px;
+}
+.mr-split-handle[data-panel-group-direction='vertical']::after {
+  inset: -4px 0;
+}
+.mr-split-handle:hover,
+.mr-split-handle[data-resize-handle-state='drag'] {
+  background-color: var(--mr-primary);
+}
+.mr-split-grip {
+  z-index: 10;
+  width: 4px;
+  height: 12px;
+  border-radius: 999px;
+  background-color: var(--mantine-color-default-border);
+}
+.mr-split-handle[data-panel-group-direction='vertical'] .mr-split-grip {
+  width: 12px;
+  height: 4px;
+}
+.mr-split-handle:hover .mr-split-grip,
+.mr-split-handle[data-resize-handle-state='drag'] .mr-split-grip {
+  background-color: var(--mantine-color-body);
+}
+
+/* CodeMirror: the editor fills its pane and speaks in the UI's font. */
+.mr-editor .cm-editor {
+  height: 100%;
+}
+.mr-editor .cm-scroller {
+  font-family: var(--mr-mono);
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+.mr-editor .cm-editor.cm-focused {
+  outline: none;
+}
+
+/* ── code fences, coloured from the theme ──────────────────────────────── */
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--mr-dimmed);
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-name,
+.hljs-tag {
+  color: var(--mr-primary);
+}
+.hljs-string,
+.hljs-attr-value,
+.hljs-regexp,
+.hljs-addition {
+  color: var(--mr-success);
+}
+.hljs-number,
+.hljs-literal,
+.hljs-bullet,
+.hljs-symbol {
+  color: var(--mr-warning);
+}
+.hljs-title,
+.hljs-title.function_,
+.hljs-title.class_,
+.hljs-section,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: var(--mr-primary);
+}
+.hljs-attr,
+.hljs-attribute,
+.hljs-property,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-selector-attr,
+.hljs-selector-pseudo,
+.hljs-meta {
+  color: var(--mr-info);
+}
+.hljs-type,
+.hljs-params,
+.hljs-deletion {
+  color: var(--mantine-color-text);
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 600;
 }
