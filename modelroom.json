@@ -8,7 +8,7 @@
     "adapter": "opencode",
     "command": "opencode",
     "agent": "build",
-    "model": null,
+    "model": "openrouter/deepseek/deepseek-v4.1-flash",
     "standalone": true
   }
 }
