@@ -14,6 +14,12 @@ test('adapters are reached by name, and an unknown name falls back to opencode',
   assert.deepEqual(Object.keys(adapters).sort(), ['command', 'opencode']);
 });
 
+test('only the adapter whose turn is readable while it runs says so', () => {
+  // the chat follows the turn when the agent keeps it somewhere it can be read
+  assert.equal(opencode.structured, true);
+  assert.equal(command.structured, false);
+});
+
 test('session ids are unique and prefixed', () => {
   const a = opencode.newSessionId();
   const b = opencode.newSessionId();

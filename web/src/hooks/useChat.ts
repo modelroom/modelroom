@@ -9,7 +9,7 @@
 // which is the difference between "wait and lose your thought" and a chat.
 
 import { useCallback, useEffect, useReducer, useState } from 'react';
-import { getSession, postChat, type Part, type Turn } from '../lib/api.ts';
+import { getSession, partsText, postChat, type Part, type Turn } from '../lib/api.ts';
 import { useServerEvent } from './useServerEvents.tsx';
 
 export type ChatMessage =
@@ -33,6 +33,7 @@ type Action =
   | { type: 'notice'; text: string; tone: 'info' | 'error' }
   | { type: 'start'; sessionId: string | null }
   | { type: 'session'; sessionId: string | null }
+  | { type: 'parts'; parts: Part[] }
   | { type: 'chunk'; stream: string; chunk: string }
   | { type: 'done'; code: number; error: string | null };
 
@@ -82,15 +83,17 @@ function reducer(state: State, action: Action): State {
     case 'replay': {
       if (state.messages.length) return state;
       const at = Date.now();
-      const textOf = (turn: Turn): string =>
-        turn.parts
-          .filter((part): part is Extract<Part, { kind: 'text' }> => part.kind === 'text')
-          .map((part) => part.text)
-          .join('\n\n');
       const messages: ChatMessage[] = action.turns.map((turn, index) => {
         const id = `replay-${index}`;
-        if (turn.role === 'user') return { id, role: 'user', text: textOf(turn), at };
-        return { id, role: 'assistant', text: textOf(turn), at, done: true, parts: turn.parts };
+        if (turn.role === 'user') return { id, role: 'user', text: partsText(turn.parts), at };
+        return {
+          id,
+          role: 'assistant',
+          text: partsText(turn.parts),
+          at,
+          done: true,
+          parts: turn.parts,
+        };
       });
       if (messages.length) {
         messages.push({
@@ -134,9 +137,42 @@ function reducer(state: State, action: Action): State {
       };
     case 'session':
       return { ...state, sessionId: action.sessionId };
+    case 'parts': {
+      // The turn as its own parts, live off the agent's server. This replaces the
+      // streamed prose: the same words, plus the tool calls and patches around them.
+      if (!action.parts.length) return state;
+      const text = partsText(action.parts);
+      if (!state.assistantId) {
+        const id = nextId(state, 'assistant');
+        return {
+          ...state,
+          seq: state.seq + 1,
+          assistantId: id,
+          messages: [
+            ...state.messages,
+            { id, role: 'assistant', text, at: Date.now(), done: false, parts: action.parts },
+          ],
+        };
+      }
+      return {
+        ...state,
+        messages: state.messages.map((message) =>
+          message.id === state.assistantId && message.role === 'assistant'
+            ? { ...message, text, parts: action.parts }
+            : message,
+        ),
+      };
+    }
     case 'chunk': {
-      if (action.stream === 'meta') return append(state, 'log', 'logId', action.chunk);
-      if (action.stream === 'stderr') return append(state, 'log', 'logId', action.chunk);
+      if (action.stream === 'meta' || action.stream === 'stderr') {
+        return append(state, 'log', 'logId', action.chunk);
+      }
+      // Once this turn is being read as parts, the CLI's prose is raw output: keep
+      // it in the log instead of showing the same answer twice.
+      const assistant = state.messages.find((message) => message.id === state.assistantId);
+      if (assistant?.role === 'assistant' && assistant.parts?.length) {
+        return append(state, 'log', 'logId', action.chunk);
+      }
       return append(state, 'assistant', 'assistantId', action.chunk);
     }
     case 'done': {
@@ -177,6 +213,9 @@ export function useChat(room: string): ChatApi {
   });
   useServerEvent<{ room: string; stream: string; chunk: string }>('chat', (data) => {
     if (data.room === room) dispatch({ type: 'chunk', stream: data.stream, chunk: data.chunk });
+  });
+  useServerEvent<{ room: string; parts: Part[] }>('chat-parts', (data) => {
+    if (data.room === room) dispatch({ type: 'parts', parts: data.parts });
   });
   useServerEvent<{ room: string; code: number; error: string | null }>('chat-done', (data) => {
     if (data.room === room) dispatch({ type: 'done', code: data.code, error: data.error });

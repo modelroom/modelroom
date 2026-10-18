@@ -23,7 +23,7 @@ import { listRoomNames, roomInfo, publicRoom, isRoomName, type RoomInfo } from '
 import { buildFacets, searchRooms } from './facets.ts';
 import { getAdapter, stripAnsi } from './agents/index.ts';
 import { renderArtifact, playwrightAvailable, type RenderResult } from './artifact.ts';
-import { sessionView } from './opencode.ts';
+import { sessionView, watchParts, type PartsWatcher } from './opencode.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -89,7 +89,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
   // so a saved model survives the next start.
   applySettings(cfg, state.settings);
   const clients = new Set<ServerResponse>();
-  const chats = new Map<string, { startedAt: number }>(); // room -> { startedAt }
+  const chats = new Map<string, PartsWatcher | null>(); // room -> its watcher, if it has one
   let rendering = false;
   const status: ModelroomStatus = {
     phase: 'idle',
@@ -124,6 +124,14 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
     status.message = message;
     status.since = Date.now();
     broadcast('status', { phase, message, since: status.since });
+  };
+  /**
+   * Wait for best-effort work, but never longer than the budget: a snapshot that
+   * lands late is still used, while a hung server must not hold up the chat.
+   */
+  const settle = async (work: Promise<void> | undefined, ms: number): Promise<void> => {
+    if (!work) return;
+    await Promise.race([work, new Promise((resolve) => setTimeout(resolve, ms).unref())]);
   };
 
   // ── files ─────────────────────────────────────────────────────────────────
@@ -221,15 +229,25 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
     if (chats.has(room)) return { started: false, reason: 'this room is already running' };
     const adapter = getAdapter(cfg.agent.adapter);
     const sessionId = sessionOf(room);
-    chats.set(room, { startedAt: Date.now() });
+    const startedAt = Date.now();
     setStatus('chat', `${room}: agent is working…`);
-    broadcast('chat-start', { room, sessionId, prompt, at: Date.now() });
+    broadcast('chat-start', { room, sessionId, prompt, at: startedAt });
     broadcast('chat', {
       room,
       sessionId,
       stream: 'meta',
       chunk: `$ ${cfg.agent.command} (agent=${cfg.agent.agent || '-'}, model=${cfg.agent.model || 'default'}, session=${sessionId})\n`,
     });
+    // A structured agent keeps its turn on its own server while it works — the text,
+    // the tool calls, the patches it wrote. Follow that: it is the only live view of
+    // the *shape* of the work, where stdout is just prose. `since` is what separates
+    // this answer from the previous one, so a run never opens on the last reply.
+    const watcher = adapter.structured
+      ? watchParts(cfg, sessionId, (parts) => broadcast('chat-parts', { room, sessionId, parts }), {
+          since: startedAt,
+        })
+      : null;
+    chats.set(room, watcher);
     const child = adapter.run({
       cfg,
       cwd: cfg.rootDir,
@@ -240,10 +258,18 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
         if (text) broadcast('chat', { room, sessionId, stream, chunk: text });
       },
       onExit: (code, err) => {
-        chats.delete(room);
-        if (err) setStatus('error', err);
-        else setStatus(code === 0 ? 'ok' : 'error', `${room}: agent exited (${code})`);
-        broadcast('chat-done', { room, sessionId, code, error: err || null, at: Date.now() });
+        void (async () => {
+          // The last snapshot belongs to this turn: let it land before the turn is
+          // called done, or the answer's last line arrives after the chat let go.
+          await settle(
+            watcher?.stop().catch(() => {}),
+            2500,
+          );
+          chats.delete(room);
+          if (err) setStatus('error', err);
+          else setStatus(code === 0 ? 'ok' : 'error', `${room}: agent exited (${code})`);
+          broadcast('chat-done', { room, sessionId, code, error: err || null, at: Date.now() });
+        })();
       },
     });
     return { started: true, sessionId, pid: child.pid };
@@ -620,6 +646,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
       new Promise((r) => {
         clearInterval(heartbeat);
         for (const w of watchers) w.close();
+        for (const chat of chats.values()) void chat?.stop();
         server.close(() => r());
       }),
   };
