@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.4](https://github.com/modelroom/modelroom/compare/modelroom-v0.0.3...modelroom-v0.0.4) (2026-10-18)
+
+
+### Features
+
+* **ui:** one design system — dashboard and settings are shadcn too ([#5](https://github.com/modelroom/modelroom/issues/5)) ([83b8256](https://github.com/modelroom/modelroom/commit/83b8256226f388a51f51dfe2aed6c12dfce7ec44))
+
 ## [0.0.3](https://github.com/modelroom/modelroom/compare/modelroom-v0.0.2...modelroom-v0.0.3) (2026-10-18)
 
 
