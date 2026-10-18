@@ -9,12 +9,12 @@
 // which is the difference between "wait and lose your thought" and a chat.
 
 import { useCallback, useEffect, useReducer, useState } from 'react';
-import { getSession, postChat } from '../lib/api.ts';
+import { getSession, postChat, type Part, type Turn } from '../lib/api.ts';
 import { useServerEvent } from './useServerEvents.tsx';
 
 export type ChatMessage =
   | { id: string; role: 'user'; text: string; at: number }
-  | { id: string; role: 'assistant'; text: string; at: number; done: boolean }
+  | { id: string; role: 'assistant'; text: string; at: number; done: boolean; parts?: Part[] }
   | { id: string; role: 'system'; text: string; at: number; tone: 'info' | 'error' }
   | { id: string; role: 'log'; text: string; at: number; done: boolean };
 
@@ -28,11 +28,7 @@ interface State {
 }
 
 type Action =
-  | {
-      type: 'replay';
-      lines: Array<{ role: 'user' | 'assistant' | 'meta'; text: string }>;
-      sessionId: string | null;
-    }
+  | { type: 'replay'; turns: Turn[]; sessionId: string | null }
   | { type: 'user'; text: string }
   | { type: 'notice'; text: string; tone: 'info' | 'error' }
   | { type: 'start'; sessionId: string | null }
@@ -86,13 +82,27 @@ function reducer(state: State, action: Action): State {
     case 'replay': {
       if (state.messages.length) return state;
       const at = Date.now();
-      const messages: ChatMessage[] = action.lines.map((line, index) => {
+      const textOf = (turn: Turn): string =>
+        turn.parts
+          .filter((part): part is Extract<Part, { kind: 'text' }> => part.kind === 'text')
+          .map((part) => part.text)
+          .join('\n\n');
+      const messages: ChatMessage[] = action.turns.map((turn, index) => {
         const id = `replay-${index}`;
-        if (line.role === 'user') return { id, role: 'user', text: line.text, at };
-        if (line.role === 'assistant')
-          return { id, role: 'assistant', text: line.text, at, done: true };
-        return { id, role: 'log', text: line.text, at, done: true };
+        if (turn.role === 'user') return { id, role: 'user', text: textOf(turn), at };
+        return { id, role: 'assistant', text: textOf(turn), at, done: true, parts: turn.parts };
       });
+      if (messages.length) {
+        messages.push({
+          id: 'replay-notice',
+          role: 'system',
+          text: `— resumed this session (${action.turns.length} turn${
+            action.turns.length === 1 ? '' : 's'
+          })`,
+          at,
+          tone: 'info',
+        });
+      }
       return { ...state, sessionId: action.sessionId ?? state.sessionId, messages };
     }
     case 'user': {
@@ -179,7 +189,7 @@ export function useChat(room: string): ChatApi {
       try {
         const data = await getSession(room);
         if (cancelled) return;
-        dispatch({ type: 'replay', lines: data.lines ?? [], sessionId: data.session ?? null });
+        dispatch({ type: 'replay', turns: data.turns ?? [], sessionId: data.session ?? null });
       } catch {
         /* the panel just starts empty */
       }

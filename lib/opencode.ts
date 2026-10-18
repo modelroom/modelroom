@@ -8,10 +8,10 @@
 
 import { spawn, type ChildProcess } from 'node:child_process';
 import type { Config } from './config.ts';
+import { toTurns, type Turn } from './parts.ts';
 
 const MAX_OUTPUT = 8 * 1024 * 1024; // a runaway response must not grow without bound
 const TIMEOUT_MS = 15_000;
-const MAX_TEXT = 4000; // a transcript excerpt, not the whole file
 const MODEL_TTL = 10 * 60_000;
 const EXTRAS_TTL = 60_000;
 
@@ -36,11 +36,6 @@ export interface ContextUsage {
   pct: number; // 0..100, one decimal
 }
 
-export interface TranscriptLine {
-  role: 'user' | 'assistant' | 'meta';
-  text: string;
-}
-
 export interface McpServer {
   name: string;
   status: string;
@@ -50,7 +45,8 @@ export interface McpServer {
 export interface SessionView {
   stats: SessionStats;
   context: ContextUsage | null;
-  lines: TranscriptLine[];
+  /** The conversation, as parts: text, reasoning and one entry per tool call. */
+  turns: Turn[];
   mcp: McpServer[];
   skills: string[];
   workspace: string | null;
@@ -152,34 +148,6 @@ function lastModel(messages: unknown[]): string | null {
   return null;
 }
 
-const clip = (text: string): string =>
-  text.length > MAX_TEXT ? `${text.slice(0, MAX_TEXT)}…` : text;
-
-function toLines(messages: unknown[]): TranscriptLine[] {
-  const lines: TranscriptLine[] = [];
-  for (const raw of [...messages].sort(byTime)) {
-    if (!isRecord(raw)) continue;
-    if (raw.type === 'user') {
-      const text = str(raw.text) ?? '';
-      if (text.trim()) lines.push({ role: 'user', text: clip(text) });
-      continue;
-    }
-    if (raw.type !== 'assistant' || !Array.isArray(raw.content)) continue;
-    for (const rawPart of raw.content) {
-      if (!isRecord(rawPart)) continue;
-      if (rawPart.type === 'text' && typeof rawPart.text === 'string' && rawPart.text.trim()) {
-        lines.push({ role: 'assistant', text: clip(rawPart.text) });
-      } else if (rawPart.type === 'tool') {
-        const name = str(rawPart.name) ?? 'tool';
-        const state = isRecord(rawPart.state) ? rawPart.state : {};
-        const status = str(state.status) ?? '';
-        lines.push({ role: 'meta', text: `[${name}]${status ? ` ${status}` : ''}` });
-      }
-    }
-  }
-  return lines;
-}
-
 /** The last turn's prompt size is the current context: fresh input + cache reads. */
 function contextUsed(messages: unknown[]): number | null {
   for (const raw of [...messages].sort(byTime).toReversed()) {
@@ -269,5 +237,5 @@ export async function sessionView(
   const { mcp, skills } = await extras(cfg);
   const workspace = isRecord(info) && isRecord(info.location) ? str(info.location.directory) : null;
 
-  return { stats, context, lines: toLines(messages), mcp, skills, workspace };
+  return { stats, context, turns: toTurns(messages), mcp, skills, workspace };
 }

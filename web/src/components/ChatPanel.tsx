@@ -7,6 +7,7 @@ import { PROSE_CLASS } from '../lib/prose.ts';
 import { cn } from '../lib/utils.ts';
 import { Composer } from './Composer.tsx';
 import { Markdown } from './Markdown.tsx';
+import { PartView } from './parts.tsx';
 import { CopyButton } from './ui/CopyButton.tsx';
 import { Icon } from './ui/Icon.tsx';
 
@@ -61,12 +62,20 @@ function MessageRow({ message }: { message: ChatMessage }) {
 
   return (
     <div className="flex flex-col items-start gap-1">
-      <div className="max-w-[95%] rounded-2xl rounded-tl-sm border border-border bg-card px-3 py-2 shadow-xs">
-        <Markdown source={message.text} className={PROSE_CLASS} />
-        {!message.done && (
-          <span className="mt-1 inline-block h-3.5 w-1.5 animate-pulse rounded-sm bg-primary align-middle" />
-        )}
-      </div>
+      {message.parts && message.parts.length > 0 ? (
+        <div className="flex w-full flex-col gap-2">
+          {message.parts.map((part, index) => (
+            <PartView key={`${message.id}-${index}`} part={part} />
+          ))}
+        </div>
+      ) : (
+        <div className="max-w-[95%] rounded-2xl rounded-tl-sm border border-border bg-card px-3 py-2 shadow-xs">
+          <Markdown source={message.text} className={PROSE_CLASS} />
+          {!message.done && (
+            <span className="mt-1 inline-block h-3.5 w-1.5 animate-pulse rounded-sm bg-primary align-middle" />
+          )}
+        </div>
+      )}
       <div className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
         <span>{clock(message.at)}</span>
         {message.done && <CopyButton text={message.text} size="icon-xs" label="Copy reply" />}
