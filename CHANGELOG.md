@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.3](https://github.com/modelroom/modelroom/compare/modelroom-v0.0.2...modelroom-v0.0.3) (2026-10-18)
+
+
+### Features
+
+* **ui:** make the room React + shadcn/ui ([#3](https://github.com/modelroom/modelroom/issues/3)) ([ef27fdf](https://github.com/modelroom/modelroom/commit/ef27fdf9314049e16a15595dad6b4167035c85d5))
+
 ## [0.0.2](https://github.com/modelroom/modelroom/compare/modelroom-v0.0.1...modelroom-v0.0.2) (2026-10-18)
 
 
