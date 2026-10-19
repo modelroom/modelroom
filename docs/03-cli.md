@@ -2,7 +2,7 @@
 
 ```
 modelroom [serve] [--port 4321] [--host 127.0.0.1] [--open] [--lang en|ja]
-modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force]
+modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force] [--skip-install] [--no-script]
 modelroom check [--json] [--strict]
 modelroom doctor
 modelroom --version | --help
@@ -48,6 +48,36 @@ modelroom init checkout --dir screens
 modelroom init checkout --lang ja  # pin Japanese for the templates and the UI
 modelroom init checkout --force    # overwrite existing files
 ```
+
+### The `modelroom` script
+
+If the project has a `package.json`, `init` also makes `npm run modelroom` work, the
+way `npm run storybook` does — one script, and the package installed so the script
+runs the pinned local version:
+
+```jsonc
+{
+  "scripts": { "modelroom": "modelroom" },
+  "devDependencies": { "modelroom": "^0.1.0" }
+}
+```
+
+- The script is added **only when the key is missing**, and only to a `package.json`
+  that already exists — `init` never creates one. `npx modelroom` stays the default
+  and stays documented; this is a convenience for projects that already live in npm
+  scripts.
+- The dependency is installed with the project's own package manager, detected from
+  the lockfile (`bun.lock*`, `pnpm-lock.yaml`, `yarn.lock`, otherwise npm). Writing a
+  dependency entry by hand would leave the lockfile behind and break `npm ci`, so the
+  manager is the only thing that ever touches it.
+- `--skip-install` leaves dependencies alone and writes `"modelroom": "npx --yes modelroom"`
+  instead, which needs no install at all.
+- If the install fails (offline, no manager on `PATH`), `init` says so, keeps the `npx`
+  script and continues — `npm run modelroom` works either way, and running the printed
+  command later upgrades it to the local version.
+- `--force` replaces an existing `modelroom` script; `--no-script` keeps `init` out of
+  the `package.json` entirely.
+- A project whose `package.json` cannot be read as JSON is left untouched, with a note.
 
 ### Language
 

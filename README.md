@@ -47,6 +47,13 @@ your-repo/
 `.modelroom/` is disposable: delete it to reset sessions and local settings. The committed
 design layer is untouched.
 
+If the repository already has a `package.json`, `init` also adds a `modelroom` script, so
+the everyday command is `npm run modelroom` — the way `npm run storybook` works. The package
+is installed with your own package manager (detected from the lockfile), so the script runs
+the pinned local version; `--skip-install` writes `"modelroom": "npx --yes modelroom"`
+instead and touches no dependencies, and `--no-script` leaves `package.json` alone entirely.
+A `package.json` is never created: `npx modelroom` stays the default.
+
 ## Why "model room"
 
 A model room in real estate is furnished, full scale, and convincing enough to decide in — but it
