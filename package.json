@@ -39,28 +39,28 @@
     "LICENSE"
   ],
   "type": "module",
-  "types": "./dist/lib/server.d.ts",
+  "types": "./dist/server/http.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/lib/server.d.ts",
-      "default": "./dist/lib/server.js"
+      "types": "./dist/server/http.d.ts",
+      "default": "./dist/server/http.js"
     }
   },
   "scripts": {
     "dev": "node --watch bin/modelroom.ts",
     "modelroom": "node bin/modelroom.ts",
     "start": "node bin/modelroom.ts",
-    "build": "npm run build:server && npm run build:web && npm run build:css",
+    "build": "npm run build:server && npm run build:client && npm run build:css",
     "build:server": "tsc -p tsconfig.build.json",
-    "build:web": "node scripts/build-web.mjs",
-    "build:css": "esbuild src/modelroom.css --bundle --minify --outfile=ui/modelroom.css --target=es2022",
-    "dev:web": "node scripts/build-web.mjs --dev --watch",
-    "dev:css": "esbuild src/modelroom.css --bundle --outfile=ui/modelroom.css --watch --target=es2022",
+    "build:client": "node scripts/build-client.mjs",
+    "build:css": "esbuild client/modelroom.css --bundle --minify --outfile=ui/modelroom.css --target=es2022",
+    "dev:client": "node scripts/build-client.mjs --dev --watch",
+    "dev:css": "esbuild client/modelroom.css --bundle --outfile=ui/modelroom.css --watch --target=es2022",
     "lint": "oxlint",
     "lint:types": "oxlint --type-aware",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "typecheck": "tsc --noEmit && tsc -p web/tsconfig.json",
+    "typecheck": "tsc --noEmit && tsc -p client/tsconfig.json",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
     "verify": "npm run lint && npm run lint:types && npm run format:check && npm run typecheck && npm test && npm run build",

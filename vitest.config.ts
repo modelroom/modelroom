@@ -8,8 +8,10 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      include: ['lib/**/*.ts'],
-      exclude: ['lib/artifact.ts'],
+      // The CLI entry is a script the e2e pass drives in a child process, so it
+      // is not measured here; everything it calls is.
+      include: ['bin/**/*.ts', 'server/**/*.ts', 'core/**/*.ts', 'shared/**/*.ts'],
+      exclude: ['bin/modelroom.ts', 'server/artifact.ts'],
       thresholds: {
         statements: 75,
         branches: 65,

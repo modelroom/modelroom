@@ -9,7 +9,7 @@ import {
   parseScalar,
   splitFrontmatter,
   readFrontmatterFile,
-} from '../../lib/frontmatter.ts';
+} from '../../core/frontmatter.ts';
 
 test('no frontmatter: the whole file is the body', () => {
   const doc = parseFrontmatter('# Title\n\nBody');

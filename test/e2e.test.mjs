@@ -9,7 +9,7 @@ import { createServer } from 'node:http';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createModelroom } from '../lib/server.ts';
+import { createModelroom } from '../server/http.ts';
 
 const pkgDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 

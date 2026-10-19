@@ -12,7 +12,7 @@ import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadConfig } from '../lib/config.ts';
+import { loadConfig } from '../core/config.ts';
 
 const run = promisify(execFile);
 const pkgDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');

@@ -14,7 +14,7 @@ acknowledgement within a few days.
 modelroom runs locally and binds to `127.0.0.1` by default. It serves your repository read-only
 and writes only the room docs listed in `cfg.docs`. The guards that matter:
 
-- path traversal and dotfiles are refused (`withinRoot` in `lib/server.ts`)
+- path traversal and dotfiles are refused (`withinRoot` in `server/http.ts`)
 - served artifacts are byte-identical to disk; no scripts are injected
 - the agent adapter spawns the CLI you configure, with your environment
 

@@ -46,7 +46,7 @@ npm run build:css
 - Imports use explicit `.ts` extensions; `tsc` rewrites them to `.js` on build.
 - No new runtime dependencies without a reason. `dependencies` is empty and should stay that way;
   optional things (Playwright) are imported dynamically and degrade.
-- The design layer never reads application code. `withinRoot()` in `lib/server.ts` is the guard.
+- The design layer never reads application code. `withinRoot()` in `server/http.ts` is the guard.
 - Only `cfg.docs` is writable. Everything else answers 403.
 - Artifacts and room docs stay framework-free: plain HTML and CSS, no network.
 - Docs are English; keep the tone plain.

@@ -13,10 +13,10 @@ import { constants } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, join, relative, resolve, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { findConfigPath, isLang, loadConfig, type Config, type Lang } from '../lib/config.ts';
-import { detectLang } from '../lib/locale.ts';
-import { t, type MessageKey } from '../lib/i18n.ts';
-import { readTemplate, ROOM_FILES } from '../lib/templates.ts';
+import { findConfigPath, isLang, loadConfig, type Config, type Lang } from '../core/config.ts';
+import { detectLang } from '../core/locale.ts';
+import { t, type MessageKey } from '../shared/i18n.ts';
+import { readTemplate, ROOM_FILES } from './templates.ts';
 import {
   LOCAL_COMMAND,
   NPX_COMMAND,
@@ -28,11 +28,11 @@ import {
   installCommand,
   isSelfPackage,
   parseManifest,
-} from '../lib/manifest.ts';
-import { createModelroom } from '../lib/server.ts';
-import { listRoomNames } from '../lib/rooms.ts';
-import { lintRooms } from '../lib/lint.ts';
-import { findPackageRoot } from '../lib/pkg.ts';
+} from './manifest.ts';
+import { createModelroom } from '../server/http.ts';
+import { listRoomNames } from '../core/rooms.ts';
+import { lintRooms } from './lint.ts';
+import { findPackageRoot } from '../core/pkg.ts';
 
 const pkgDir = findPackageRoot(dirname(fileURLToPath(import.meta.url)));
 const templatesDir = join(pkgDir, 'templates');
@@ -405,7 +405,7 @@ else if (cmd === 'doctor') {
     }),
   });
 
-  const { playwrightAvailable } = await import('../lib/artifact.ts');
+  const { playwrightAvailable } = await import('../server/artifact.ts');
   const pw = await playwrightAvailable();
   checks.push({
     ok: pw,

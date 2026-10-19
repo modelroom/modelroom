@@ -5,7 +5,7 @@
 // a thousand candidates still narrow in well under a frame budget.
 
 import { test, expect } from 'vitest';
-import { filterOptions, normalizeQuery } from '../../web/src/dashboard/filter.ts';
+import { filterOptions, normalizeQuery } from '../../client/dashboard/filter.ts';
 
 const options = [
   { value: 'auth', label: 'auth' },

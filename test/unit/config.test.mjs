@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { DEFAULTS, applySettings, loadConfig, loadState, saveState } from '../../lib/config.ts';
+import { DEFAULTS, applySettings, loadConfig, loadState, saveState } from '../../core/config.ts';
 
 async function fixture(files = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'mr-config-'));

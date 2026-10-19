@@ -10,12 +10,12 @@ import { test, expect } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SERVER_EVENTS } from '../../web/src/lib/events.ts';
+import { SERVER_EVENTS } from '../../client/lib/events.ts';
 
 const pkgDir = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 test('the names the client listens for are the names the server sends', async () => {
-  const source = await readFile(join(pkgDir, 'lib', 'server.ts'), 'utf8');
+  const source = await readFile(join(pkgDir, 'server', 'http.ts'), 'utf8');
   const sent = new Set([
     ...[...source.matchAll(/broadcast\('([^']+)'/g)].map((match) => match[1]),
     // `hello` is written out by hand on connect, not through broadcast()

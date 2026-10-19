@@ -4,8 +4,8 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { readTemplate, ROOM_FILES } from '../../lib/templates.ts';
-import { LANGS } from '../../lib/lang.ts';
+import { readTemplate, ROOM_FILES } from '../../bin/templates.ts';
+import { LANGS } from '../../shared/lang.ts';
 
 const templatesDir = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'templates');
 

@@ -8,7 +8,7 @@
 
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { parseParts, summarise, toTurns } from '../../lib/parts.ts';
+import { parseParts, summarise, toTurns } from '../../shared/parts.ts';
 
 const shell = {
   type: 'tool',
@@ -31,7 +31,7 @@ const edit = {
   state: {
     status: 'completed',
     input: {
-      path: '/repo/web/src/dashboard/DashboardApp.tsx',
+      path: '/repo/client/dashboard/DashboardApp.tsx',
       oldString: 'const a = 1;',
       newString: 'const a = 2;',
     },
@@ -40,9 +40,9 @@ const edit = {
       truncated: false,
       files: [
         {
-          file: 'web/src/dashboard/DashboardApp.tsx',
+          file: 'client/dashboard/DashboardApp.tsx',
           patch:
-            'Index: web/src/dashboard/DashboardApp.tsx\n@@ -1,1 +1,1 @@\n-const a = 1;\n+const a = 2;',
+            'Index: client/dashboard/DashboardApp.tsx\n@@ -1,1 +1,1 @@\n-const a = 1;\n+const a = 2;',
         },
       ],
     },
@@ -79,12 +79,12 @@ test('a shell call carries its command, output and exit code', () => {
 
 test('an edit call carries the patch opencode produced', () => {
   const [part] = parseParts({ content: [edit] });
-  assert.equal(part.summary, '/repo/web/src/dashboard/DashboardApp.tsx');
+  assert.equal(part.summary, '/repo/client/dashboard/DashboardApp.tsx');
   assert.deepEqual(part.files, [
     {
-      file: 'web/src/dashboard/DashboardApp.tsx',
+      file: 'client/dashboard/DashboardApp.tsx',
       patch:
-        'Index: web/src/dashboard/DashboardApp.tsx\n@@ -1,1 +1,1 @@\n-const a = 1;\n+const a = 2;',
+        'Index: client/dashboard/DashboardApp.tsx\n@@ -1,1 +1,1 @@\n-const a = 1;\n+const a = 2;',
     },
   ]);
 });

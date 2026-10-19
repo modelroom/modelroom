@@ -139,8 +139,8 @@ git clone https://github.com/modelroom/modelroom && cd modelroom
 npm install                 # dev only: Mantine + React (both bundled, committed) + playwright (optional)
 npm test                    # smoke checks
 npm run modelroom           # serves examples/rooms
-npm run build:css           # after changing ui/*.html or src/modelroom.css
-npm run build:web           # after changing web/**
+npm run build:css           # after changing ui/*.html or client/modelroom.css
+npm run build:client        # after changing client/**
 ```
 
 The stylesheet and the JS bundle in `ui/` are built and committed, so users never run a build
