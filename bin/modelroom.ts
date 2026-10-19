@@ -133,7 +133,6 @@ else if (cmd === 'init') {
   const pinned = isLang(opts.lang);
   if (existingPath) {
     cfg = await loadConfig(cwd);
-    designDir = cfg.rootDir;
     configPath = cfg.configPath;
     lang = isLang(opts.lang) ? opts.lang : cfg.lang;
     const raw = await readFile(configPath, 'utf8').catch(() => '');
