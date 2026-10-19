@@ -58,7 +58,7 @@ test('the new layout is found inside modelroom/ and paths resolve from the confi
 test('the root config wins when both layouts exist, so an old project does not move', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'mr-config-'));
   await mkdir(join(dir, 'modelroom'), { recursive: true });
-  await writeFile(join(dir, 'modelroom.json'), JSON.stringify({ rooms: 'old' }));
+  await writeFile(join(dir, 'modelroom.json'), JSON.stringify({ rooms: 'old', lang: 'en' }));
   await writeFile(
     join(dir, 'modelroom', 'modelroom.json'),
     JSON.stringify({ rooms: 'new', lang: 'ja' }),
@@ -73,11 +73,11 @@ test('the root config wins when both layouts exist, so an old project does not m
   }
 });
 
-test('an unknown language falls back to English', async () => {
+test('an unknown or missing language becomes auto (a detected shipped language)', async () => {
   const dir = await fixture({ 'modelroom.json': JSON.stringify({ lang: 'fr' }) });
   try {
     const cfg = await loadConfig(dir);
-    assert.equal(cfg.lang, 'en');
+    assert.ok(cfg.lang === 'en' || cfg.lang === 'ja');
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

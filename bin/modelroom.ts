@@ -13,9 +13,8 @@ import { constants } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, join, relative, resolve, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createInterface } from 'node:readline/promises';
 import { findConfigPath, isLang, loadConfig, type Config, type Lang } from '../lib/config.ts';
-import { canPrompt, detectLang, parseLangAnswer } from '../lib/locale.ts';
+import { detectLang } from '../lib/locale.ts';
 import { t, type MessageKey } from '../lib/i18n.ts';
 import { readTemplate, ROOM_FILES } from '../lib/templates.ts';
 import { createModelroom } from '../lib/server.ts';
@@ -130,26 +129,21 @@ else if (cmd === 'init') {
   let designDir: string;
   let configPath: string;
 
+  const detected = detectLang();
+  const pinned = isLang(opts.lang);
   if (existingPath) {
     cfg = await loadConfig(cwd);
     designDir = cfg.rootDir;
     configPath = cfg.configPath;
     lang = isLang(opts.lang) ? opts.lang : cfg.lang;
-    langSource = isLang(opts.lang) ? 'flag' : 'config';
+    const raw = await readFile(configPath, 'utf8').catch(() => '');
+    langSource = pinned ? 'flag' : /"lang"\s*:/.test(raw) ? 'config' : detected.source;
     if (legacy) console.log(t(lang, 'cli.init.legacy', { path: relative(cwd, existingPath) }));
   } else {
     designDir = join(cwd, 'modelroom');
     configPath = join(designDir, 'modelroom.json');
-    const detected = detectLang();
     lang = isLang(opts.lang) ? opts.lang : detected.lang;
-    langSource = isLang(opts.lang) ? 'flag' : detected.source;
-    if (!isLang(opts.lang) && canPrompt()) {
-      const answer = await promptLang(detected.lang);
-      if (answer !== lang) {
-        lang = answer;
-        langSource = 'flag';
-      }
-    }
+    langSource = pinned ? 'flag' : detected.source;
     cfg = {
       root: '.',
       rooms: str(opts.dir) ?? 'rooms',
@@ -196,10 +190,11 @@ else if (cmd === 'init') {
     const stateRel = relative(dirname(configPath), cfg.stateDir) || '.modelroom';
     await mkdir(dirname(configPath), { recursive: true });
     const template = await readFile(join(templatesDir, 'modelroom.json'), 'utf8');
-    const text = template
-      .replaceAll('{{rooms}}', cfg.rooms)
-      .replaceAll('{{state}}', stateRel)
-      .replaceAll('{{lang}}', lang);
+    let text = template.replaceAll('{{rooms}}', cfg.rooms).replaceAll('{{state}}', stateRel);
+    // Auto is the default: no `lang` line unless the caller pinned one.
+    text = pinned
+      ? text.replaceAll('{{lang}}', lang)
+      : text.replace(/^[ \t]*"lang": "\{\{lang\}\}",\r?\n/m, '');
     await writeFile(configPath, text);
     written.push(rel(configPath, cwd));
   } else {
@@ -258,7 +253,9 @@ else if (cmd === 'init') {
       source: t(lang, `cli.init.languageSource.${langSource}` as MessageKey),
     }),
   );
-  if (langSource !== 'flag') console.log(`  ${t(lang, 'cli.init.languageChange')}`);
+  if (langSource === 'env' || langSource === 'default') {
+    console.log(`  ${t(lang, 'cli.init.languageAuto')}`);
+  }
   console.log(`\n${t(lang, 'cli.init.next')}`);
   console.log(t(lang, 'cli.init.nextServe'));
   console.log(t(lang, 'cli.init.nextOpen', { port: cfg.port, room }));
@@ -417,21 +414,6 @@ async function exists(p: string): Promise<boolean> {
 function rel(p: string, base: string): string {
   const value = relative(base, p);
   return value || '.';
-}
-
-async function promptLang(detected: Lang): Promise<Lang> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  try {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const answer = await rl.question(t(detected, 'cli.init.prompt', { default: detected }));
-      if (!answer.trim()) return detected;
-      const parsed = parseLangAnswer(answer);
-      if (parsed) return parsed;
-    }
-    return detected;
-  } finally {
-    rl.close();
-  }
 }
 
 async function which(bin: string): Promise<string | null> {

@@ -45,26 +45,30 @@ missing (`--force` overwrites).
 ```
 modelroom init checkout            # modelroom/rooms/checkout/
 modelroom init checkout --dir screens
-modelroom init checkout --lang ja  # Japanese templates, no question
+modelroom init checkout --lang ja  # pin Japanese for the templates and the UI
 modelroom init checkout --force    # overwrite existing files
 ```
 
 ### Language
 
-`init` decides the language in this order:
+Language is automatic by default. It is resolved in this order:
 
-1. `--lang en|ja`
-2. the existing `lang` in `modelroom/modelroom.json`
-3. a question on an interactive terminal (the environment's language is the default)
-4. the environment (`MODELROOM_LANG`, `LC_ALL`, `LC_MESSAGES`, `LANG`, then
-   the OS locale), or English on a non-interactive machine / in CI
+1. `--lang en|ja` (only when you want to pin it)
+2. `lang` in `modelroom/modelroom.json`, when it is present
+3. `MODELROOM_LANG`
+4. `LC_ALL` / `LC_MESSAGES` / `LANG`
+5. the OS locale
+6. English
 
-The chosen language is written to `modelroom/modelroom.json` (or the root config of an
-existing project) and printed. It controls the templates, the CLI output and the web UI.
-Existing room documents are never rewritten; `--lang` on a later `init` affects new rooms
-only. To translate a project that already has rooms, change `lang` and ask the agent to
-translate the existing `BRIEF.md` / `SPEC.md` / `BEHAVIOUR.md` files — the frontmatter keys
-and promise ids stay as they are.
+`init` never asks. It uses the detected language for the generated templates and writes
+`lang` only when you passed `--lang`; without it the config has no `lang` and every run
+keeps detecting. `--lang` on `init` (or a later one) pins the language for the CLI, the
+web UI and new rooms.
+
+Existing room documents are never rewritten; `--lang` affects new rooms only. To translate
+a project that already has rooms, pin the language and ask the agent to translate the
+existing `BRIEF.md` / `SPEC.md` / `BEHAVIOUR.md` files — the frontmatter keys and promise
+ids stay as they are.
 
 ## check
 
@@ -110,7 +114,7 @@ ok   room checkout: docs ok
   "root": ".",                                  // the design layer, relative to this file
   "rooms": "rooms",                             // rooms live here
   "state": "../.modelroom",                     // local state, relative to this file
-  "lang": "ja",                                 // "en" | "ja" — CLI, UI and templates
+  "lang": "ja",                                 // optional; omitted = auto. "en" | "ja"
   "artifact": "index.html",                     // the file that is the screen
   "docs": ["BRIEF.md", "SPEC.md", "BEHAVIOUR.md"], // the only files the UI may write
   "port": 4321,

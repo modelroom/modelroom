@@ -21,8 +21,8 @@ npx modelroom                  # → http://127.0.0.1:4321
 ```
 
 `init` keeps the design layer in one place — `modelroom/` for what you commit and
-`.modelroom/` for local state — and asks which language to write in on a terminal
-(`--lang en` / `--lang ja` skips the question):
+`.modelroom/` for local state — and picks the language from your environment (pass
+`--lang en` / `--lang ja` to pin it):
 
 ```
 your-repo/
@@ -110,7 +110,7 @@ must never set it.
   "root": ".",
   "rooms": "rooms",
   "state": "../.modelroom",
-  "lang": "ja",
+  "lang": "ja",                                // optional; omit it and the OS decides
   "agent": {
     "adapter": "opencode",                       // or "command" for any CLI
     "command": "opencode",

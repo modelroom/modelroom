@@ -1,7 +1,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { en, ja, t } from '../../lib/i18n.ts';
-import { detectLang, normalizeLang, parseLangAnswer } from '../../lib/locale.ts';
+import { detectLang, normalizeLang } from '../../lib/locale.ts';
 
 test('every English key has a Japanese translation', () => {
   for (const key of Object.keys(en)) {
@@ -39,11 +39,7 @@ test('language detection normalises shell and OS spellings', () => {
   assert.deepEqual(detectLang({ MODELROOM_LANG: 'ja' }), { lang: 'ja', source: 'env' });
 });
 
-test('the install prompt accepts short and native answers', () => {
-  assert.equal(parseLangAnswer('ja'), 'ja');
-  assert.equal(parseLangAnswer('j'), 'ja');
-  assert.equal(parseLangAnswer('日本語'), 'ja');
-  assert.equal(parseLangAnswer('en'), 'en');
-  assert.equal(parseLangAnswer('english'), 'en');
-  assert.equal(parseLangAnswer('おまかせ'), null);
+test('an empty environment still resolves to a shipped language', () => {
+  const { lang } = detectLang({});
+  assert.ok(lang === 'en' || lang === 'ja');
 });

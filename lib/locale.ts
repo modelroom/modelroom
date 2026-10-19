@@ -34,17 +34,3 @@ export function detectLang(env: NodeJS.ProcessEnv = process.env): {
   }
   return { lang: 'en', source: 'default' };
 }
-
-/** True when the process is attached to a terminal that can answer a prompt. */
-export function canPrompt(): boolean {
-  return Boolean(process.stdin.isTTY && process.stdout.isTTY && !process.env.CI);
-}
-
-/** Accept `j`, `ja`, `日本語`, `e`, `en`, `english`. */
-export function parseLangAnswer(value: string): Lang | null {
-  const answer = value.trim().toLowerCase();
-  if (!answer) return null;
-  if (answer === 'j' || answer === 'ja' || answer === 'jp' || answer.includes('日本')) return 'ja';
-  if (answer === 'e' || answer === 'en' || answer.includes('english')) return 'en';
-  return null;
-}

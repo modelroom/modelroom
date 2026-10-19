@@ -7,6 +7,7 @@ import { access, readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { isLang, type Lang } from './lang.ts';
+import { detectLang } from './locale.ts';
 
 export type { Lang } from './lang.ts';
 export { isLang, LANGS } from './lang.ts';
@@ -114,7 +115,8 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<Config> {
     docs: Array.isArray(file.docs) && file.docs.length ? file.docs : [...DEFAULTS.docs],
     port: file.port ?? DEFAULTS.port,
     host: file.host ?? DEFAULTS.host,
-    lang: isLang(file.lang) ? file.lang : DEFAULTS.lang,
+    // No `lang` in the config means auto: the environment and the OS decide.
+    lang: isLang(file.lang) ? file.lang : detectLang().lang,
     agent: { ...DEFAULTS.agent, ...file.agent } as AgentConfig,
     rootDir: '',
     roomsDir: '',

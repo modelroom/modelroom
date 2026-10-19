@@ -60,6 +60,23 @@ test('init creates modelroom/ + .modelroom/ and writes Japanese templates', asyn
   }
 });
 
+test('init without --lang auto-detects and leaves lang out of the config', async () => {
+  const dir = await project();
+  try {
+    const result = await init(dir, ['checkout'], { LANG: 'ja_JP.UTF-8' });
+    const config = JSON.parse(await readFile(join(dir, 'modelroom', 'modelroom.json'), 'utf8'));
+    assert.equal('lang' in config, false);
+    assert.match(result.stdout, /ja/);
+    assert.match(await readFile(join(dir, 'modelroom', 'AGENTS.md'), 'utf8'), /日本語で書いて/);
+
+    // With no `lang`, the runtime keeps auto-detecting rather than freezing one.
+    const cfg = await loadConfig(dir);
+    assert.ok(cfg.lang === 'en' || cfg.lang === 'ja');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('a second init keeps existing files and uses the language in the config', async () => {
   const dir = await project();
   try {
