@@ -62,7 +62,9 @@ modelroom init checkout --force    # overwrite existing files
 The chosen language is written to `modelroom/modelroom.json` (or the root config of an
 existing project) and printed. It controls the templates, the CLI output and the web UI.
 Existing room documents are never rewritten; `--lang` on a later `init` affects new rooms
-only.
+only. To translate a project that already has rooms, change `lang` and ask the agent to
+translate the existing `BRIEF.md` / `SPEC.md` / `BEHAVIOUR.md` files — the frontmatter keys
+and promise ids stay as they are.
 
 ## check
 
