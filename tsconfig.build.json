@@ -8,6 +8,6 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["bin/**/*.ts", "lib/**/*.ts"],
+  "include": ["bin/**/*.ts", "server/**/*.ts", "core/**/*.ts", "shared/**/*.ts"],
   "exclude": ["test", "vitest.config.ts", "dist"]
 }

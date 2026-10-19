@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { adapters, command, getAdapter, opencode, stripAnsi } from '../../lib/agents/index.ts';
+import { adapters, command, getAdapter, opencode, stripAnsi } from '../../server/agents/index.ts';
 
 test('stripAnsi removes colour codes and keeps the text', () => {
   assert.equal(stripAnsi('\u001b[31mred\u001b[0m plain'), 'red plain');

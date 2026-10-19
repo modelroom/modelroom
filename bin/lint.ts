@@ -7,11 +7,15 @@
 // Nothing here writes. Deleting and merging stay a human decision.
 
 import { join } from 'node:path';
-import { readFrontmatterFile, type Frontmatter, type FrontmatterValue } from './frontmatter.ts';
-import { listRoomNames } from './rooms.ts';
-import { normalize } from './facets.ts';
-import { t, type MessageKey } from './i18n.ts';
-import type { Lang } from './lang.ts';
+import {
+  readFrontmatterFile,
+  type Frontmatter,
+  type FrontmatterValue,
+} from '../core/frontmatter.ts';
+import { listRoomNames } from '../core/rooms.ts';
+import { normalize } from '../core/facets.ts';
+import { t, type MessageKey } from '../shared/i18n.ts';
+import type { Lang } from '../shared/lang.ts';
 
 /** Reserved keys and the shapes they must keep. Everything else is free. */
 const RESERVED_TYPES: Record<string, string[]> = {

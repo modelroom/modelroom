@@ -10,7 +10,7 @@ import { watch, type FSWatcher } from 'node:fs';
 import { readFile, mkdir, open } from 'node:fs/promises';
 import { dirname, extname, join, normalize, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { findPackageRoot } from './pkg.ts';
+import { findPackageRoot } from '../core/pkg.ts';
 import {
   loadConfig,
   loadState,
@@ -18,13 +18,13 @@ import {
   applySettings,
   type Config,
   type State,
-} from './config.ts';
-import { listRoomNames, roomInfo, publicRoom, isRoomName, type RoomInfo } from './rooms.ts';
-import { buildFacets, searchRooms } from './facets.ts';
+} from '../core/config.ts';
+import { listRoomNames, roomInfo, publicRoom, isRoomName, type RoomInfo } from '../core/rooms.ts';
+import { buildFacets, searchRooms } from '../core/facets.ts';
 import { getAdapter, stripAnsi } from './agents/index.ts';
 import { renderArtifact, playwrightAvailable, type RenderResult } from './artifact.ts';
 import { sessionView, watchParts, type PartsWatcher } from './opencode.ts';
-import { t, type MessageKey } from './i18n.ts';
+import { t, type MessageKey } from '../shared/i18n.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

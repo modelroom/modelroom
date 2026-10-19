@@ -6,7 +6,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { LANGS, type Lang } from './lang.ts';
+import { LANGS, type Lang } from '../shared/lang.ts';
 
 export const ROOM_FILES = ['BRIEF.md', 'SPEC.md', 'BEHAVIOUR.md', 'index.html'] as const;
 

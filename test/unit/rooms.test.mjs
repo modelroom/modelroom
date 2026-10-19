@@ -12,7 +12,7 @@ import {
   publicRoom,
   docInfo,
   clearDocCache,
-} from '../../lib/rooms.ts';
+} from '../../core/rooms.ts';
 
 const docs = ['BRIEF.md', 'SPEC.md', 'BEHAVIOUR.md'];
 

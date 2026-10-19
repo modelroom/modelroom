@@ -8,7 +8,7 @@ import {
   plainMarkdown,
   snippet,
   searchRooms,
-} from '../../lib/facets.ts';
+} from '../../core/facets.ts';
 
 const room = (name, fields, extra = {}) => ({
   name,

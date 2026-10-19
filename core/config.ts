@@ -6,11 +6,11 @@
 import { access, readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { isLang, type Lang } from './lang.ts';
+import { isLang, type Lang } from '../shared/lang.ts';
 import { detectLang } from './locale.ts';
 
-export type { Lang } from './lang.ts';
-export { isLang, LANGS } from './lang.ts';
+export type { Lang } from '../shared/lang.ts';
+export { isLang, LANGS } from '../shared/lang.ts';
 
 export type AdapterName = 'opencode' | 'command';
 

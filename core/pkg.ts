@@ -1,7 +1,8 @@
 // modelroom — where the package lives
 //
-// Works from source (`bin/`, `lib/`) and from the published layout (`dist/bin`,
-// `dist/lib`) alike: walk up until the directory that holds package.json.
+// Works from source (`bin/`, `server/`, `core/`, `shared/`) and from the published
+// layout (`dist/bin`, `dist/server`, …) alike: walk up until the directory that holds
+// package.json.
 
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';

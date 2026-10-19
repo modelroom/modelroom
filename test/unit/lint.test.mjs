@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { lintRooms } from '../../lib/lint.ts';
-import { clearDocCache } from '../../lib/rooms.ts';
+import { lintRooms } from '../../bin/lint.ts';
+import { clearDocCache } from '../../core/rooms.ts';
 
 const docs = ['BRIEF.md', 'SPEC.md', 'BEHAVIOUR.md'];
 

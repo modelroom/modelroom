@@ -10,7 +10,7 @@ import {
   isSelfPackage,
   parseManifest,
   scriptOf,
-} from '../../lib/manifest.ts';
+} from '../../bin/manifest.ts';
 
 const SHOP = '{\n  "name": "shop",\n  "scripts": {\n    "dev": "vite"\n  }\n}\n';
 

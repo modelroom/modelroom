@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, chmod, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { sessionParts, sessionView, watchParts } from '../../lib/opencode.ts';
+import { sessionParts, sessionView, watchParts } from '../../server/opencode.ts';
 
 // A fake `opencode` that answers the API paths sessionView reads.
 const RESPONSES = {

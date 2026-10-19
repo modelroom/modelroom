@@ -20,5 +20,5 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["bin/**/*.ts", "lib/**/*.ts", "vitest.config.ts"]
+  "include": ["bin/**/*.ts", "server/**/*.ts", "core/**/*.ts", "shared/**/*.ts", "vitest.config.ts"]
 }

@@ -5,8 +5,8 @@
 // splitter feeds the doc preview and must never lose the body.
 
 import { test, expect } from 'vitest';
-import { renderChat, renderDoc } from '../../web/src/lib/markdown.ts';
-import { docLabel, splitFrontmatter } from '../../web/src/lib/format.ts';
+import { renderChat, renderDoc } from '../../client/lib/markdown.ts';
+import { docLabel, splitFrontmatter } from '../../client/lib/format.ts';
 
 test('raw HTML in a reply is escaped, never rendered', () => {
   const html = renderChat('<img src=x onerror=alert(1)>');

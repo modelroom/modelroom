@@ -17,7 +17,7 @@ import { createServer } from 'node:http';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
-import { createModelroom } from '../lib/server.ts';
+import { createModelroom } from '../server/http.ts';
 
 const pkgDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(pkgDir, '.modelroom', 'verify');

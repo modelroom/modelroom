@@ -5,8 +5,8 @@
 
 import { join } from 'node:path';
 import { stat } from 'node:fs/promises';
-import type { Config } from './config.ts';
-import { t } from './i18n.ts';
+import type { Config } from '../core/config.ts';
+import { t } from '../shared/i18n.ts';
 
 export async function playwrightAvailable(): Promise<boolean> {
   try {

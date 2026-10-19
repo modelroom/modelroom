@@ -100,7 +100,7 @@ export const mine = {
 };
 ```
 
-Add it to `lib/agents/index.ts`. Three rules keep adapters honest:
+Add it to `server/agents/index.ts`. Three rules keep adapters honest:
 
 1. **Close stdin** (`stdio: ['ignore', 'pipe', 'pipe']`). A CLI that reads stdin will hang
    forever if the pipe stays open.
@@ -108,5 +108,5 @@ Add it to `lib/agents/index.ts`. Three rules keep adapters honest:
    Interpretation belongs to the person reading the room.
 3. **`structured: true` is a claim that the turn can be read while the run is in progress** —
    that the agent keeps it somewhere modelroom can ask for it. Only one adapter makes that
-   claim today, and the reading lives in `lib/opencode.ts` (`sessionParts`). If the claim is
+   claim today, and the reading lives in `server/opencode.ts` (`sessionParts`). If the claim is
    wrong, the agent's *prose* lands in the chat and nothing else breaks.

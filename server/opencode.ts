@@ -7,8 +7,8 @@
 // UI just hides the panel. Nothing here writes.
 
 import { spawn, type ChildProcess } from 'node:child_process';
-import type { Config } from './config.ts';
-import { parseParts, toTurns, type Part, type Turn } from './parts.ts';
+import type { Config } from '../core/config.ts';
+import { parseParts, toTurns, type Part, type Turn } from '../shared/parts.ts';
 
 const MAX_OUTPUT = 8 * 1024 * 1024; // a runaway response must not grow without bound
 const TIMEOUT_MS = 15_000;
