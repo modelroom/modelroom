@@ -24,7 +24,8 @@ bin/manifest.ts         the consumer's package.json, edited minimally (`npm run 
 server/http.ts          HTTP + SSE + static + agent spawn
 server/agents/index.ts  adapters: opencode | command
 server/opencode.ts      the opencode session reader (turns, parts, stats)
-server/artifact.ts      optional HTML → PNG (Playwright, dynamically imported)
+server/artifact.ts      HTML → PNG (Playwright, dynamically imported)
+server/thumbs.ts        keeps every room's snapshot current (serial, idempotent)
 core/config.ts          config and state: modelroom.json + .modelroom/state.json
 core/rooms.ts           room discovery, status parsing
 core/facets.ts          facets, filters, search built from the records
@@ -52,6 +53,7 @@ ui/                     the tool's UI, as served (shells + built assets, committ
 ui/assets/app.js        the built bundle; never edited by hand
 ui/*.html               the four shells: `data-app` + the bundle, nothing else
 templates/<lang>/       what `modelroom init` writes (en, ja)
+templates/<lang>/skills/ the two skills `init` drops into `.opencode/skills/`
 templates/<lang>/example/rooms/  the demo room, per language (this repo serves the en one)
 templates/modelroom.json  shared config template with {{rooms}}/{{state}}/{{lang}}
 test/                   vitest: unit + one end-to-end pass over the server
@@ -96,7 +98,9 @@ the UI silently loses classes or ships stale code. `npm run build` does all of i
    Never inject scripts into served content; the tool's own UI lives in `ui/`.
 5. **The design layer never reads the application.** Do not add features that read code
    outside `root`/`rooms`. `withinRoot()` in `server/http.ts` is the guard; keep it strict.
-6. **Writable files are only `cfg.docs`.** Everything else answers 403. Do not widen it.
+6. **The HTTP API writes only `cfg.docs`.** Everything else answers 403. Do not widen it.
+   The one other file the server puts on disk is a room's snapshot (`<artifact>.png`),
+   written by the renderer next to the artifact it belongs to — never by a request.
 7. **Adapters close stdin** (`stdio: ['ignore', 'pipe', 'pipe']`) or agents hang.
 8. **Docs are English.** Keep the tone plain: what it is, what it is not, how to run it.
 9. **User-facing text goes through `t()`.** The catalog is `i18n/catalog.ts`; `en` is the
@@ -152,6 +156,10 @@ the UI silently loses classes or ships stale code. `npm run build` does all of i
   role names, no tool names.
 - Scope is expressed by the directory (product → flow → room), not by the filename.
 - `Status:` in a room's brief drives the badge. `adopted` is a human decision.
+- A room's snapshot (`<artifact>.png`, so `index.png`) is a deliverable, not a cache: a
+  fixed name, overwritten in place, committed next to the artifact, and reviewed on the
+  pull request. Rendering is idempotent (only an artifact newer than its png renders, and
+  an unchanged render writes nothing). The how and the why are in `docs/05-preview-images.md`.
 
 ## Commits
 

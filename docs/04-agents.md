@@ -84,6 +84,37 @@ The generated `AGENTS.md` tells the agent which language to write the room's pro
 that frontmatter keys and promise ids stay in English. Change `lang` in `modelroom.json`
 to change that language for new rooms and for the UI; existing documents are not rewritten.
 
+## The snapshot and the pull request
+
+A room's reviewable output is the docs and the snapshot `index.png`, not the markup. An
+agent that only reads `index.html` is reading half the room, so the layer ships two skills
+(`init` writes them to `modelroom/.opencode/skills/`):
+
+| Skill | When | What it does |
+|---|---|---|
+| `read-modelroom` | before changing or implementing a room | `render` (idempotent), then read the docs **and the picture** |
+| `create-modelroom-pr` | when a change is ready to review | `render`, commit the room's files together, open a PR with the image, the context and the BEHAVIOUR |
+
+Both lean on two commands:
+
+```
+modelroom render <room>            # bring the snapshot up to date
+modelroom render <room> --check    # prove the pixels did not move (CI gate)
+modelroom pr-body <room>           # the description's material, as markdown
+```
+
+Skills are plain `SKILL.md` files. OpenCode reads `.opencode/skills/`; Claude Code reads
+`.claude/skills/`, and `.agents/skills/` is read by both. To use the shipped skills with
+another agent, copy or symlink the two directories.
+
+**modelroom never touches git or `gh`.** It renders and prints; the agent owns the branch,
+the commit and the pull request. That is the same line the rest of the design layer holds:
+the tool stays inside `rooms/` and hands the rest over.
+
+Merge the pull request with **Squash and Merge**. The snapshot is a binary under a fixed
+name, so the branch holds one per revision; squashing leaves main with a single current
+image and lets git collect the rest. `05-preview-images.md` has the reasoning.
+
 ## Writing an adapter
 
 An adapter is one object:
