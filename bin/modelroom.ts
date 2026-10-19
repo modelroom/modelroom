@@ -2,13 +2,13 @@
 // modelroom — CLI
 //
 //   modelroom [serve] [--port 4321] [--host 127.0.0.1] [--open] [--lang en|ja]
-//   modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force]
+//   modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force] [--skip-install] [--no-script]
 //   modelroom check [--json] [--strict]
 //   modelroom doctor
 //
 // `modelroom` with no command serves. See docs/03-cli.md.
 
-import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, access, readdir } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, join, relative, resolve, basename } from 'node:path';
@@ -17,6 +17,18 @@ import { findConfigPath, isLang, loadConfig, type Config, type Lang } from '../l
 import { detectLang } from '../lib/locale.ts';
 import { t, type MessageKey } from '../lib/i18n.ts';
 import { readTemplate, ROOM_FILES } from '../lib/templates.ts';
+import {
+  LOCAL_COMMAND,
+  NPX_COMMAND,
+  SCRIPT_NAME,
+  addScript,
+  detectPackageManager,
+  hasDependency,
+  hasScript,
+  installCommand,
+  isSelfPackage,
+  parseManifest,
+} from '../lib/manifest.ts';
 import { createModelroom } from '../lib/server.ts';
 import { listRoomNames } from '../lib/rooms.ts';
 import { lintRooms } from '../lib/lint.ts';
@@ -28,12 +40,26 @@ const templatesDir = join(pkgDir, 'templates');
 const args = process.argv.slice(2);
 const opts: Record<string, string | true> = {};
 const flagValues = new Set<number>();
+// Flags that never take a value: without this, `init --force checkout` would read
+// `checkout` as the value of `--force` and fall back to the default room.
+const booleanFlags = new Set([
+  'force',
+  'no-script',
+  'skip-install',
+  'open',
+  'json',
+  'strict',
+  'help',
+  'version',
+]);
 for (let i = 0; i < args.length; i++) {
   const arg = args[i] as string;
   if (!arg.startsWith('--')) continue;
   const key = arg.slice(2);
   const next = args[i + 1];
-  if (next && !next.startsWith('--')) {
+  if (booleanFlags.has(key)) {
+    opts[key] = true;
+  } else if (next && !next.startsWith('--')) {
     opts[key] = next;
     flagValues.add(i + 1);
     i++;
@@ -233,16 +259,36 @@ else if (cmd === 'init') {
     written.push(rel(agentsDest, cwd));
   }
 
-  const giDir = dirname(cfg.stateDir);
-  const gi = join(giDir, '.gitignore');
-  const stateName = relative(giDir, cfg.stateDir) || basename(cfg.stateDir);
+  // The project root: the one directory outside modelroom/ that init touches.
+  // It owns the .gitignore line and, when the project has one, the package.json.
+  const projectRoot = dirname(cfg.stateDir);
+  const gitignorePath = join(projectRoot, '.gitignore');
+  const stateName = relative(projectRoot, cfg.stateDir) || basename(cfg.stateDir);
   const entry = `/${stateName.replaceAll('\\', '/')}/`;
-  const lines = await readFile(gi, 'utf8').catch(() => '');
-  if (!lines.includes(entry)) {
-    await mkdir(giDir, { recursive: true });
-    await writeFile(gi, (lines ? lines.replace(/\n?$/, '\n') : '') + entry + '\n');
+  const gitignoreText = await readFile(gitignorePath, 'utf8').catch(() => '');
+  if (!gitignoreText.includes(entry)) {
+    await mkdir(projectRoot, { recursive: true });
+    await writeFile(
+      gitignorePath,
+      (gitignoreText ? gitignoreText.replace(/\n?$/, '\n') : '') + entry + '\n',
+    );
     written.push(t(lang, 'cli.init.gitignore', { path: entry }));
   }
+
+  // The everyday command, `npm run modelroom`: one script in the consumer's own
+  // package.json. The file is never created here, an existing key is kept,
+  // and the dependency is installed rather than written by hand, so the
+  // manifest and the lockfile cannot disagree.
+  const scriptAdded = await addManifestScript({
+    dir: projectRoot,
+    base: cwd,
+    version: pkg.version,
+    lang,
+    force,
+    skipInstall: Boolean(opts['skip-install']),
+    noScript: Boolean(opts['no-script']),
+    written,
+  });
 
   console.log(t(lang, 'cli.init.created', { dir: cwd }));
   for (const w of written) console.log(`  ${w}`);
@@ -256,7 +302,7 @@ else if (cmd === 'init') {
     console.log(`  ${t(lang, 'cli.init.languageAuto')}`);
   }
   console.log(`\n${t(lang, 'cli.init.next')}`);
-  console.log(t(lang, 'cli.init.nextServe'));
+  console.log(scriptAdded ? t(lang, 'cli.init.nextScript') : t(lang, 'cli.init.nextServe'));
   console.log(t(lang, 'cli.init.nextOpen', { port: cfg.port, room }));
 }
 
@@ -401,6 +447,124 @@ else if (cmd === 'doctor') {
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────
+/**
+ * `npm run modelroom` in the consumer's project. The script is what people type,
+ * so it is written whenever a package.json exists and lacks the key; the
+ * dependency is what makes the script instant, so it is installed with the
+ * project's own package manager instead of being written by hand — a manifest
+ * and a lockfile that disagree would break `npm ci`.
+ *
+ * Returns true when the script was written.
+ */
+async function addManifestScript({
+  dir,
+  base,
+  version,
+  lang,
+  force,
+  skipInstall,
+  noScript,
+  written,
+}: {
+  dir: string;
+  base: string;
+  version: string;
+  lang: Lang;
+  force: boolean;
+  skipInstall: boolean;
+  noScript: boolean;
+  written: string[];
+}): Promise<boolean> {
+  if (noScript) return false;
+
+  const path = join(dir, 'package.json');
+  const text = await readFile(path, 'utf8').catch(() => null);
+  if (text === null) return false; // no manifest: npx stays the way in, and we stay out
+
+  const manifest = parseManifest(text);
+  if (!manifest) {
+    console.log(t(lang, 'cli.init.scriptInvalid'));
+    return false;
+  }
+  const label = `${rel(path, base)} scripts.${SCRIPT_NAME}`;
+  if (hasScript(manifest, SCRIPT_NAME) && !force) {
+    console.log(t(lang, 'cli.init.skip', { label }));
+    return false;
+  }
+
+  const spec = `${SCRIPT_NAME}@^${version}`;
+  // A dependency already there (or this repo *being* modelroom) needs no install.
+  let local = hasDependency(manifest, SCRIPT_NAME) || isSelfPackage(manifest);
+  if (!local && skipInstall) {
+    console.log(t(lang, 'cli.init.depsSkipped'));
+  } else if (!local) {
+    const pm = detectPackageManager(await readdir(dir).catch(() => []));
+    const call = installCommand(pm, spec);
+    const install = await runPackageManager(dir, call);
+    local = install.ok;
+    console.log(
+      install.ok
+        ? t(lang, 'cli.init.deps', { spec, pm })
+        : t(lang, 'cli.init.depsFailed', {
+            spec,
+            pm,
+            command: `${call.command} ${call.args.join(' ')}`,
+          }),
+    );
+    if (!install.ok && install.detail) console.log(`  ${install.detail}`);
+  }
+
+  // The package manager rewrote the manifest, so read it again: the script must
+  // land next to the dependency entry it wrote, not on a stale copy.
+  const after = local ? await readFile(path, 'utf8').catch(() => text) : text;
+  const value = local ? LOCAL_COMMAND : NPX_COMMAND;
+  const edit = addScript(after, SCRIPT_NAME, value, { overwrite: force });
+  if (!edit.ok) {
+    console.log(
+      t(lang, edit.reason === 'invalid' ? 'cli.init.scriptInvalid' : 'cli.init.scriptBadScripts'),
+    );
+    return false;
+  }
+  if (!edit.changed) {
+    if (!force) console.log(t(lang, 'cli.init.skip', { label }));
+    return false;
+  }
+
+  await writeFile(path, edit.text);
+  written.push(t(lang, 'cli.init.script', { name: SCRIPT_NAME, value }));
+  return true;
+}
+
+/** Run the project's package manager with stdin closed; a failure is ours to report. */
+function runPackageManager(
+  dir: string,
+  call: { command: string; args: string[] },
+): Promise<{ ok: boolean; detail?: string }> {
+  return new Promise((settle) => {
+    const child = spawn(call.command, call.args, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+    let output = '';
+    const keep = (b: Buffer): void => {
+      output += String(b);
+    };
+    child.stdout?.on('data', keep);
+    child.stderr?.on('data', keep);
+    child.on('error', () => settle({ ok: false })); // no such manager on PATH
+    child.on('close', (code) =>
+      settle(code === 0 ? { ok: true } : { ok: false, detail: lastLine(output) }),
+    );
+  });
+}
+
+/** The last thing the package manager said, for the one line we print on failure. */
+function lastLine(output: string): string | undefined {
+  let line: string | undefined;
+  for (const raw of output.split('\n')) {
+    const trimmed = raw.trim();
+    if (trimmed) line = trimmed;
+  }
+  return line ? line.slice(0, 200) : undefined;
+}
+
 async function exists(p: string): Promise<boolean> {
   try {
     await access(p, constants.F_OK);
