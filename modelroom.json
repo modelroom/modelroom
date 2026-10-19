@@ -1,6 +1,6 @@
 {
   "root": ".",
-  "rooms": "examples/rooms",
+  "rooms": "templates/en/example/rooms",
   "artifact": "index.html",
   "docs": ["BRIEF.md", "SPEC.md", "BEHAVIOUR.md"],
   "port": 4321,

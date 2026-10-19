@@ -1,0 +1,56 @@
+<!doctype html>
+<!-- sign-in — example 用 room の artifact。自己完結: CDN もフレームワークもビルドもなし。 -->
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>サインイン</title>
+<style>
+  :root {
+    --bg: #faf9f7; --surface: #ffffff; --text: #1c1917; --muted: #78716c;
+    --line: #e7e5e4; --primary: #1c1917; --primary-text: #fafaf9;
+    --danger-bg: #fef2f2; --danger-line: #fecaca; --danger-text: #991b1b;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; display: grid; place-items: center; padding: 32px 20px; background: var(--bg); color: var(--text);
+    font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif; line-height: 1.7;
+  }
+  .card {
+    width: min(440px, 100%); background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 32px; display: flex; flex-direction: column; gap: 20px;
+  }
+  .brand { font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: 22px; margin: 0; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 13px; color: var(--muted); }
+  input {
+    font: inherit; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text);
+  }
+  input:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+  button {
+    font: inherit; padding: 14px 20px; border-radius: 10px; border: 1px solid var(--primary);
+    background: var(--primary); color: var(--primary-text); cursor: pointer; min-height: 48px;
+  }
+  .hint { font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand">modelroom · 例</div>
+    <h1>サインイン</h1>
+    <div class="field">
+      <label for="email">メールアドレス</label>
+      <input id="email" type="email" autocomplete="username" placeholder="you@example.com">
+    </div>
+    <div class="field">
+      <label for="password">パスワード</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button>サインイン</button>
+    <p class="hint">これは model room です — ここにあるものは何にもつながっていません。</p>
+  </main>
+</body>
+</html>

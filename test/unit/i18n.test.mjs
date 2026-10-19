@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { en, ja, t } from '../../shared/i18n.ts';
+import { en, ja, t } from '../../i18n/catalog.ts';
 import { detectLang, normalizeLang } from '../../core/locale.ts';
 
 test('every English key has a Japanese translation', () => {

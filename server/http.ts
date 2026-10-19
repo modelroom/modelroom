@@ -24,7 +24,7 @@ import { buildFacets, searchRooms } from '../core/facets.ts';
 import { getAdapter, stripAnsi } from './agents/index.ts';
 import { renderArtifact, playwrightAvailable, type RenderResult } from './artifact.ts';
 import { sessionView, watchParts, type PartsWatcher } from './opencode.ts';
-import { t, type MessageKey } from '../shared/i18n.ts';
+import { t, type MessageKey } from '../i18n/catalog.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

@@ -10,7 +10,7 @@ be asked to explain themselves.
 git clone https://github.com/modelroom/modelroom.git
 cd modelroom
 npm ci
-cp -r examples/rooms rooms   # or run `npm run modelroom` and use `npx modelroom init`
+cp -r templates/en/example/rooms rooms   # or run `npm run modelroom` and use `npx modelroom init`
 npm run modelroom            # http://127.0.0.1:4321
 ```
 

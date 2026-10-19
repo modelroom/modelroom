@@ -31,9 +31,10 @@ core/facets.ts          facets, filters, search built from the records
 core/frontmatter.ts     frontmatter read/write, reserved keys
 core/locale.ts          environment/OS language detection
 core/pkg.ts             where the package lives (source or dist)
-shared/lang.ts          Lang = 'en' | 'ja' (browser-safe)
-shared/i18n.ts          the one catalog, shared by CLI, server and UI
-shared/parts.ts         the chat turn: text · reasoning · tool, from opencode's session
+i18n/lang.ts            Lang = 'en' | 'ja' (browser-safe)
+i18n/catalog.ts         the one catalog, shared by CLI, server and UI
+api/chat.ts             the chat turn, as the browser receives it (types only)
+server/parts.ts         opencode's message → that turn
 client/                 the tool's UI source (React + Mantine + CodeMirror)
   theme.ts              the Mantine theme: colour ramps, radii, fonts
   components/           shared panels and pieces (chat · docs · artifact · session)
@@ -51,8 +52,8 @@ ui/                     the tool's UI, as served (shells + built assets, committ
 ui/assets/app.js        the built bundle; never edited by hand
 ui/*.html               the four shells: `data-app` + the bundle, nothing else
 templates/<lang>/       what `modelroom init` writes (en, ja)
+templates/<lang>/example/rooms/  the demo room, per language (this repo serves the en one)
 templates/modelroom.json  shared config template with {{rooms}}/{{state}}/{{lang}}
-examples/rooms/         the demo room(s) used by this repo's modelroom.json
 test/                   vitest: unit + one end-to-end pass over the server
 docs/                   the convention, the CLI, agents
 ```
@@ -67,7 +68,7 @@ npm run build:client     # rebuild ui/assets/app.js after touching client/**
 npm run dev:client       # the same, watching
 npm run build:css        # rebuild ui/modelroom.css after touching ui/*.html or client/modelroom.css
 npm run dev:css          # the same, watching
-npm run typecheck        # bin · server · core · shared + client
+npm run typecheck        # bin · server · core · i18n · api + client
 npm run verify:ui        # Chromium pass: console, axe, the filter, screenshots
 npm run doctor           # (via bin) check the local setup
 ```
@@ -83,8 +84,9 @@ the UI silently loses classes or ships stale code. `npm run build` does all of i
    (React, Mantine, @tanstack/react-virtual, CodeMirror, markdown-it, lucide) are
    devDependencies bundled into the committed `ui/assets/app.js`; anything optional
    (Playwright) is dynamically imported and degrades.
-2. **Artifacts stay framework-free.** `templates/rooms/*/index.html` and `examples/rooms/*`
-   use plain HTML and CSS — no framework, no CDN, no web fonts. They are handed to
+2. **Artifacts stay framework-free.** Every `index.html` under `templates/` — the blank
+   `templates/<lang>/room/` and the example rooms in `templates/<lang>/example/rooms/` —
+   uses plain HTML and CSS — no framework, no CDN, no web fonts. They are handed to
    implementation and must render with no network.
 3. **The tool UI is React + Mantine, and nothing else.** Use the component Mantine ships;
    style it with props, the Styles API or a class in `client/modelroom.css`. Do not add a
@@ -97,14 +99,15 @@ the UI silently loses classes or ships stale code. `npm run build` does all of i
 6. **Writable files are only `cfg.docs`.** Everything else answers 403. Do not widen it.
 7. **Adapters close stdin** (`stdio: ['ignore', 'pipe', 'pipe']`) or agents hang.
 8. **Docs are English.** Keep the tone plain: what it is, what it is not, how to run it.
-9. **User-facing text goes through `t()`.** The catalog is `shared/i18n.ts`; `en` is the
+9. **User-facing text goes through `t()`.** The catalog is `i18n/catalog.ts`; `en` is the
    source of truth and `ja` must satisfy its type, so a missing translation is a type
    error. Templates live in `templates/<lang>/`; generated frontmatter keys, `status`
    values and promise ids stay in English whatever the prose language. The workshop
    (`/ui/kit.html`) uses the same catalog, not a second one.
-10. **A layer imports only its neighbours.** `shared/` touches neither `node:` nor any
-    package; `client/` never imports `server/` or `core/`; `server/` and `bin/` never import
-    `client/`. `test/unit/boundaries.test.mjs` fails when an import crosses a line.
+10. **A layer imports only its neighbours.** `i18n/` and `api/` touch neither `node:` nor any
+    package; `client/` imports only those two and itself, never `server/` or `core/`;
+    `server/` and `bin/` never import `client/`. `test/unit/boundaries.test.mjs` fails when an
+    import crosses a line.
 
 ## The tool UI (`client/`)
 
@@ -127,8 +130,9 @@ the UI silently loses classes or ships stale code. `npm run build` does all of i
   `useVirtualizedCombobox` + `@tanstack/react-virtual` past that. The count gate lives in
   `SYNC_LIMIT`; the matching rule is `client/dashboard/filter.ts` and is unit-tested.
 - **The server's shapes are written twice.** `client/lib/api.ts` types every call by hand and
-  nothing checks it against the server — only the e2e pass holds a few fields. `shared/parts.ts`
-  is the exception: the chat turn is defined once and imported by both sides.
+  nothing checks it against the server — only the e2e pass holds a few fields. `api/chat.ts`
+  is the exception: the chat turn is defined once, as types, and imported by both sides;
+  opencode's parsing of it lives in `server/parts.ts`.
 - **The markdown is escaped.** markdown-it runs with `html: false`, so a doc or a reply can
   never inject markup into the tool; links get `target="_blank"` and `rel="noopener"`.
 - **Docs are written one way.** `GET /api/doc` returns the text and a content hash;

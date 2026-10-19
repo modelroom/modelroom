@@ -138,14 +138,14 @@ Full detail, including how to scope an agent so it can only write room files, is
 git clone https://github.com/modelroom/modelroom && cd modelroom
 npm install                 # dev only: Mantine + React (both bundled, committed) + playwright (optional)
 npm test                    # smoke checks
-npm run modelroom           # serves examples/rooms
+npm run modelroom           # serves templates/en/example/rooms
 npm run build:css           # after changing ui/*.html or client/modelroom.css
 npm run build:client        # after changing client/**
 ```
 
 The stylesheet and the JS bundle in `ui/` are built and committed, so users never run a build
-step. The tool's UI is React + [Mantine](https://mantine.dev); artifacts (in `templates/` and
-`examples/`) are deliberately framework-free: plain HTML and CSS, no CDN, no web fonts — they
+step. The tool's UI is React + [Mantine](https://mantine.dev); artifacts (in `templates/`)
+are deliberately framework-free: plain HTML and CSS, no CDN, no web fonts — they
 are handed to implementation and must render with no network.
 
 PNG thumbnails are optional and need Playwright:

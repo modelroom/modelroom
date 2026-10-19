@@ -4,7 +4,7 @@
 // when it has no lang yet), the environment and the OS locale decide. Only the
 // languages the package ships are returned; everything else is English.
 
-import type { Lang } from '../shared/lang.ts';
+import type { Lang } from '../i18n/lang.ts';
 
 /** `ja_JP.UTF-8`, `ja-JP`, `Japanese_Japan` → `ja`; everything else → `en`. */
 export function normalizeLang(value: string | null | undefined): Lang {

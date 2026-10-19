@@ -10,7 +10,7 @@ export default defineConfig({
       reporter: ['text', 'lcov'],
       // The CLI entry is a script the e2e pass drives in a child process, so it
       // is not measured here; everything it calls is.
-      include: ['bin/**/*.ts', 'server/**/*.ts', 'core/**/*.ts', 'shared/**/*.ts'],
+      include: ['bin/**/*.ts', 'server/**/*.ts', 'core/**/*.ts', 'i18n/**/*.ts', 'api/**/*.ts'],
       exclude: ['bin/modelroom.ts', 'server/artifact.ts'],
       thresholds: {
         statements: 75,

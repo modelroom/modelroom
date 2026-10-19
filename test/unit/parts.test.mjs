@@ -8,7 +8,7 @@
 
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { parseParts, summarise, toTurns } from '../../shared/parts.ts';
+import { parseParts, summarise, toTurns } from '../../server/parts.ts';
 
 const shell = {
   type: 'tool',

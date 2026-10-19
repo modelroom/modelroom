@@ -1,4 +1,11 @@
 // Everything the room UI asks of the modelroom server, typed once.
+//
+// The chat turn is the exception: it is defined once in `api/chat.ts` and shared
+// with the server, so the two sides cannot drift.
+
+import type { DiffFile, Part, Turn } from '../../api/chat.ts';
+
+export type { DiffFile, Part, Turn };
 
 export interface AgentConfig {
   adapter: string;
@@ -66,37 +73,6 @@ export interface TokenUsage {
   reasoning: number;
   cacheRead: number;
   cacheWrite: number;
-}
-
-/** One file an edit touched, with the patch opencode produced for it. */
-export interface DiffFile {
-  file: string;
-  patch: string;
-}
-
-/**
- * A turn is a list of parts. `text` is what the model said, `reasoning` is what
- * it thought, and `tool` is one call with its input, output and patches — all of
- * it from the session API, none of it parsed out of the CLI's stdout.
- */
-export type Part =
-  | { kind: 'text'; text: string }
-  | { kind: 'reasoning'; text: string }
-  | {
-      kind: 'tool';
-      id: string;
-      name: string;
-      status: 'running' | 'completed' | 'error';
-      summary: string | null;
-      files: DiffFile[];
-      output: string | null;
-      exit: number | null;
-      truncated: boolean;
-    };
-
-export interface Turn {
-  role: 'user' | 'assistant';
-  parts: Part[];
 }
 
 /** The words of a turn: what the copy button takes, and what the plain view shows. */

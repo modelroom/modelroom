@@ -1,6 +1,6 @@
 // modelroom — where the package lives
 //
-// Works from source (`bin/`, `server/`, `core/`, `shared/`) and from the published
+// Works from source (`bin/`, `server/`, `core/`, `i18n/`, `api/`) and from the published
 // layout (`dist/bin`, `dist/server`, …) alike: walk up until the directory that holds
 // package.json.
 

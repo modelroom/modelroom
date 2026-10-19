@@ -14,8 +14,8 @@ import {
 } from '../core/frontmatter.ts';
 import { listRoomNames } from '../core/rooms.ts';
 import { normalize } from '../core/facets.ts';
-import { t, type MessageKey } from '../shared/i18n.ts';
-import type { Lang } from '../shared/lang.ts';
+import { t, type MessageKey } from '../i18n/catalog.ts';
+import type { Lang } from '../i18n/lang.ts';
 
 /** Reserved keys and the shapes they must keep. Everything else is free. */
 const RESERVED_TYPES: Record<string, string[]> = {
