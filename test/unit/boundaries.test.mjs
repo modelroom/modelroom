@@ -2,7 +2,8 @@
 //
 // The tree says where code runs: `bin/` is the CLI, `server/` is the HTTP and
 // agent side, `client/` is the browser, `core/` is the model the CLI and the
-// server share, and `shared/` is the vocabulary both sides of the wire agree on.
+// server share, `i18n/` is the language and its catalog, and `api/` is the shape
+// the browser and the server agree on.
 // tsconfig and esbuild already refuse to build a browser bundle that reaches for
 // `node:` — this states the rule so a reviewer does not have to reconstruct it
 // from three config files, and so a new import fails here instead of in review.
@@ -22,19 +23,22 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
  * only by the PNG renderer, so modelroom still runs without it.
  */
 const LAYERS = {
-  // Browser-safe by construction: the one catalog the CLI, the server and the UI
-  // share. Nothing here may reach for Node, or for any package at all.
-  shared: { siblings: [], node: false, packages: false },
+  // Browser-safe by construction: the words. Nothing here may reach for Node,
+  // or for any package at all.
+  i18n: { siblings: [], node: false, packages: false },
+  // Browser-safe by construction: the wire. Types only — the chat turn and the
+  // shape of what the server hands the browser. The same rules as the words.
+  api: { siblings: [], node: false, packages: false },
   // The model both the CLI and the server work on. Node is fine; the browser is
   // not a consumer of it.
-  core: { siblings: ['shared'], node: true, packages: false },
-  // The browser app. It talks to the server over HTTP and shares the vocabulary,
-  // but never imports the server or the model directly.
-  client: { siblings: ['shared'], node: false, packages: true },
+  core: { siblings: ['i18n'], node: true, packages: false },
+  // The browser app. It talks to the server over HTTP and shares the words and
+  // the wire, but never imports the server or the model directly.
+  client: { siblings: ['i18n', 'api'], node: false, packages: true },
   // The HTTP + agent side.
-  server: { siblings: ['core', 'shared'], node: true, packages: ['playwright'] },
+  server: { siblings: ['core', 'i18n', 'api'], node: true, packages: ['playwright'] },
   // The CLI: everything above, because `serve` starts the server.
-  bin: { siblings: ['server', 'core', 'shared'], node: true, packages: false },
+  bin: { siblings: ['server', 'core', 'i18n'], node: true, packages: false },
 };
 
 const SPECIFIER = /(?:^|[^.\w])(?:from|import)\s*\(?\s*['"]([^'"]+)['"]/gm;

@@ -15,7 +15,7 @@ import { dirname, join, relative, resolve, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { findConfigPath, isLang, loadConfig, type Config, type Lang } from '../core/config.ts';
 import { detectLang } from '../core/locale.ts';
-import { t, type MessageKey } from '../shared/i18n.ts';
+import { t, type MessageKey } from '../i18n/catalog.ts';
 import { readTemplate, ROOM_FILES } from './templates.ts';
 import {
   LOCAL_COMMAND,

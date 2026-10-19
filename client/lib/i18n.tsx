@@ -2,7 +2,7 @@
 // server use — so a phrase cannot drift between the browser and the terminal.
 
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { t as translate, type Lang, type MessageKey } from '../../shared/i18n.ts';
+import { t as translate, type Lang, type MessageKey } from '../../i18n/catalog.ts';
 
 export type { Lang, MessageKey };
 

@@ -1,43 +1,16 @@
-// modelroom — the agent's turn, as parts.
+// modelroom — reading opencode's session into the chat's parts.
 //
 // The opencode API describes an assistant message as a list of parts: `text`,
 // `reasoning`, and one `tool` part per call — each with its own input, its
 // output (`content`) and its metadata (an exit code, or the patches it wrote).
 // That is everything the CLI's stdout throws away.
 //
-// This module is pure: it takes what the API already returned and turns it into
-// the small, serializable shape the chat renders. No I/O, no guessing at the
-// CLI's human output.
+// opencode's shape is the server's business: this module takes what its API
+// already returned and turns it into the small, serializable shape defined in
+// `api/chat.ts` — the one the browser renders. No I/O, no guessing at the CLI's
+// human output.
 
-export type ToolStatus = 'running' | 'completed' | 'error';
-
-/** One file an edit touched, with the patch opencode produced for it. */
-export interface DiffFile {
-  file: string;
-  patch: string;
-}
-
-export type Part =
-  | { kind: 'text'; text: string }
-  | { kind: 'reasoning'; text: string }
-  | {
-      kind: 'tool';
-      id: string;
-      name: string;
-      status: ToolStatus;
-      /** One line that says what it acted on: a path, a command, a pattern. */
-      summary: string | null;
-      files: DiffFile[];
-      /** The tool's own output, clipped. */
-      output: string | null;
-      exit: number | null;
-      truncated: boolean;
-    };
-
-export interface Turn {
-  role: 'user' | 'assistant';
-  parts: Part[];
-}
+import type { DiffFile, Part, ToolStatus, Turn } from '../api/chat.ts';
 
 const MAX_OUTPUT = 4000;
 const MAX_SUMMARY = 140;

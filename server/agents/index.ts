@@ -13,7 +13,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import type { Config } from '../../core/config.ts';
-import { t } from '../../shared/i18n.ts';
+import { t } from '../../i18n/catalog.ts';
 
 export type Stream = 'stdout' | 'stderr';
 

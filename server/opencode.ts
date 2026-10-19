@@ -8,7 +8,8 @@
 
 import { spawn, type ChildProcess } from 'node:child_process';
 import type { Config } from '../core/config.ts';
-import { parseParts, toTurns, type Part, type Turn } from '../shared/parts.ts';
+import type { Part, Turn } from '../api/chat.ts';
+import { parseParts, toTurns } from './parts.ts';
 
 const MAX_OUTPUT = 8 * 1024 * 1024; // a runaway response must not grow without bound
 const TIMEOUT_MS = 15_000;
