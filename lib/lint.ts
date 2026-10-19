@@ -10,6 +10,8 @@ import { join } from 'node:path';
 import { readFrontmatterFile, type Frontmatter, type FrontmatterValue } from './frontmatter.ts';
 import { listRoomNames } from './rooms.ts';
 import { normalize } from './facets.ts';
+import { t, type MessageKey } from './i18n.ts';
+import type { Lang } from './lang.ts';
 
 /** Reserved keys and the shapes they must keep. Everything else is free. */
 const RESERVED_TYPES: Record<string, string[]> = {
@@ -40,6 +42,7 @@ export interface LintIssue {
   room: string;
   file: string | null;
   code: string;
+  params?: Record<string, string | number>;
   message: string;
 }
 
@@ -52,6 +55,7 @@ export interface LintStats {
 export interface LintConfig {
   roomsDir: string;
   docs: string[];
+  lang?: Lang;
 }
 
 const typeOf = (v: FrontmatterValue): string => {
@@ -87,6 +91,7 @@ function variantGroups(entries: VariantEntry[]): VariantEntry[][] {
 export async function lintRooms(
   cfg: LintConfig,
 ): Promise<{ issues: LintIssue[]; stats: LintStats }> {
+  const lang = cfg.lang ?? 'en';
   const names = await listRoomNames(cfg);
   const issues: LintIssue[] = [];
   const variants: VariantEntry[] = [];
@@ -96,9 +101,10 @@ export async function lintRooms(
     room: string,
     file: string | null,
     code: string,
-    message: string,
+    params?: Record<string, string | number>,
   ) => {
-    issues.push({ level, room, file: file || null, code, message });
+    const message = t(lang, code as MessageKey, params);
+    issues.push({ level, room, file: file || null, code, params, message });
   };
 
   for (const room of names) {
@@ -110,35 +116,33 @@ export async function lintRooms(
         continue; // a missing doc is reported by `doctor`, not here
       }
       for (const issue of doc.issues) {
-        add('error', room, file, issue.code, issue.message);
+        add('error', room, file, issue.code, issue.params);
       }
 
       const data: Frontmatter = doc.data || {};
       for (const [key, value] of Object.entries(data)) {
         const allowed = RESERVED_TYPES[key];
         if (allowed) {
-          const t = typeOf(value);
-          if (value !== null && !allowed.includes(t)) {
-            add(
-              'error',
-              room,
-              file,
-              'reserved-type',
-              `${key} must be ${allowed.join(' or ')}, got ${t}`,
-            );
+          const kind = typeOf(value);
+          if (value !== null && !allowed.includes(kind)) {
+            add('error', room, file, 'reserved-type', {
+              key,
+              allowed: allowed.join(` ${t(lang, 'lint.or')} `),
+              got: kind,
+            });
           }
           if (
             key === 'tags' &&
             Array.isArray(value) &&
             value.some((v) => typeof v === 'object' || Array.isArray(v))
           ) {
-            add('error', room, file, 'tags-shape', 'tags must be a flat list of strings');
+            add('error', room, file, 'tags-shape');
           }
         }
 
         for (const [canonical, aliases] of Object.entries(SYNONYMS)) {
           if (aliases.includes(key) && data[canonical] !== undefined) {
-            add('warn', room, file, 'synonym', `${key} duplicates ${canonical} — keep one`);
+            add('warn', room, file, 'synonym', { key, canonical });
           }
         }
 
@@ -152,19 +156,16 @@ export async function lintRooms(
       }
 
       if (!doc.hasFrontmatter && file === cfg.docs[0]) {
-        add('warn', room, file, 'no-frontmatter', 'no frontmatter — add title, summary and tags');
+        add('warn', room, file, 'no-frontmatter');
       }
 
       if (file === cfg.docs[0] && data.title) {
         const h1 = /^#\s+(.+)$/m.exec(doc.body || '');
         if (h1 && normalize((h1[1] as string).trim()) !== normalize(data.title)) {
-          add(
-            'warn',
-            room,
-            file,
-            'h1-title',
-            `H1 "${(h1[1] as string).trim()}" differs from title "${String(data.title)}"`,
-          );
+          add('warn', room, file, 'h1-title', {
+            h1: (h1[1] as string).trim(),
+            title: String(data.title),
+          });
         }
       }
     }
@@ -173,13 +174,7 @@ export async function lintRooms(
   for (const group of variantGroups(variants)) {
     const values = group.map((x) => x.value).join(' / ');
     for (const item of group) {
-      add(
-        'warn',
-        item.room,
-        item.file,
-        'variant',
-        `${item.key}: ${values} — same value, different spelling`,
-      );
+      add('warn', item.room, item.file, 'variant', { key: item.key, values });
     }
   }
 
@@ -193,13 +188,7 @@ export async function lintRooms(
       }
       const target = doc.data?.superseded_by;
       if (typeof target === 'string' && target && !seen.has(target)) {
-        add(
-          'warn',
-          room,
-          file,
-          'superseded-missing',
-          `superseded_by points to a room that does not exist: ${target}`,
-        );
+        add('warn', room, file, 'superseded-missing', { target });
       }
     }
   }

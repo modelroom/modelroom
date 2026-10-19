@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DEFAULTS, applySettings, loadConfig, loadState, saveState } from '../../lib/config.ts';
@@ -25,6 +25,59 @@ test('defaults are used when modelroom.json is missing', async () => {
     assert.equal(cfg.agent.adapter, 'opencode');
     assert.equal(cfg.agent.model, null);
     assert.equal(cfg.statePath, join(dir, '.modelroom', 'state.json'));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('the new layout is found inside modelroom/ and paths resolve from the config', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'mr-config-'));
+  await mkdir(join(dir, 'modelroom'), { recursive: true });
+  await writeFile(
+    join(dir, 'modelroom', 'modelroom.json'),
+    JSON.stringify({
+      root: '.',
+      rooms: 'rooms',
+      state: '../.modelroom',
+      lang: 'ja',
+    }),
+  );
+  try {
+    const cfg = await loadConfig(dir);
+    assert.equal(cfg.configPath, join(dir, 'modelroom', 'modelroom.json'));
+    assert.equal(cfg.rootDir, join(dir, 'modelroom'));
+    assert.equal(cfg.roomsDir, join(dir, 'modelroom', 'rooms'));
+    assert.equal(cfg.stateDir, join(dir, '.modelroom'));
+    assert.equal(cfg.statePath, join(dir, '.modelroom', 'state.json'));
+    assert.equal(cfg.lang, 'ja');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('the root config wins when both layouts exist, so an old project does not move', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'mr-config-'));
+  await mkdir(join(dir, 'modelroom'), { recursive: true });
+  await writeFile(join(dir, 'modelroom.json'), JSON.stringify({ rooms: 'old' }));
+  await writeFile(
+    join(dir, 'modelroom', 'modelroom.json'),
+    JSON.stringify({ rooms: 'new', lang: 'ja' }),
+  );
+  try {
+    const cfg = await loadConfig(dir);
+    assert.equal(cfg.configPath, join(dir, 'modelroom.json'));
+    assert.equal(cfg.roomsDir, join(dir, 'old'));
+    assert.equal(cfg.lang, 'en');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('an unknown language falls back to English', async () => {
+  const dir = await fixture({ 'modelroom.json': JSON.stringify({ lang: 'fr' }) });
+  try {
+    const cfg = await loadConfig(dir);
+    assert.equal(cfg.lang, 'en');
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

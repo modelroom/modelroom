@@ -15,20 +15,15 @@ import {
 } from '@mantine/core';
 import type { ChatApi, ChatMessage } from '../hooks/useChat.ts';
 import { clock } from '../lib/format.ts';
+import { useI18n } from '../lib/i18n.tsx';
 import { Composer } from './Composer.tsx';
 import { Icon } from './Icon.tsx';
 import { Markdown } from './Markdown.tsx';
 import { Panel } from './Status.tsx';
 import { PartView } from './parts.tsx';
 
-const SUGGESTIONS = [
-  'Tighten the spacing and the type scale.',
-  'Add a loading state and an error state.',
-  'Make the primary action the obvious one.',
-  'Rewrite SPEC.md so it only holds what the screen cannot show.',
-];
-
 function LogBlock({ message }: { message: Extract<ChatMessage, { role: 'log' }> }) {
+  const { t } = useI18n();
   return (
     <Box
       style={{
@@ -40,7 +35,7 @@ function LogBlock({ message }: { message: Extract<ChatMessage, { role: 'log' }> 
       <Group gap={6} px="xs" py={4} wrap="nowrap">
         <Icon name="terminal" size={14} />
         <Text size="xs" ff="monospace" c="dimmed">
-          agent log
+          {t('chat.agentLog')}
         </Text>
         {!message.done && <Loader size={12} color="gray" />}
       </Group>
@@ -61,6 +56,7 @@ function LogBlock({ message }: { message: Extract<ChatMessage, { role: 'log' }> 
 }
 
 function MessageRow({ message }: { message: ChatMessage }) {
+  const { lang, t } = useI18n();
   if (message.role === 'log') return <LogBlock message={message} />;
 
   if (message.role === 'system') {
@@ -89,7 +85,7 @@ function MessageRow({ message }: { message: ChatMessage }) {
           </Text>
         </Box>
         <Text size="xs" c="dimmed" style={{ alignSelf: 'flex-end' }}>
-          {clock(message.at)}
+          {clock(message.at, lang)}
         </Text>
       </Group>
     );
@@ -121,17 +117,17 @@ function MessageRow({ message }: { message: ChatMessage }) {
       )}
       <Group gap={2} mt={4} wrap="nowrap">
         <Text size="xs" c="dimmed">
-          {clock(message.at)}
+          {clock(message.at, lang)}
         </Text>
         {message.done && (
           <CopyButton value={message.text} timeout={1200}>
             {({ copied, copy }) => (
-              <Tooltip label={copied ? 'copied' : 'Copy reply'} withArrow>
+              <Tooltip label={copied ? t('common.copied') : t('common.copy')} withArrow>
                 <ActionIcon
                   variant="subtle"
                   color="gray"
                   size="sm"
-                  aria-label="Copy reply"
+                  aria-label={t('common.copy')}
                   onClick={copy}
                 >
                   <Icon name={copied ? 'check' : 'copy'} size={13} />
@@ -154,6 +150,13 @@ export function ChatPanel({
   chat: ChatApi;
   agentLabel: string;
 }) {
+  const { t } = useI18n();
+  const suggestions = [
+    t('chat.suggestion.tighten'),
+    t('chat.suggestion.states'),
+    t('chat.suggestion.primary'),
+    t('chat.suggestion.spec'),
+  ];
   const scroller = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
 
@@ -166,7 +169,7 @@ export function ChatPanel({
     <Panel
       title={
         <Group gap={6} wrap="nowrap">
-          <span>Chat</span>
+          <span>{t('chat.title')}</span>
           {chat.running && <Loader size={13} color="brand" />}
         </Group>
       }
@@ -209,10 +212,10 @@ export function ChatPanel({
               <Icon name="sparkles" size={20} />
             </ThemeIcon>
             <Text size="sm" c="dimmed" maw={240}>
-              A room is one screen. Ask for the change; watch the artifact move.
+              {t('chat.empty')}
             </Text>
             <Group gap={6} justify="center">
-              {SUGGESTIONS.map((text) => (
+              {suggestions.map((text) => (
                 <Button
                   key={text}
                   variant="default"

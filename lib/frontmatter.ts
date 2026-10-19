@@ -21,6 +21,8 @@ export type Frontmatter = Record<string, FrontmatterValue>;
 export interface FrontmatterIssue {
   code: string;
   key?: string | null;
+  /** Values the message needs, so a reader can translate it without parsing it. */
+  params?: Record<string, string | number>;
   message: string;
 }
 
@@ -172,14 +174,23 @@ export function parseYamlLite(raw: string | null | undefined): {
     if (!line) continue;
     const m = /^([^:]+):(.*)$/.exec(line);
     if (!m) {
-      issues.push({ code: 'syntax', message: `not a key: value line — ${line}` });
+      issues.push({
+        code: 'syntax',
+        params: { line },
+        message: `not a key: value line — ${line}`,
+      });
       continue;
     }
     const key = (m[1] as string).trim();
     const value = (m[2] as string).trim();
 
     if (Object.prototype.hasOwnProperty.call(data, key) || pending === key) {
-      issues.push({ code: 'duplicate-key', key, message: `duplicate key: ${key}` });
+      issues.push({
+        code: 'duplicate-key',
+        key,
+        params: { key },
+        message: `duplicate key: ${key}`,
+      });
     }
 
     if (value === '') {

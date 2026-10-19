@@ -49,11 +49,15 @@ output stays in the run log. It is the same session the panel reads, asked about
 If the session cannot be reached, or the adapter has no such place to look, the chat is exactly
 what the process printed. That is the `command` adapter, and it is why `structured` exists.
 
+The agent runs with its working directory set to `cfg.rootDir` — for a new
+install, `modelroom/`. That is where it reads `AGENTS.md`, and it is the whole
+tree modelroom will serve under `/files/...`.
+
 Agents that need to *write* only the room's files should be scoped on their side, for example
 with OpenCode `permissions`:
 
 ```yaml
-# .opencode/agents/design.md
+# modelroom/.opencode/agents/design.md
 permissions:
   - { action: "*", resource: "*", effect: deny }
   - { action: read, resource: "rooms/*", effect: allow }
@@ -74,7 +78,11 @@ For anything else — Claude Code, Codex, a local model, a shell script:
 ```
 
 `{session}` is substituted with the room's session id. Sessions are stored per room in
-`.modelroom/state.json`; **new session** in the room UI starts a fresh one.
+`.modelroom/state.json` at the project root; **new session** in the room UI starts a fresh one.
+
+The generated `AGENTS.md` tells the agent which language to write the room's prose in, and
+that frontmatter keys and promise ids stay in English. Change `lang` in `modelroom.json`
+to change that language for new rooms and for the UI; existing documents are not rewritten.
 
 ## Writing an adapter
 

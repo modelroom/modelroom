@@ -3,8 +3,13 @@
 // Config (`modelroom.json`) is committed. State (`.modelroom/state.json`) is local:
 // chat sessions per room, and any settings changed from the UI.
 
-import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { access, readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { constants } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { isLang, type Lang } from './lang.ts';
+
+export type { Lang } from './lang.ts';
+export { isLang, LANGS } from './lang.ts';
 
 export type AdapterName = 'opencode' | 'command';
 
@@ -23,15 +28,20 @@ export interface AgentConfig {
 export interface Config {
   root: string;
   rooms: string;
+  /** Where local state lives, relative to the config file. */
+  state: string;
   artifact: string;
   docs: string[];
   port: number;
   host: string;
+  /** The language of the tool UI, the CLI and the templates. */
+  lang: Lang;
   agent: AgentConfig;
-  /** Resolved at load time. */
+  /** Resolved at load time, all relative to the config file's directory. */
   rootDir: string;
   roomsDir: string;
   configPath: string;
+  configDir: string;
   stateDir: string;
   statePath: string;
 }
@@ -44,10 +54,12 @@ export interface State {
 export const DEFAULTS = {
   root: '.',
   rooms: 'rooms',
+  state: '.modelroom',
   artifact: 'index.html',
   docs: ['BRIEF.md', 'SPEC.md', 'BEHAVIOUR.md'],
   port: 4321,
   host: '127.0.0.1',
+  lang: 'en' as Lang,
   agent: {
     adapter: 'opencode',
     command: 'opencode',
@@ -60,8 +72,34 @@ export const DEFAULTS = {
 
 type ConfigFile = Partial<Omit<Config, 'agent'>> & { agent?: Partial<AgentConfig> };
 
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path, constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Find the committed config. The old layout keeps `modelroom.json` at the
+ * project root; a new install puts it inside `modelroom/`. The old path wins,
+ * so an existing project never changes shape underneath itself.
+ */
+export async function findConfigPath(cwd: string = process.cwd()): Promise<string | null> {
+  for (const path of [
+    resolve(cwd, 'modelroom.json'),
+    resolve(cwd, 'modelroom', 'modelroom.json'),
+  ]) {
+    if (await exists(path)) return path;
+  }
+  return null;
+}
+
 export async function loadConfig(cwd: string = process.cwd()): Promise<Config> {
-  const path = resolve(cwd, 'modelroom.json');
+  const discovered = await findConfigPath(cwd);
+  const path = discovered ?? resolve(cwd, 'modelroom.json');
+  const configDir = dirname(path);
   let file: ConfigFile = {};
   try {
     file = JSON.parse(await readFile(path, 'utf8')) as ConfigFile;
@@ -71,20 +109,23 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<Config> {
   const cfg = {
     root: file.root ?? DEFAULTS.root,
     rooms: file.rooms ?? DEFAULTS.rooms,
+    state: typeof file.state === 'string' && file.state ? file.state : DEFAULTS.state,
     artifact: file.artifact ?? DEFAULTS.artifact,
     docs: Array.isArray(file.docs) && file.docs.length ? file.docs : [...DEFAULTS.docs],
     port: file.port ?? DEFAULTS.port,
     host: file.host ?? DEFAULTS.host,
+    lang: isLang(file.lang) ? file.lang : DEFAULTS.lang,
     agent: { ...DEFAULTS.agent, ...file.agent } as AgentConfig,
     rootDir: '',
     roomsDir: '',
     configPath: path,
+    configDir,
     stateDir: '',
     statePath: '',
   } satisfies Config;
-  cfg.rootDir = resolve(cwd, cfg.root);
+  cfg.rootDir = resolve(configDir, cfg.root);
   cfg.roomsDir = resolve(cfg.rootDir, cfg.rooms);
-  cfg.stateDir = join(cfg.rootDir, '.modelroom');
+  cfg.stateDir = resolve(configDir, cfg.state);
   cfg.statePath = join(cfg.stateDir, 'state.json');
   return cfg;
 }

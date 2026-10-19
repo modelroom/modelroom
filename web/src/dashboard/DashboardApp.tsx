@@ -31,6 +31,7 @@ import {
   type SearchHit,
 } from '../lib/api.ts';
 import { stamp } from '../lib/format.ts';
+import { useI18n } from '../lib/i18n.tsx';
 import { useServerEvent, useServerEvents } from '../hooks/useServerEvents.tsx';
 import { AgentStatus, ToneBadge, toneForStatus } from '../components/Status.tsx';
 import { Icon } from '../components/Icon.tsx';
@@ -60,6 +61,7 @@ function RoomCard({
   hit: SearchHit | null;
   query: string;
 }) {
+  const { lang, t } = useI18n();
   const tokens = query.trim().split(/\s+/).filter(Boolean);
   const snippet = hit?.snippets[0];
 
@@ -67,7 +69,7 @@ function RoomCard({
     const safe = escapeHtml(text);
     if (!tokens.length) return safe;
     const pattern = new RegExp(
-      '(' + tokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')',
+      '(' + tokens.map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')',
       'gi',
     );
     return safe.replace(pattern, `<mark style="${MARK}">$1</mark>`);
@@ -93,7 +95,7 @@ function RoomCard({
       ) : (
         <Box className="mr-card-artifact" style={{ display: 'grid', placeItems: 'center' }}>
           <Text size="xs" c="dimmed">
-            {room.hasArtifact ? 'no thumbnail yet' : 'no artifact yet'}
+            {room.hasArtifact ? t('dashboard.noThumb') : t('dashboard.noArtifact')}
           </Text>
         </Box>
       )}
@@ -110,7 +112,7 @@ function RoomCard({
           )}
           {room.running && (
             <ToneBadge tone="secondary" leftSection={<Icon name="loader" size={11} />}>
-              running
+              {t('common.running')}
             </ToneBadge>
           )}
         </Group>
@@ -145,7 +147,9 @@ function RoomCard({
 
         <Group gap={4} mt={4} wrap="wrap">
           {room.status && <ToneBadge tone={toneForStatus(room.status)}>{room.status}</ToneBadge>}
-          {room.deprecated && <ToneBadge tone="destructive">archived</ToneBadge>}
+          {room.deprecated && (
+            <ToneBadge tone="destructive">{t('dashboard.archivedBadge')}</ToneBadge>
+          )}
           {room.tags.slice(0, 4).map((tag) => (
             <ToneBadge key={tag} tone="outline">
               {tag}
@@ -153,11 +157,16 @@ function RoomCard({
           ))}
           {room.behaviourIds.length > 0 && (
             <ToneBadge tone="outline">
-              {room.behaviourIds.length} behaviour{room.behaviourIds.length > 1 ? 's' : ''}
+              {t(
+                room.behaviourIds.length === 1
+                  ? 'dashboard.behavioursOne'
+                  : 'dashboard.behavioursOther',
+                { count: room.behaviourIds.length },
+              )}
             </ToneBadge>
           )}
           <Text size="xs" c="dimmed" ml="auto">
-            {stamp(room.updatedAt)}
+            {stamp(room.updatedAt, lang)}
           </Text>
         </Group>
       </Box>
@@ -166,6 +175,7 @@ function RoomCard({
 }
 
 export function DashboardApp() {
+  const { t } = useI18n();
   const [rooms, setRooms] = useState<DashboardRoom[]>([]);
   const [facets, setFacets] = useState<Facet[]>([]);
   const [query, setQuery] = useState('');
@@ -345,7 +355,9 @@ export function DashboardApp() {
               modelroom
             </Title>
             <ToneBadge tone="secondary">
-              {visible.length === total ? `rooms ${total}` : `${visible.length} / ${total}`}
+              {visible.length === total
+                ? t('dashboard.roomsCount', { total })
+                : t('dashboard.roomsFiltered', { visible: visible.length, total })}
             </ToneBadge>
           </Group>
 
@@ -355,10 +367,10 @@ export function DashboardApp() {
               type="search"
               value={query}
               onChange={(event) => onQuery(event.currentTarget.value)}
-              placeholder="Search rooms, docs, tags…  ( / )"
+              placeholder={t('dashboard.search')}
               leftSection={<Icon name="search" size={14} />}
               autoComplete="off"
-              aria-label="Search rooms"
+              aria-label={t('dashboard.searchLabel')}
               size="sm"
             />
           </Box>
@@ -367,9 +379,9 @@ export function DashboardApp() {
             <AgentStatus connected={connected} busy={busy} message={status?.message} />
             <ThemeToggle />
             <Button component="a" href="/settings" variant="subtle" color="gray" size="compact-sm">
-              Settings
+              {t('common.settings')}
             </Button>
-            <Tooltip label="Reload the room list" withArrow>
+            <Tooltip label={t('dashboard.reload')} withArrow>
               <Button
                 variant="subtle"
                 color="gray"
@@ -377,7 +389,7 @@ export function DashboardApp() {
                 onClick={() => void load()}
                 leftSection={<Icon name="refresh" size={14} />}
               >
-                Refresh
+                {t('common.refresh')}
               </Button>
             </Tooltip>
           </Group>
@@ -402,7 +414,7 @@ export function DashboardApp() {
                     size="xs"
                     checked={archived}
                     onChange={(event) => setArchivedFilter(event.currentTarget.checked)}
-                    label={`archived (${archivedCount})`}
+                    label={t('dashboard.archived', { count: archivedCount })}
                   />
                 </Box>
               )}
@@ -411,7 +423,9 @@ export function DashboardApp() {
 
           {filtered && (
             <Group gap="xs" mb="sm" wrap="wrap">
-              {query && <ToneBadge tone="secondary">search: {query}</ToneBadge>}
+              {query && (
+                <ToneBadge tone="secondary">{t('dashboard.searchBadge', { query })}</ToneBadge>
+              )}
               {Object.entries(filters).flatMap(([key, values]) =>
                 values.map((value) => (
                   <Pill
@@ -426,7 +440,7 @@ export function DashboardApp() {
               )}
               {activeCount > 1 && (
                 <Button variant="subtle" size="compact-xs" onClick={clearAll}>
-                  clear all
+                  {t('dashboard.clearAll')}
                 </Button>
               )}
             </Group>
@@ -458,17 +472,17 @@ export function DashboardApp() {
             </SimpleGrid>
           ) : (
             <Card withBorder radius="md" maw={640}>
-              <Text fw={600}>{filtered ? 'Nothing matches' : 'No rooms yet'}</Text>
+              <Text fw={600}>
+                {filtered ? t('dashboard.nothingMatches') : t('dashboard.noRooms')}
+              </Text>
               <Box mt="xs" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {filtered ? (
                   <Text size="sm" c="dimmed">
-                    Loosen a filter, or search for something else.
+                    {t('dashboard.loosen')}
                   </Text>
                 ) : (
                   <Text size="sm" c="dimmed">
-                    A room is one screen: <Code>rooms/&lt;name&gt;/</Code> with{' '}
-                    <Code>BRIEF.md</Code>, <Code>SPEC.md</Code>, <Code>BEHAVIOUR.md</Code> and an
-                    artifact.
+                    {t('dashboard.noRoomsHint')}
                   </Text>
                 )}
                 {!filtered && (
@@ -476,7 +490,7 @@ export function DashboardApp() {
                 )}
                 {filtered && (
                   <Button variant="default" size="compact-sm" onClick={clearAll} w="fit-content">
-                    Clear search and filters
+                    {t('dashboard.clearSearch')}
                   </Button>
                 )}
               </Box>

@@ -13,6 +13,7 @@ export interface RoomConfig {
   rooms: string;
   artifact: string;
   docs: string[];
+  lang: 'en' | 'ja';
   agent: AgentConfig;
 }
 

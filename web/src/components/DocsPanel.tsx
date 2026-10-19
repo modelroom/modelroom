@@ -23,6 +23,7 @@ import {
 } from '@mantine/core';
 import { getDoc, putDoc } from '../lib/api.ts';
 import { clock, docLabel, splitFrontmatter } from '../lib/format.ts';
+import { useI18n } from '../lib/i18n.tsx';
 import { renderDoc } from '../lib/markdown.ts';
 import { load, save } from '../lib/storage.ts';
 import { useServerEvent } from '../hooks/useServerEvents.tsx';
@@ -53,13 +54,15 @@ interface DocEntry {
 
 const AUTOSAVE_MS = 800;
 
-const MODES = [
+type Translate = ReturnType<typeof useI18n>['t'];
+
+const modes = (t: Translate) => [
   {
     value: 'edit',
     label: (
       <>
         <Icon name="pencil" size={14} />
-        <VisuallyHidden>Edit</VisuallyHidden>
+        <VisuallyHidden>{t('common.edit')}</VisuallyHidden>
       </>
     ),
   },
@@ -68,7 +71,7 @@ const MODES = [
     label: (
       <>
         <Icon name="columns" size={14} />
-        <VisuallyHidden>Edit and preview</VisuallyHidden>
+        <VisuallyHidden>{t('common.split')}</VisuallyHidden>
       </>
     ),
   },
@@ -77,19 +80,19 @@ const MODES = [
     label: (
       <>
         <Icon name="eye" size={14} />
-        <VisuallyHidden>Preview</VisuallyHidden>
+        <VisuallyHidden>{t('common.preview')}</VisuallyHidden>
       </>
     ),
   },
 ];
 
-const ORIENTATIONS = [
+const orientations = (t: Translate) => [
   {
     value: 'row',
     label: (
       <>
         <Icon name="columns" size={14} />
-        <VisuallyHidden>Side by side</VisuallyHidden>
+        <VisuallyHidden>{t('common.sideBySide')}</VisuallyHidden>
       </>
     ),
   },
@@ -98,32 +101,43 @@ const ORIENTATIONS = [
     label: (
       <>
         <Icon name="rows" size={14} />
-        <VisuallyHidden>Stacked</VisuallyHidden>
+        <VisuallyHidden>{t('common.stacked')}</VisuallyHidden>
       </>
     ),
   },
 ];
 
-const LAYOUTS = [
-  { value: 'tabs', label: 'Tabs' },
-  { value: 'tiles', label: 'Tiles' },
+const layouts = (t: Translate) => [
+  { value: 'tabs', label: t('common.tabs') },
+  { value: 'tiles', label: t('common.tiles') },
 ];
 
-function statusOf(entry: DocEntry): { text: string; tone: 'danger' | 'warning' | 'dimmed' } {
-  if (entry.tone === 'error') return { text: `failed: ${entry.error ?? ''}`, tone: 'danger' };
-  if (entry.tone === 'conflict') return { text: 'changed elsewhere', tone: 'warning' };
-  if (entry.tone === 'saving') return { text: 'saving…', tone: 'dimmed' };
-  if (entry.text !== entry.savedText) return { text: 'unsaved…', tone: 'dimmed' };
+function statusOf(
+  entry: DocEntry,
+  lang: 'en' | 'ja',
+  t: Translate,
+): { text: string; tone: 'danger' | 'warning' | 'dimmed' } {
+  if (entry.tone === 'error')
+    return { text: t('docs.failed', { error: entry.error ?? '' }), tone: 'danger' };
+  if (entry.tone === 'conflict') return { text: t('docs.changedElsewhere'), tone: 'warning' };
+  if (entry.tone === 'saving') return { text: t('docs.saving'), tone: 'dimmed' };
+  if (entry.text !== entry.savedText) return { text: t('docs.unsaved'), tone: 'dimmed' };
   if (entry.savedAt) {
     // "on disk" until we have written it — the file's mtime is not our save.
-    const what = entry.origin === 'saved' ? 'saved' : 'on disk';
-    return { text: `${what} ${clock(entry.savedAt)}`, tone: 'dimmed' };
+    return {
+      text:
+        entry.origin === 'saved'
+          ? t('docs.savedAt', { time: clock(entry.savedAt, lang) })
+          : t('docs.onDiskAt', { time: clock(entry.savedAt, lang) }),
+      tone: 'dimmed',
+    };
   }
   return { text: '', tone: 'dimmed' };
 }
 
 function StatusText({ entry }: { entry: DocEntry }) {
-  const status = statusOf(entry);
+  const { lang, t } = useI18n();
+  const status = statusOf(entry, lang, t);
   return (
     <Text size="xs" c={status.tone} style={{ whiteSpace: 'nowrap' }}>
       {status.text}
@@ -178,6 +192,7 @@ function ConflictBanner({
   onKeep: () => void;
   onTake: () => void;
 }) {
+  const { t } = useI18n();
   if (entry.tone !== 'conflict') return null;
   return (
     <Alert
@@ -190,16 +205,13 @@ function ConflictBanner({
       styles={{ message: { width: '100%' } }}
     >
       <Group gap="xs" wrap="nowrap">
-        <Text size="xs">
-          <span style={{ fontFamily: 'var(--mr-mono)' }}>{entry.name}</span> changed on disk while
-          you were typing.
-        </Text>
+        <Text size="xs">{t('docs.conflictText', { name: entry.name })}</Text>
         <Group gap={6} ml="auto" wrap="nowrap">
           <Button size="compact-xs" variant="default" onClick={onKeep}>
-            Keep mine
+            {t('docs.keepMine')}
           </Button>
           <Button size="compact-xs" color="danger" onClick={onTake}>
-            Take theirs
+            {t('docs.takeTheirs')}
           </Button>
         </Group>
       </Group>
@@ -216,6 +228,7 @@ export function DocsPanel({
   roomsPath: string;
   docs: string[];
 }) {
+  const { t } = useI18n();
   const [entries, setEntries] = useState<Record<string, DocEntry>>(() =>
     Object.fromEntries(
       docs.map((name) => [
@@ -390,7 +403,7 @@ export function DocsPanel({
       <MarkdownEditor
         value={entry.text}
         onChange={(text) => onText(entry.name, text)}
-        ariaLabel={`${entry.name} — markdown source`}
+        ariaLabel={t('docs.sourceLabel', { name: entry.name })}
       />
     );
     const preview = <Preview text={entry.text} />;
@@ -449,7 +462,7 @@ export function DocsPanel({
   if (!activeEntry) {
     return (
       <Text size="sm" c="dimmed" p="md">
-        No docs configured.
+        {t('docs.notConfigured')}
       </Text>
     );
   }
@@ -461,24 +474,24 @@ export function DocsPanel({
         size="xs"
         value={mode}
         onChange={(value) => setMode(value as Mode)}
-        data={MODES}
-        aria-label="Doc view mode"
+        data={modes(t)}
+        aria-label={t('docs.docView')}
       />
       {mode === 'split' && (
         <SegmentedControl
           size="xs"
           value={orientation}
           onChange={(value) => setOrientation(value as Orientation)}
-          data={ORIENTATIONS}
-          aria-label="Split orientation"
+          data={orientations(t)}
+          aria-label={t('docs.splitOrientation')}
         />
       )}
       <SegmentedControl
         size="xs"
         value={layout}
         onChange={(value) => setLayout(value as Layout)}
-        data={LAYOUTS}
-        aria-label="Doc layout"
+        data={layouts(t)}
+        aria-label={t('docs.layout')}
       />
     </Group>
   );
@@ -563,7 +576,7 @@ export function DocsPanel({
         style={{ borderBottom: '1px solid var(--mantine-color-default-border)', flexShrink: 0 }}
       >
         <Text size="sm" fw={500} px={4}>
-          Docs
+          {t('room.docs')}
         </Text>
         {controls}
       </Group>

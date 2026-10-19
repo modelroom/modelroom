@@ -45,6 +45,7 @@ import { ToneBadge } from './components/Status.tsx';
 import { FacetFilter, SYNC_LIMIT } from './dashboard/FacetFilter.tsx';
 import { ThemeToggle } from './components/ThemeToggle.tsx';
 import type { Facet } from './lib/api.ts';
+import { useI18n } from './lib/i18n.tsx';
 import { renderDoc } from './lib/markdown.ts';
 
 const SAMPLE_CHAT = `The sign-in room is **two states**, not one:
@@ -155,6 +156,7 @@ function FacetDemo() {
 }
 
 function SegmentedDemo() {
+  const { t } = useI18n();
   const [value, setValue] = useState('split');
   return (
     <Group gap="md" align="center">
@@ -162,14 +164,14 @@ function SegmentedDemo() {
         size="xs"
         value={value}
         onChange={setValue}
-        aria-label="Doc view mode"
+        aria-label={t('docs.docView')}
         data={[
           {
             value: 'edit',
             label: (
               <>
                 <Icon name="pencil" size={14} />
-                <VisuallyHidden>Edit</VisuallyHidden>
+                <VisuallyHidden>{t('common.edit')}</VisuallyHidden>
               </>
             ),
           },
@@ -178,7 +180,7 @@ function SegmentedDemo() {
             label: (
               <>
                 <Icon name="columns" size={14} />
-                <VisuallyHidden>Edit and preview</VisuallyHidden>
+                <VisuallyHidden>{t('common.split')}</VisuallyHidden>
               </>
             ),
           },
@@ -187,7 +189,7 @@ function SegmentedDemo() {
             label: (
               <>
                 <Icon name="eye" size={14} />
-                <VisuallyHidden>Preview</VisuallyHidden>
+                <VisuallyHidden>{t('common.preview')}</VisuallyHidden>
               </>
             ),
           },
@@ -201,6 +203,7 @@ function SegmentedDemo() {
 }
 
 export function Kit() {
+  const { t } = useI18n();
   return (
     <Box component="main" maw={1024} mx="auto" p="lg">
       <Group gap="xs" mb="lg">
@@ -211,21 +214,21 @@ export function Kit() {
         <Group ml="auto" gap="xs">
           <ThemeToggle />
           <Button component="a" href="/" variant="subtle" color="gray" size="compact-sm">
-            ← Rooms
+            ← {t('common.rooms')}
           </Button>
         </Group>
       </Group>
 
       <Stack gap="lg">
         <Section
-          title="Filter — the facet control"
+          title={t('kit.filter')}
           hint="Mantine's provided parts: MultiSelect / Select under 500 candidates, Combobox + useVirtualizedCombobox above."
         >
           <FacetDemo />
         </Section>
 
         <Section
-          title="Icons"
+          title={t('kit.icons')}
           hint="lucide-react behind a name — the tool's own set, drawn at the size the caller asks for."
         >
           <Group gap="md">
@@ -241,13 +244,13 @@ export function Kit() {
         </Section>
 
         <Section
-          title="SegmentedControl"
+          title={t('kit.segmented')}
           hint="The edit / split / preview, orientation and layout switches."
         >
           <SegmentedDemo />
         </Section>
 
-        <Section title="Button · Badge · ActionIcon · CopyButton · Loader">
+        <Section title={t('kit.buttons')}>
           <Stack gap="md">
             <Group gap="xs">
               {(['filled', 'light', 'outline', 'subtle', 'default', 'transparent'] as const).map(
@@ -279,13 +282,13 @@ export function Kit() {
               </Badge>
             </Group>
             <Group gap="xs" align="center">
-              <Tooltip label="refresh" withArrow>
-                <ActionIcon variant="default" size="md" aria-label="refresh">
+              <Tooltip label={t('common.refresh')} withArrow>
+                <ActionIcon variant="default" size="md" aria-label={t('common.refresh')}>
                   <Icon name="refresh" size={16} />
                 </ActionIcon>
               </Tooltip>
-              <Tooltip label="session panel" withArrow>
-                <ActionIcon variant="light" color="gray" size="md" aria-label="session panel">
+              <Tooltip label={t('room.session')} withArrow>
+                <ActionIcon variant="light" color="gray" size="md" aria-label={t('room.session')}>
                   <Icon name="panel-right" size={16} />
                 </ActionIcon>
               </Tooltip>
@@ -322,7 +325,7 @@ export function Kit() {
         </Section>
 
         <Section
-          title="Markdown — chat"
+          title={t('kit.markdownChat')}
           hint="markdown-it with raw HTML disabled; code fences get a copy button; the rhythm is Mantine's Typography."
         >
           <Box
@@ -338,7 +341,7 @@ export function Kit() {
         </Section>
 
         <Section
-          title="Markdown — doc preview"
+          title={t('kit.markdownDoc')}
           hint="Frontmatter is split out by the panel, not here."
         >
           <Box
@@ -354,19 +357,19 @@ export function Kit() {
         </Section>
 
         <Section
-          title="Form controls"
+          title={t('kit.formControls')}
           hint="TextInput, Checkbox, Select, MultiSelect — the settings form and the facets."
         >
           <SimpleGrid cols={{ base: 1, sm: 2 }} maw={672}>
             <TextInput
-              label="Command"
+              label={t('settings.command')}
               placeholder="opencode"
               defaultValue="opencode"
               size="sm"
               styles={{ input: { fontFamily: 'var(--mr-mono)' } }}
             />
             <Select
-              label="Model"
+              label={t('settings.model')}
               defaultValue="default"
               size="sm"
               data={[
@@ -375,25 +378,22 @@ export function Kit() {
               ]}
             />
             <MultiSelect
-              label="Tags"
+              label={t('kit.tags')}
               size="sm"
               data={['auth', 'form', 'error']}
               defaultValue={['auth']}
               searchable
               clearable
             />
-            <Checkbox label="archived (2)" defaultChecked />
+            <Checkbox label={t('dashboard.archived', { count: 2 })} defaultChecked />
           </SimpleGrid>
         </Section>
 
-        <Section
-          title="Card / surfaces"
-          hint="The dashboard's room cards and the settings sections."
-        >
+        <Section title={t('kit.card')} hint="The dashboard's room cards and the settings sections.">
           <Card withBorder radius="md" maw={448}>
-            <Text fw={600}>No rooms yet</Text>
+            <Text fw={600}>{t('kit.noRooms')}</Text>
             <Text size="sm" c="dimmed" mt="xs">
-              A room is one screen: <Code>rooms/&lt;name&gt;/</Code>.
+              {t('kit.noRoomsHint')}
             </Text>
             <Anchor href="/" size="sm" mt="sm">
               Rooms
@@ -402,7 +402,7 @@ export function Kit() {
         </Section>
 
         <Section
-          title="Split (react-resizable-panels)"
+          title={t('kit.split')}
           hint="Mantine has no split pane; the room's columns and the docs split use this one library."
         >
           <Split
@@ -454,7 +454,7 @@ export function Kit() {
           </Split>
         </Section>
 
-        <Section title="Divider">
+        <Section title={t('kit.divider')}>
           <Group gap="md" h={64} align="center">
             <Text size="xs" c="dimmed">
               before

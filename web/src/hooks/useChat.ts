@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useReducer, useState } from 'react';
 import { getSession, partsText, postChat, type Part, type Turn } from '../lib/api.ts';
+import { useI18n } from '../lib/i18n.tsx';
 import { useServerEvent } from './useServerEvents.tsx';
 
 export type ChatMessage =
@@ -28,7 +29,7 @@ interface State {
 }
 
 type Action =
-  | { type: 'replay'; turns: Turn[]; sessionId: string | null }
+  | { type: 'replay'; turns: Turn[]; sessionId: string | null; resumed: string }
   | { type: 'user'; text: string }
   | { type: 'notice'; text: string; tone: 'info' | 'error' }
   | { type: 'start'; sessionId: string | null }
@@ -99,9 +100,7 @@ function reducer(state: State, action: Action): State {
         messages.push({
           id: 'replay-notice',
           role: 'system',
-          text: `— resumed this session (${action.turns.length} turn${
-            action.turns.length === 1 ? '' : 's'
-          })`,
+          text: action.resumed,
           at,
           tone: 'info',
         });
@@ -205,6 +204,7 @@ export interface ChatApi {
 }
 
 export function useChat(room: string): ChatApi {
+  const { t } = useI18n();
   const [state, dispatch] = useReducer(reducer, initialState);
   const [queue, setQueue] = useState<string[]>([]);
 
@@ -228,7 +228,15 @@ export function useChat(room: string): ChatApi {
       try {
         const data = await getSession(room);
         if (cancelled) return;
-        dispatch({ type: 'replay', turns: data.turns ?? [], sessionId: data.session ?? null });
+        const turns = data.turns ?? [];
+        dispatch({
+          type: 'replay',
+          turns,
+          sessionId: data.session ?? null,
+          resumed: t(turns.length === 1 ? 'chat.resumedOne' : 'chat.resumed', {
+            turns: turns.length,
+          }),
+        });
       } catch {
         /* the panel just starts empty */
       }
@@ -236,7 +244,7 @@ export function useChat(room: string): ChatApi {
     return () => {
       cancelled = true;
     };
-  }, [room]);
+  }, [room, t]);
 
   const send = useCallback(
     async (text: string) => {
@@ -248,17 +256,19 @@ export function useChat(room: string): ChatApi {
         if (!result.started) {
           dispatch({
             type: 'notice',
-            text: `could not send: ${result.reason ?? result.error ?? 'the agent is busy'}`,
+            text: t('chat.couldNotSend', {
+              reason: result.reason ?? result.error ?? t('chat.agentBusy'),
+            }),
             tone: 'error',
           });
           dispatch({ type: 'done', code: -1, error: null });
         }
       } catch {
-        dispatch({ type: 'notice', text: 'could not reach the server', tone: 'error' });
+        dispatch({ type: 'notice', text: t('chat.couldNotReach'), tone: 'error' });
         dispatch({ type: 'done', code: -1, error: null });
       }
     },
-    [room],
+    [room, t],
   );
 
   const submit = useCallback(

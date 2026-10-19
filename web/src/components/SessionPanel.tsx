@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Box, Button, Group, Loader, Progress, Text } from '@mantine/core';
 import { clampPct, getSession, type SessionView } from '../lib/api.ts';
 import { fmtNum } from '../lib/format.ts';
+import { useI18n } from '../lib/i18n.tsx';
 import { useServerEvent } from '../hooks/useServerEvents.tsx';
 import { Icon } from './Icon.tsx';
 import { Panel } from './Status.tsx';
@@ -27,6 +28,7 @@ const Row = ({ label, value }: { label: ReactNode; value: ReactNode }) => (
 );
 
 export function SessionPanel({ room }: { room: string }) {
+  const { t } = useI18n();
   const [view, setView] = useState<SessionView | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -52,7 +54,7 @@ export function SessionPanel({ room }: { room: string }) {
 
   return (
     <Panel
-      title="セッション"
+      title={t('session.title')}
       right={
         <Group gap="xs" wrap="nowrap">
           {loading && <Loader size={13} color="gray" />}
@@ -63,7 +65,7 @@ export function SessionPanel({ room }: { room: string }) {
             onClick={() => void load()}
             leftSection={<Icon name="refresh" size={13} />}
           >
-            refresh
+            {t('common.refresh')}
           </Button>
         </Group>
       }
@@ -82,16 +84,16 @@ export function SessionPanel({ room }: { room: string }) {
       >
         {!view || !view.available ? (
           <Text size="sm" c="dimmed">
-            この部屋のセッション情報は opencode アダプタのときだけ表示します。
+            {t('session.unavailable')}
           </Text>
         ) : (
           <>
-            <Head>セッション</Head>
+            <Head>{t('session.title')}</Head>
             {view.context ? (
               <>
                 <Group gap="xs" justify="space-between" align="baseline">
                   <Text size="sm" c="dimmed">
-                    コンテキスト
+                    {t('session.context')}
                   </Text>
                   <Text size="sm" ff="monospace">
                     {view.context.pct}% ・ {fmtNum(view.context.used)}
@@ -108,39 +110,42 @@ export function SessionPanel({ room }: { room: string }) {
                         ? 'warning'
                         : 'success'
                   }
-                  aria-label="Context window used"
+                  aria-label={t('session.contextUsed')}
                 />
                 {view.context.pct >= 70 && (
                   <Text size="xs" c="warning">
-                    {view.context.pct}% — compact を検討（上限 {fmtNum(view.context.limit)}）
+                    {t('session.contextHigh', {
+                      pct: view.context.pct,
+                      limit: fmtNum(view.context.limit),
+                    })}
                   </Text>
                 )}
               </>
             ) : (
               <Text size="xs" c="dimmed">
-                コンテキスト: 計測できません（まだ実行がないか、上限が不明）
+                {t('session.contextUnknown')}
               </Text>
             )}
 
             <Row
-              label="費用"
+              label={t('session.cost')}
               value={stats?.cost != null ? `$${Number(stats.cost).toFixed(4)}` : '—'}
             />
             {tokens && (
               <>
-                <Row label="トークン ↑" value={fmtNum(tokens.input)} />
-                <Row label="トークン ↓" value={fmtNum(tokens.output)} />
-                <Row label="reasoning" value={fmtNum(tokens.reasoning)} />
-                <Row label="キャッシュ" value={`${cached}%`} />
+                <Row label={t('session.tokensIn')} value={fmtNum(tokens.input)} />
+                <Row label={t('session.tokensOut')} value={fmtNum(tokens.output)} />
+                <Row label={t('session.reasoning')} value={fmtNum(tokens.reasoning)} />
+                <Row label={t('session.cache')} value={`${cached}%`} />
               </>
             )}
-            <Row label="状態" value={stats?.outcome ?? '—'} />
-            {stats?.model && <Row label="model" value={stats.model} />}
-            {view.workspace && <Row label="workspace" value={view.workspace} />}
+            <Row label={t('session.state')} value={stats?.outcome ?? '—'} />
+            {stats?.model && <Row label={t('session.model')} value={stats.model} />}
+            {view.workspace && <Row label={t('session.workspace')} value={view.workspace} />}
 
             {view.mcp && view.mcp.length > 0 && (
               <>
-                <Head>MCP</Head>
+                <Head>{t('session.mcp')}</Head>
                 {view.mcp.map((server) => (
                   <Row
                     key={server.name}
@@ -151,7 +156,7 @@ export function SessionPanel({ room }: { room: string }) {
               </>
             )}
             {view.skills && view.skills.length > 0 && (
-              <Row label="スキル" value={String(view.skills.length)} />
+              <Row label={t('session.skills')} value={String(view.skills.length)} />
             )}
           </>
         )}
