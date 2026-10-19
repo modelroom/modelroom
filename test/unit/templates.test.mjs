@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { readTemplate, ROOM_FILES } from '../../bin/templates.ts';
+import { readTemplate, ROOM_FILES, SKILLS } from '../../bin/templates.ts';
 import { LANGS } from '../../i18n/lang.ts';
 
 const templatesDir = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'templates');
@@ -34,6 +34,18 @@ test('the config template is filled in, not copied with placeholders left', asyn
   const raw = await readFile(join(templatesDir, 'modelroom.json'), 'utf8');
   for (const placeholder of ['{{rooms}}', '{{state}}', '{{lang}}']) {
     assert.ok(raw.includes(placeholder), `config template has ${placeholder}`);
+  }
+  assert.ok(raw.includes('"thumbnail"'), 'config template names the snapshot device');
+});
+
+test('every language ships the skills, with a name and a description', async () => {
+  for (const lang of LANGS) {
+    for (const id of SKILLS) {
+      const text = await readFile(join(templatesDir, lang, 'skills', id, 'SKILL.md'), 'utf8');
+      assert.match(text, /^---\nname: /, `${lang}/skills/${id} has frontmatter`);
+      assert.match(text, /\ndescription:/, `${lang}/skills/${id} has a description`);
+      assert.match(text, /modelroom render/, `${lang}/skills/${id} names the render command`);
+    }
   }
 });
 

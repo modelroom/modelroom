@@ -120,6 +120,37 @@ test('roomInfo derives the record from the docs', async () => {
   }
 });
 
+test('thumbStale follows the artifact against its snapshot', async () => {
+  const cfg = await fixture();
+  const dir = join(cfg.roomsDir, 'sign-in');
+  try {
+    // No snapshot yet: there is something to render.
+    let room = await roomInfo(cfg, 'sign-in');
+    assert.equal(room.hasThumb, false);
+    assert.equal(room.thumbStale, true);
+
+    const png = join(dir, 'index.png');
+    const old = new Date(Date.now() - 60_000);
+    const now = new Date();
+    await writeFile(png, 'png');
+    await utimes(join(dir, 'index.html'), old, old);
+    await utimes(png, now, now);
+
+    // Snapshot newer than the artifact: current.
+    room = await roomInfo(cfg, 'sign-in');
+    assert.equal(room.hasThumb, true);
+    assert.equal(room.thumbStale, false);
+
+    // Artifact newer than the snapshot: out of date.
+    await utimes(join(dir, 'index.html'), now, now);
+    await utimes(png, old, old);
+    room = await roomInfo(cfg, 'sign-in');
+    assert.equal(room.thumbStale, true);
+  } finally {
+    await rm(cfg.roomsDir, { recursive: true, force: true });
+  }
+});
+
 test('roomInfo tolerates a room with nothing in it', async () => {
   const cfg = await fixture();
   try {

@@ -15,12 +15,16 @@ export interface AgentConfig {
   standalone: boolean;
 }
 
+export type Device = 'sp' | 'tablet' | 'pc';
+
 export interface RoomConfig {
   root: string;
   rooms: string;
   artifact: string;
   docs: string[];
   lang: 'en' | 'ja';
+  /** The width a room's committed snapshot is rendered at. */
+  thumbnail: { device: Device; scale: number };
   agent: AgentConfig;
 }
 
@@ -36,6 +40,8 @@ export interface RoomInfo {
   updatedAt: number;
   hasArtifact: boolean;
   hasThumb: boolean;
+  /** The artifact changed after its snapshot: the committed png is out of date. */
+  thumbStale: boolean;
   artifactUrl: string;
   thumbUrl: string | null;
   behaviourIds: string[];
@@ -170,6 +176,7 @@ export interface DashboardRoom {
   updatedAt: number;
   hasArtifact: boolean;
   hasThumb: boolean;
+  thumbStale: boolean;
   thumbUrl: string | null;
   behaviourIds: string[];
   fields: Record<string, unknown>;

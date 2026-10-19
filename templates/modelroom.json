@@ -6,6 +6,7 @@
   "artifact": "index.html",
   "docs": ["BRIEF.md", "SPEC.md", "BEHAVIOUR.md"],
   "port": 4321,
+  "thumbnail": { "device": "tablet", "scale": 1 },
   "agent": {
     "adapter": "opencode",
     "command": "opencode",
