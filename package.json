@@ -1,6 +1,6 @@
 {
   "name": "modelroom",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "description": "A local workspace to design UI screens with any coding agent — one room per screen: BRIEF, SPEC, BEHAVIOUR and the artifact.",
   "keywords": [
     "agent-agnostic",

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0](https://github.com/modelroom/modelroom/compare/modelroom-v0.0.6...modelroom-v0.1.0) (2026-10-19)
+
+
+### Features
+
+* install into modelroom/ and localize the tool in en/ja ([#14](https://github.com/modelroom/modelroom/issues/14)) ([074205c](https://github.com/modelroom/modelroom/commit/074205c91509d8d4b951450c7a71759f799d25e4))
+* **ui:** rebuild the tool UI on Mantine v9 ([#12](https://github.com/modelroom/modelroom/issues/12)) ([d7b5844](https://github.com/modelroom/modelroom/commit/d7b5844c47932353cabfe98e63dfaf1926f65135))
+
 ## [0.0.6](https://github.com/modelroom/modelroom/compare/modelroom-v0.0.5...modelroom-v0.0.6) (2026-10-18)
 
 
