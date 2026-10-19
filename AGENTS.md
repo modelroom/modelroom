@@ -51,8 +51,8 @@ ui/                     the tool's UI, as served (shells + built assets, committ
 ui/assets/app.js        the built bundle; never edited by hand
 ui/*.html               the four shells: `data-app` + the bundle, nothing else
 templates/<lang>/       what `modelroom init` writes (en, ja)
+templates/<lang>/example/rooms/  the demo room, per language (this repo serves the en one)
 templates/modelroom.json  shared config template with {{rooms}}/{{state}}/{{lang}}
-examples/rooms/         the demo room(s) used by this repo's modelroom.json
 test/                   vitest: unit + one end-to-end pass over the server
 docs/                   the convention, the CLI, agents
 ```
@@ -83,8 +83,9 @@ the UI silently loses classes or ships stale code. `npm run build` does all of i
    (React, Mantine, @tanstack/react-virtual, CodeMirror, markdown-it, lucide) are
    devDependencies bundled into the committed `ui/assets/app.js`; anything optional
    (Playwright) is dynamically imported and degrades.
-2. **Artifacts stay framework-free.** `templates/rooms/*/index.html` and `examples/rooms/*`
-   use plain HTML and CSS — no framework, no CDN, no web fonts. They are handed to
+2. **Artifacts stay framework-free.** Every `index.html` under `templates/` — the blank
+   `templates/<lang>/room/` and the example rooms in `templates/<lang>/example/rooms/` —
+   uses plain HTML and CSS — no framework, no CDN, no web fonts. They are handed to
    implementation and must render with no network.
 3. **The tool UI is React + Mantine, and nothing else.** Use the component Mantine ships;
    style it with props, the Styles API or a class in `client/modelroom.css`. Do not add a

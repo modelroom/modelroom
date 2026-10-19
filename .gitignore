@@ -5,5 +5,5 @@ coverage/
 *.tgz
 *.log
 # generated artifact thumbnails (modelroom "make png")
-examples/rooms/*/index.png
+templates/*/example/rooms/*/index.png
 .DS_Store
