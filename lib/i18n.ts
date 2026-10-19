@@ -14,7 +14,7 @@ export const en = {
 
 usage
   modelroom [serve] [--port 4321] [--host 127.0.0.1] [--open] [--lang en|ja]
-  modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force]
+  modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force] [--skip-install] [--no-script]
   modelroom check [--json] [--strict]
   modelroom doctor
   modelroom --version | --help
@@ -35,8 +35,16 @@ Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
   'cli.init.created': 'created in {dir}:',
   'cli.init.next': 'next',
   'cli.init.nextServe': '  npx modelroom',
+  'cli.init.nextScript': '  npm run modelroom',
   'cli.init.nextOpen': '  open http://127.0.0.1:{port}/rooms/{room}',
   'cli.init.gitignore': '.gitignore (+ {path})',
+  'cli.init.script': 'package.json (+ scripts.{name} = "{value}")',
+  'cli.init.scriptInvalid': 'package.json could not be read as JSON — leaving it alone',
+  'cli.init.scriptBadScripts': 'package.json "scripts" is not an object — leaving it alone',
+  'cli.init.deps': 'dependencies  {spec} ({pm})',
+  'cli.init.depsSkipped': 'dependencies  skipped (--skip-install)',
+  'cli.init.depsFailed':
+    'could not install {spec} with {pm} — "npm run modelroom" uses npx until you run: {command}',
   'cli.init.language': 'language  {lang} ({source})',
   'cli.init.languageSource.flag': '--lang',
   'cli.init.languageSource.config': 'modelroom.json',
@@ -361,7 +369,7 @@ export const ja: Messages = {
 
 使い方
   modelroom [serve] [--port 4321] [--host 127.0.0.1] [--open] [--lang en|ja]
-  modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force]
+  modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force] [--skip-install] [--no-script]
   modelroom check [--json] [--strict]
   modelroom doctor
   modelroom --version | --help
@@ -382,8 +390,17 @@ BEHAVIOUR.md、そして artifact を置きます。
   'cli.init.created': '{dir} に作成しました:',
   'cli.init.next': '次に',
   'cli.init.nextServe': '  npx modelroom',
+  'cli.init.nextScript': '  npm run modelroom',
   'cli.init.nextOpen': '  open http://127.0.0.1:{port}/rooms/{room}',
   'cli.init.gitignore': '.gitignore（+ {path}）',
+  'cli.init.script': 'package.json（+ scripts.{name} = "{value}"）',
+  'cli.init.scriptInvalid': 'package.json を JSON として読めないため、そのままにしました',
+  'cli.init.scriptBadScripts':
+    'package.json の "scripts" がオブジェクトでないため、そのままにしました',
+  'cli.init.deps': '依存      {spec}（{pm}）',
+  'cli.init.depsSkipped': '依存      スキップ（--skip-install）',
+  'cli.init.depsFailed':
+    '{pm} で {spec} をインストールできませんでした — 自分で実行するまで「npm run modelroom」は npx を使います: {command}',
   'cli.init.language': '言語      {lang}（{source}）',
   'cli.init.languageSource.flag': '--lang',
   'cli.init.languageSource.config': 'modelroom.json',
