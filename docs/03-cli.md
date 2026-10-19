@@ -1,8 +1,8 @@
 # CLI
 
 ```
-modelroom [serve] [--port 4321] [--host 127.0.0.1] [--open]
-modelroom init [<room>] [--dir rooms] [--force]
+modelroom [serve] [--port 4321] [--host 127.0.0.1] [--open] [--lang en|ja]
+modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force]
 modelroom check [--json] [--strict]
 modelroom doctor
 modelroom --version | --help
@@ -26,14 +26,49 @@ Starts the workspace on `127.0.0.1:4321` by default. `modelroom` alone does the 
 
 ## init
 
-Copies the room templates and, if missing, `modelroom.json`, `AGENTS.md` and a
-`.modelroom/` line in `.gitignore`.
+Creates the design layer in `modelroom/` and keeps local state outside it:
 
 ```
-modelroom init checkout            # creates rooms/checkout/
-modelroom init checkout --dir design/screens
+your-repo/
+├── modelroom/                 # committed
+│   ├── modelroom.json
+│   ├── AGENTS.md
+│   └── rooms/<room>/{BRIEF,SPEC,BEHAVIOUR}.md + index.html
+└── .modelroom/                # git-ignored state
+```
+
+`init` writes the room templates and, if missing, `modelroom/modelroom.json`,
+`modelroom/AGENTS.md` and a `/.modelroom/` line in the project's `.gitignore`.
+An existing project keeps its config; running `init` again only adds what is
+missing (`--force` overwrites).
+
+```
+modelroom init checkout            # modelroom/rooms/checkout/
+modelroom init checkout --dir screens
+modelroom init checkout --lang ja  # pin Japanese for the templates and the UI
 modelroom init checkout --force    # overwrite existing files
 ```
+
+### Language
+
+Language is automatic by default. It is resolved in this order:
+
+1. `--lang en|ja` (only when you want to pin it)
+2. `lang` in `modelroom/modelroom.json`, when it is present
+3. `MODELROOM_LANG`
+4. `LC_ALL` / `LC_MESSAGES` / `LANG`
+5. the OS locale
+6. English
+
+`init` never asks. It uses the detected language for the generated templates and writes
+`lang` only when you passed `--lang`; without it the config has no `lang` and every run
+keeps detecting. `--lang` on `init` (or a later one) pins the language for the CLI, the
+web UI and new rooms.
+
+Existing room documents are never rewritten; `--lang` affects new rooms only. To translate
+a project that already has rooms, pin the language and ask the agent to translate the
+existing `BRIEF.md` / `SPEC.md` / `BEHAVIOUR.md` files — the frontmatter keys and promise
+ids stay as they are.
 
 ## check
 
@@ -59,22 +94,27 @@ Exit code is 1 on errors (or on warnings with `--strict`).
 
 ```
 modelroom doctor
-ok   node 22.14.0 (needs >= 20)
-ok   root exists: /path/to/repo
-ok   rooms dir exists: rooms
+ok   node 22.14.0 (needs >= 22.18)
+ok   root exists: /path/to/repo/modelroom
+ok   rooms dir exists: modelroom/rooms
 ok   rooms found: checkout, sign-in
-ok   config: modelroom.json
+ok   config: modelroom/modelroom.json
+ok   state: .modelroom
+ok   language: ja
+ok   agent instructions: modelroom/AGENTS.md
 ok   agent command on PATH: opencode
 ok   png rendering (playwright): not installed (optional)
 ok   room checkout: docs ok
 ```
 
-## Config: `modelroom.json`
+## Config: `modelroom/modelroom.json`
 
 ```jsonc
 {
-  "root": ".",                                  // where your repository is
+  "root": ".",                                  // the design layer, relative to this file
   "rooms": "rooms",                             // rooms live here
+  "state": "../.modelroom",                     // local state, relative to this file
+  "lang": "ja",                                 // optional; omitted = auto. "en" | "ja"
   "artifact": "index.html",                     // the file that is the screen
   "docs": ["BRIEF.md", "SPEC.md", "BEHAVIOUR.md"], // the only files the UI may write
   "port": 4321,
@@ -89,8 +129,13 @@ ok   room checkout: docs ok
 }
 ```
 
+`root` is what `/files/...` and the agent's working directory see. With a new
+install that is `modelroom/`, so the design layer cannot read the application
+code. `modelroom` looks for `./modelroom.json` first (the old layout) and then
+`./modelroom/modelroom.json`; existing projects do not move.
+
 Anything you change from `/settings` is kept locally in `.modelroom/state.json`
-(git-ignore it) — committed configuration stays in `modelroom.json`.
+(git-ignore it) — committed configuration stays in `modelroom/modelroom.json`.
 
 ## Thumbnails
 

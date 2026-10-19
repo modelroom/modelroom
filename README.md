@@ -20,6 +20,33 @@ npx modelroom init checkout    # a room, with its docs and a starter artifact
 npx modelroom                  # → http://127.0.0.1:4321
 ```
 
+`init` keeps the design layer in one place — `modelroom/` for what you commit and
+`.modelroom/` for local state — and picks the language from your environment (pass
+`--lang en` / `--lang ja` to pin it):
+
+```
+your-repo/
+├── modelroom/                 # committed
+│   ├── modelroom.json
+│   ├── AGENTS.md
+│   └── rooms/checkout/
+│       ├── BRIEF.md
+│       ├── SPEC.md
+│       ├── BEHAVIOUR.md
+│       └── index.html
+└── .modelroom/                # git-ignored state
+```
+
+| Path | Committed? | What it is |
+|---|---|---|
+| `modelroom/modelroom.json` | yes | the config: agent, rooms, language |
+| `modelroom/AGENTS.md` | yes | what the agent may write, and in which language |
+| `modelroom/rooms/<room>/` | yes | one screen: `BRIEF`, `SPEC`, `BEHAVIOUR`, the artifact |
+| `.modelroom/state.json` | no | local session ids and settings changed from `/settings` |
+
+`.modelroom/` is disposable: delete it to reset sessions and local settings. The committed
+design layer is untouched.
+
 ## Why "model room"
 
 A model room in real estate is furnished, full scale, and convincing enough to decide in — but it
@@ -37,7 +64,7 @@ application code.
 | `/` | every room, side by side, with thumbnails — full-text search and filters built from the records |
 | `/rooms/<name>` | chat, the room's docs (editable), and the artifact — updating as the agent works |
 | `/settings` | which agent to run, and with which model |
-| `/files/<path>` | your repository, served read-only and **unmodified** (no injected scripts) |
+| `/files/<path>` | the design layer (`modelroom/`), served read-only and **unmodified** (no injected scripts) |
 
 The room's docs are the only files the UI can write. Changing `index.html` (from the agent or by
 hand) reloads the preview with no manual refresh; changes elsewhere in the room stream in the same way.
@@ -78,9 +105,12 @@ must never set it.
 ## Agents
 
 ```jsonc
-// modelroom.json
+// modelroom/modelroom.json
 {
+  "root": ".",
   "rooms": "rooms",
+  "state": "../.modelroom",
+  "lang": "ja",                                // optional; omit it and the OS decides
   "agent": {
     "adapter": "opencode",                       // or "command" for any CLI
     "command": "opencode",

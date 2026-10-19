@@ -10,7 +10,6 @@ import {
   Button,
   Card,
   Checkbox,
-  Code,
   Group,
   Loader,
   Select,
@@ -21,15 +20,16 @@ import {
 } from '@mantine/core';
 import { getRooms, postSettings, type RoomConfig } from '../lib/api.ts';
 import { clock } from '../lib/format.ts';
+import { useI18n } from '../lib/i18n.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
 
-const ADAPTERS = [
-  { value: 'opencode', label: 'opencode — OpenCode CLI (sessions, model, agent)' },
-  { value: 'command', label: 'command — any CLI, with args containing {prompt} and {session}' },
-];
-
 export function SettingsApp() {
+  const { lang, t } = useI18n();
+  const adapters = [
+    { value: 'opencode', label: t('settings.adapter.opencode') },
+    { value: 'command', label: t('settings.adapter.command') },
+  ];
   const [config, setConfig] = useState<RoomConfig | null>(null);
   const [adapter, setAdapter] = useState('opencode');
   const [command, setCommand] = useState('');
@@ -66,10 +66,14 @@ export function SettingsApp() {
       });
       if (result.config) setConfig(result.config);
       setFailed(Boolean(result.error));
-      setSaved(result.error ? `failed: ${result.error}` : `saved ${clock()}`);
+      setSaved(
+        result.error
+          ? t('settings.failed', { error: result.error })
+          : t('settings.saved', { time: clock(Date.now(), lang) }),
+      );
     } catch {
       setFailed(true);
-      setSaved('failed: could not reach the server');
+      setSaved(t('settings.couldNotReach'));
     } finally {
       setSaving(false);
     }
@@ -87,10 +91,10 @@ export function SettingsApp() {
             size="compact-sm"
             leftSection={<Icon name="arrow-left" size={15} />}
           >
-            Rooms
+            {t('common.rooms')}
           </Button>
           <Title order={1} fz="md" fw={600}>
-            Settings
+            {t('settings.title')}
           </Title>
           <Box ml="auto">
             <ThemeToggle />
@@ -103,16 +107,15 @@ export function SettingsApp() {
           <Card withBorder radius="md">
             <Stack gap="md">
               <Box>
-                <Text fw={600}>Agent</Text>
+                <Text fw={600}>{t('settings.agent')}</Text>
                 <Text size="sm" c="dimmed">
-                  modelroom drives the agent you already use. Nothing here is sent anywhere by
-                  modelroom itself.
+                  {t('settings.agentHint')}
                 </Text>
               </Box>
 
               <Select
-                label="Adapter"
-                data={ADAPTERS}
+                label={t('settings.adapter')}
+                data={adapters}
                 value={adapter}
                 onChange={(value) => setAdapter(value ?? 'opencode')}
                 allowDeselect={false}
@@ -121,7 +124,7 @@ export function SettingsApp() {
 
               <Group grow align="flex-end">
                 <TextInput
-                  label="Command"
+                  label={t('settings.command')}
                   value={command}
                   onChange={(event) => setCommand(event.currentTarget.value)}
                   placeholder="opencode"
@@ -129,7 +132,7 @@ export function SettingsApp() {
                   size="sm"
                 />
                 <TextInput
-                  label="Agent name"
+                  label={t('settings.agentName')}
                   value={agent}
                   onChange={(event) => setAgent(event.currentTarget.value)}
                   placeholder="build"
@@ -139,8 +142,8 @@ export function SettingsApp() {
               </Group>
 
               <TextInput
-                label="Model"
-                description="optional — many agents fail on an unset default"
+                label={t('settings.model')}
+                description={t('settings.modelDescription')}
                 value={model}
                 onChange={(event) => setModel(event.currentTarget.value)}
                 placeholder="e.g. openrouter/deepseek/deepseek-v4.1-flash"
@@ -151,7 +154,7 @@ export function SettingsApp() {
               <Checkbox
                 checked={standalone}
                 onChange={(event) => setStandalone(event.currentTarget.checked)}
-                label="Run the agent against its own server, using this process's environment (opencode)"
+                label={t('settings.standalone')}
               />
 
               <Group gap="sm">
@@ -161,7 +164,7 @@ export function SettingsApp() {
                   disabled={saving}
                   leftSection={saving ? <Loader size={13} color="currentColor" /> : undefined}
                 >
-                  Save
+                  {t('common.save')}
                 </Button>
                 {saved && (
                   <Text size="sm" c={failed ? 'danger' : 'dimmed'}>
@@ -174,56 +177,63 @@ export function SettingsApp() {
 
           <Card withBorder radius="md">
             <Stack gap="sm">
-              <Text fw={600}>Config</Text>
+              <Text fw={600}>{t('settings.config')}</Text>
               {config ? (
                 <>
                   <Group gap="xs" wrap="wrap">
                     <Badge variant="outline" radius="sm" ff="monospace">
-                      root {config.root}
+                      {t('settings.root', { root: config.root })}
                     </Badge>
                     <Badge variant="outline" radius="sm" ff="monospace">
-                      rooms {config.rooms}/
+                      {t('settings.rooms', { rooms: config.rooms })}
                     </Badge>
                     <Badge variant="outline" radius="sm" ff="monospace">
-                      artifact {config.artifact}
+                      {t('settings.artifact', { artifact: config.artifact })}
+                    </Badge>
+                    <Badge variant="outline" radius="sm" ff="monospace">
+                      {t('settings.language', { lang: config.lang })}
                     </Badge>
                   </Group>
                   <Group gap="xs" wrap="wrap">
                     <Badge variant="light" color="gray" radius="sm" ff="monospace">
-                      agent {config.agent.adapter}
+                      {t('settings.adapterLine', { adapter: config.agent.adapter })}
                     </Badge>
                     <Badge variant="light" color="gray" radius="sm" ff="monospace">
-                      command {config.agent.command}
+                      {t('settings.commandLine', { command: config.agent.command })}
                     </Badge>
                     <Badge variant="light" color="gray" radius="sm" ff="monospace">
-                      agent name {config.agent.agent || '-'}
+                      {t('settings.agentLine', { agent: config.agent.agent || '-' })}
                     </Badge>
                     <Badge variant="light" color="gray" radius="sm" ff="monospace">
-                      model {config.agent.model || 'default'}
+                      {t('settings.modelLine', {
+                        model: config.agent.model || t('settings.default'),
+                      })}
                     </Badge>
                   </Group>
                 </>
               ) : (
                 <Group gap="xs" c="dimmed">
                   <Loader size="xs" />
-                  <Text size="sm">loading…</Text>
+                  <Text size="sm">{t('common.loading')}</Text>
                 </Group>
               )}
               <Text size="xs" c="dimmed">
-                Committed settings live in <Code>modelroom.json</Code>. Anything you save here is
-                kept locally in <Code>.modelroom/state.json</Code> (git-ignored). Editable room
-                files are: <Code>{(config?.docs ?? []).join(', ')}</Code>.
+                {t('settings.configHint', {
+                  path: 'modelroom.json',
+                  state: '.modelroom/state.json',
+                  docs: (config?.docs ?? []).join(', '),
+                })}
               </Text>
             </Stack>
           </Card>
 
           <Card withBorder radius="md">
             <Stack gap="xs">
-              <Text fw={600}>Thumbnails</Text>
+              <Text fw={600}>{t('settings.thumbnails')}</Text>
               <Alert variant="light" color="info" icon={<Icon name="image" size={14} />}>
-                Rendering an artifact to PNG needs Playwright and a browser:{' '}
-                <Code>npm i -D playwright &amp;&amp; npx playwright install chromium</Code>.
-                modelroom works without it — rooms simply show no thumbnail.
+                {t('settings.thumbnailsAlert', {
+                  command: 'npm i -D playwright && npx playwright install chromium',
+                })}
               </Alert>
             </Stack>
           </Card>

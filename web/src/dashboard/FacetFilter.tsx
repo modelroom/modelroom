@@ -34,6 +34,7 @@ import {
 } from '@mantine/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { Facet } from '../lib/api.ts';
+import { useI18n } from '../lib/i18n.tsx';
 import { filterOptions } from './filter.ts';
 
 /** Candidates past this count get the virtualised control. */
@@ -114,6 +115,7 @@ function MultiFacet({
   onChange: (next: string[]) => void;
   options: Option[];
 }) {
+  const { t } = useI18n();
   const filter = useFacetFilter();
   const counts = useMemo(() => new Map(options.map((o) => [o.value, o.count])), [options]);
 
@@ -128,10 +130,10 @@ function MultiFacet({
         hidePickedOptions
         limit={RENDER_LIMIT}
         filter={filter}
-        nothingFoundMessage="No value matches"
+        nothingFoundMessage={t('facet.noMatch')}
         maxDropdownHeight={280}
         comboboxProps={{ keepMounted: false, resetSelectionOnOptionHover: false }}
-        placeholder={selected.length ? undefined : 'any'}
+        placeholder={selected.length ? undefined : t('facet.any')}
         data={options.map((option) => ({ value: option.value, label: option.label }))}
         value={selected}
         onChange={onChange}
@@ -152,7 +154,7 @@ function MultiFacet({
           if (index === MAX_PILLS - 1) {
             return (
               <Pill size="sm" title={selected.slice(MAX_PILLS - 1).join(', ')}>
-                +{selected.length - MAX_PILLS + 1} more
+                {t('facet.more', { count: selected.length - MAX_PILLS + 1 })}
               </Pill>
             );
           }
@@ -174,6 +176,7 @@ function SingleFacet({
   onChange: (next: string[]) => void;
   options: Option[];
 }) {
+  const { t } = useI18n();
   const filter = useFacetFilter();
   const counts = useMemo(() => new Map(options.map((o) => [o.value, o.count])), [options]);
 
@@ -187,10 +190,10 @@ function SingleFacet({
         clearable
         limit={RENDER_LIMIT}
         filter={filter}
-        nothingFoundMessage="No value matches"
+        nothingFoundMessage={t('facet.noMatch')}
         maxDropdownHeight={280}
         comboboxProps={{ keepMounted: false, resetSelectionOnOptionHover: false }}
-        placeholder="any"
+        placeholder={t('facet.any')}
         data={options.map((option) => ({ value: option.value, label: option.label }))}
         value={selected[0] ?? null}
         onChange={(value) => onChange(value ? [value] : [])}
@@ -217,6 +220,7 @@ function VirtualFacet({
   onChange: (next: string[]) => void;
   options: Option[];
 }) {
+  const { t } = useI18n();
   const multiple = facet.kind === 'array';
   const [search, setSearch] = useState('');
   const [opened, setOpened] = useState(false);
@@ -327,11 +331,11 @@ function VirtualFacet({
             placeholder={
               multiple
                 ? selected.length
-                  ? `search ${options.length} values`
-                  : 'search or pick'
-                : (selected[0] ?? 'search or pick')
+                  ? t('facet.searchValues', { count: options.length })
+                  : t('facet.searchOrPick')
+                : (selected[0] ?? t('facet.searchOrPick'))
             }
-            aria-label={`${facet.key} filter`}
+            aria-label={t('common.filter', { name: facet.key })}
             rightSection={
               search ? (
                 <Text size="xs" c="dimmed" ff="monospace">
@@ -351,7 +355,7 @@ function VirtualFacet({
               onMouseDown={(event) => event.preventDefault()}
             >
               {filtered.length === 0 ? (
-                <Combobox.Empty>No value matches</Combobox.Empty>
+                <Combobox.Empty>{t('facet.noMatch')}</Combobox.Empty>
               ) : (
                 <Box style={{ position: 'relative', height: virtualizer.getTotalSize() }}>
                   {items.map((item) => {

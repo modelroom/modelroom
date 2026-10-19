@@ -13,6 +13,7 @@ import { Badge, Box, Collapse, Group, ScrollArea, Text, UnstyledButton } from '@
 import type { DiffFile, Part } from '../lib/api.ts';
 import { Markdown } from './Markdown.tsx';
 import { Icon, type IconName } from './Icon.tsx';
+import { useI18n } from '../lib/i18n.tsx';
 
 /** A tool's name is opencode's, so the icon is a hint, not a contract. */
 const ICONS: Record<string, IconName> = {
@@ -136,6 +137,7 @@ function Disclosure({
 }
 
 function ToolRow({ part }: { part: Extract<Part, { kind: 'tool' }> }) {
+  const { t } = useI18n();
   const icon = ICONS[part.name] ?? 'terminal';
   const hasBody = Boolean(part.output) || part.files.length > 0;
   return (
@@ -168,12 +170,14 @@ function ToolRow({ part }: { part: Extract<Part, { kind: 'tool' }> }) {
         <Group gap={4} ml="auto" wrap="nowrap">
           {part.exit !== null && part.exit !== 0 && (
             <Badge size="xs" radius="sm" color="danger">
-              exit {part.exit}
+              {t('parts.exit', { code: part.exit })}
             </Badge>
           )}
           {part.files.length > 0 && (
             <Badge size="xs" radius="sm" color="gray" variant="light">
-              {part.files.length} file{part.files.length > 1 ? 's' : ''}
+              {t(part.files.length === 1 ? 'parts.filesOne' : 'parts.filesOther', {
+                count: part.files.length,
+              })}
             </Badge>
           )}
           <Badge
@@ -183,13 +187,19 @@ function ToolRow({ part }: { part: Extract<Part, { kind: 'tool' }> }) {
             color={statusColor(part.status)}
             leftSection={part.status === 'running' ? <Icon name="loader" size={10} /> : undefined}
           >
-            {part.status}
+            {t(
+              part.status === 'running'
+                ? 'status.running'
+                : part.status === 'error'
+                  ? 'status.error'
+                  : 'status.done',
+            )}
           </Badge>
         </Group>
       </Group>
 
       {hasBody && (
-        <Disclosure label={part.files.length > 0 ? 'changes' : 'output'}>
+        <Disclosure label={t(part.files.length > 0 ? 'parts.changes' : 'parts.output')}>
           {part.files.map((file) => (
             <Patch key={file.file} file={file} />
           ))}
@@ -211,7 +221,7 @@ function ToolRow({ part }: { part: Extract<Part, { kind: 'tool' }> }) {
           )}
           {part.truncated && (
             <Text size="xs" c="dimmed">
-              output was truncated
+              {t('parts.truncated')}
             </Text>
           )}
         </Disclosure>
@@ -221,6 +231,7 @@ function ToolRow({ part }: { part: Extract<Part, { kind: 'tool' }> }) {
 }
 
 function Reasoning({ text }: { text: string }) {
+  const { t } = useI18n();
   const [open, { toggle }] = useDisclosure(false);
   return (
     <Box
@@ -236,7 +247,7 @@ function Reasoning({ text }: { text: string }) {
         <Group gap={6} wrap="nowrap">
           <Icon name="sparkles" size={14} />
           <Text size="xs" c="dimmed">
-            reasoning
+            {t('parts.reasoning')}
           </Text>
         </Group>
       </UnstyledButton>

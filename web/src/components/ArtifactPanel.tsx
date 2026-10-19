@@ -12,6 +12,7 @@ import {
   Text,
 } from '@mantine/core';
 import { postRender, type RoomInfo } from '../lib/api.ts';
+import { useI18n } from '../lib/i18n.tsx';
 import { useServerEvent } from '../hooks/useServerEvents.tsx';
 import { Icon } from './Icon.tsx';
 import { Panel } from './Status.tsx';
@@ -39,6 +40,7 @@ export function ArtifactPanel({
   artifact: string;
   info: RoomInfo;
 }) {
+  const { t } = useI18n();
   const [device, setDevice] = useState<Device>('tablet');
   const [fit, setFit] = useState(true);
   const [view, setView] = useState<View>('artifact');
@@ -141,11 +143,11 @@ export function ArtifactPanel({
             value={device}
             onChange={(value) => setDevice(value as Device)}
             data={DEVICES.map((entry) => ({ value: entry.value, label: entry.label }))}
-            aria-label="Device width"
+            aria-label={t('artifact.deviceWidth')}
           />
           <Checkbox
             size="xs"
-            label="fit"
+            label={t('artifact.fit')}
             checked={fit}
             onChange={(event) => setFit(event.currentTarget.checked)}
           />
@@ -154,10 +156,10 @@ export function ArtifactPanel({
             value={view}
             onChange={(value) => setView(value as View)}
             data={[
-              { value: 'artifact', label: 'artifact' },
-              { value: 'png', label: 'png' },
+              { value: 'artifact', label: t('artifact.title') },
+              { value: 'png', label: t('artifact.png') },
             ]}
-            aria-label="Artifact view"
+            aria-label={t('artifact.view')}
           />
           <Button
             size="compact-xs"
@@ -166,14 +168,14 @@ export function ArtifactPanel({
             onClick={() => void render()}
             leftSection={busy ? <Loader size={12} color="gray" /> : <Icon name="image" size={13} />}
           >
-            make png
+            {t('artifact.makePng')}
           </Button>
         </Group>
       }
       right={
         <Anchor href={rawHref} target="_blank" rel="noopener noreferrer" size="xs">
           <Group gap={4} wrap="nowrap">
-            open raw
+            {t('artifact.openRaw')}
             <Icon name="external" size={13} />
           </Group>
         </Anchor>
@@ -192,10 +194,7 @@ export function ArtifactPanel({
         }}
       >
         {!info.hasArtifact ? (
-          <Empty>
-            No artifact yet — <span style={{ fontFamily: 'var(--mr-mono)' }}>{artifact}</span>. Ask
-            the agent to create it.
-          </Empty>
+          <Empty>{t('artifact.noArtifact', { artifact })}</Empty>
         ) : view === 'artifact' ? (
           <Box ref={inner} style={{ position: 'relative' }} mx="auto">
             <Box
@@ -215,7 +214,7 @@ export function ArtifactPanel({
                 ref={iframe}
                 src={src}
                 onLoad={fitFrame}
-                title="artifact"
+                title={t('artifact.title')}
                 style={{
                   display: 'block',
                   width: '100%',
@@ -229,7 +228,7 @@ export function ArtifactPanel({
         ) : thumb ? (
           <img
             src={pngSrc}
-            alt="artifact thumbnail"
+            alt={t('artifact.thumbnail')}
             style={{
               width: '100%',
               borderRadius: 'var(--mantine-radius-md)',
@@ -237,7 +236,7 @@ export function ArtifactPanel({
             }}
           />
         ) : (
-          <Empty>No PNG yet. Use “make png” — it needs Playwright.</Empty>
+          <Empty>{t('artifact.noPng')}</Empty>
         )}
       </Box>
     </Panel>

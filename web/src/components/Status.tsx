@@ -4,6 +4,7 @@
 import type { ReactNode } from 'react';
 import { Badge, Box, Group, Loader, Text, type BadgeProps } from '@mantine/core';
 import { TONES, type Tone } from '../theme.ts';
+import { useI18n } from '../lib/i18n.tsx';
 
 /** A brief's `Status:` picks the tone — adopted/approved is the good one. */
 export function toneForStatus(status: string | null | undefined): Tone {
@@ -38,6 +39,7 @@ export function AgentStatus({
   busy: boolean;
   message?: string;
 }) {
+  const { t } = useI18n();
   return (
     <ToneBadge
       tone={connected ? 'outline' : 'destructive'}
@@ -56,7 +58,7 @@ export function AgentStatus({
         )
       }
     >
-      {connected ? message || 'ready' : 'reconnecting…'}
+      {connected ? message || t('common.ready') : t('common.reconnecting')}
     </ToneBadge>
   );
 }

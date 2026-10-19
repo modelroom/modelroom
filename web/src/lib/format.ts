@@ -7,11 +7,14 @@ export const fmtNum = (n: number | null | undefined): string => {
   return String(n);
 };
 
-export const clock = (ms?: number | null): string =>
-  new Date(ms ?? Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+export const clock = (ms?: number | null, lang = 'en'): string =>
+  new Date(ms ?? Date.now()).toLocaleTimeString(lang, {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
-export const stamp = (ms?: number | null): string =>
-  new Date(ms ?? Date.now()).toLocaleString([], {
+export const stamp = (ms?: number | null, lang = 'en'): string =>
+  new Date(ms ?? Date.now()).toLocaleString(lang, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',

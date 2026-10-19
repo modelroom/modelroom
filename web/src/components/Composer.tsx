@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Badge, Box, Button, CloseButton, Group, Text, Textarea } from '@mantine/core';
 import { load, save } from '../lib/storage.ts';
+import { useI18n } from '../lib/i18n.tsx';
 import { Icon } from './Icon.tsx';
 
 const HISTORY_MAX = 50;
@@ -24,6 +25,7 @@ export function Composer({
   onSubmit: (text: string) => void;
   onRemoveQueued: (index: number) => void;
 }) {
+  const { t } = useI18n();
   const draftKey = `modelroom.draft.${room}`;
   const historyKey = `modelroom.history.${room}`;
   const [value, setValue] = useState(() => load<string>(draftKey, ''));
@@ -103,7 +105,7 @@ export function Composer({
               rightSection={
                 <CloseButton
                   size="xs"
-                  aria-label={`Remove queued prompt: ${text}`}
+                  aria-label={t('composer.removeQueued', { text })}
                   onClick={() => onRemoveQueued(index)}
                 />
               }
@@ -136,20 +138,20 @@ export function Composer({
             setCursor(null);
           }}
           onKeyDown={onKeyDown}
-          placeholder="Ask the agent to change this room. It edits the room's files; the artifact updates here."
-          aria-label="Message the agent"
+          placeholder={t('composer.placeholder')}
+          aria-label={t('composer.messageLabel')}
           classNames={{ input: 'mr-scroll' }}
         />
         <Group gap="sm" px={6} pt={2} wrap="nowrap">
           <Text size="xs" c="dimmed" visibleFrom="sm">
-            Enter to send · Shift+Enter for a new line
+            {t('composer.hint')}
           </Text>
           <Group gap="sm" ml="auto" wrap="nowrap">
             {running && (
               <Group gap={4} wrap="nowrap" visibleFrom="sm">
                 <Icon name="sparkles" size={12} />
                 <Text size="xs" c="dimmed">
-                  agent is working…
+                  {t('composer.working')}
                 </Text>
               </Group>
             )}
@@ -159,7 +161,7 @@ export function Composer({
               onClick={submit}
               leftSection={<Icon name="send" size={14} />}
             >
-              {running ? 'Queue' : 'Send'}
+              {running ? t('composer.queue') : t('composer.send')}
             </Button>
           </Group>
         </Group>

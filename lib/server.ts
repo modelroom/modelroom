@@ -24,6 +24,7 @@ import { buildFacets, searchRooms } from './facets.ts';
 import { getAdapter, stripAnsi } from './agents/index.ts';
 import { renderArtifact, playwrightAvailable, type RenderResult } from './artifact.ts';
 import { sessionView, watchParts, type PartsWatcher } from './opencode.ts';
+import { t, type MessageKey } from './i18n.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -76,12 +77,17 @@ export interface CreateOptions {
   cwd?: string;
   port?: number | string;
   host?: string;
+  /** Override the committed language for this run (e.g. `serve --lang ja`). */
+  lang?: string;
 }
 
 export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
   const cfg = await loadConfig(opts.cwd || process.cwd());
   if (opts.port) cfg.port = Number(opts.port);
   if (opts.host) cfg.host = String(opts.host);
+  if (opts.lang === 'ja' || opts.lang === 'en') cfg.lang = opts.lang;
+  const tr = (key: MessageKey, params?: Record<string, string | number>): string =>
+    t(cfg.lang, key, params);
 
   await mkdir(cfg.stateDir, { recursive: true }); // keep state local, never in git
   const state: State = await loadState(cfg);
@@ -93,7 +99,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
   let rendering = false;
   const status: ModelroomStatus = {
     phase: 'idle',
-    message: 'ready',
+    message: tr('common.ready'),
     since: Date.now(),
     lastEvent: null,
     log: [],
@@ -173,7 +179,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
       process.stderr.write(
         `modelroom: cannot serve ${page}: ${err instanceof Error ? err.message : String(err)}\n`,
       );
-      return send(res, 500, 'text/plain; charset=utf-8', 'internal error');
+      return send(res, 500, 'text/plain; charset=utf-8', tr('server.internal'));
     }
   }
 
@@ -210,7 +216,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
             if (file.includes('.modelroom')) return;
             status.lastEvent = { file, at };
             status.phase = 'change';
-            status.message = `changed: ${file}`;
+            status.message = tr('server.changed', { file });
             status.since = at;
             broadcast('change', { file, at });
             broadcast('status', { phase: 'change', message: status.message, since: at });
@@ -225,12 +231,12 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
 
   // ── chat ──────────────────────────────────────────────────────────────────
   function runChat(room: string, prompt: string): ChatResult {
-    if (!prompt || !prompt.trim()) return { started: false, reason: 'empty prompt' };
-    if (chats.has(room)) return { started: false, reason: 'this room is already running' };
+    if (!prompt || !prompt.trim()) return { started: false, reason: tr('server.emptyPrompt') };
+    if (chats.has(room)) return { started: false, reason: tr('server.roomRunningChat') };
     const adapter = getAdapter(cfg.agent.adapter);
     const sessionId = sessionOf(room);
     const startedAt = Date.now();
-    setStatus('chat', `${room}: agent is working…`);
+    setStatus('chat', tr('server.agentWorking', { room }));
     broadcast('chat-start', { room, sessionId, prompt, at: startedAt });
     broadcast('chat', {
       room,
@@ -267,7 +273,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
           );
           chats.delete(room);
           if (err) setStatus('error', err);
-          else setStatus(code === 0 ? 'ok' : 'error', `${room}: agent exited (${code})`);
+          else setStatus(code === 0 ? 'ok' : 'error', tr('server.agentExited', { room, code }));
           broadcast('chat-done', { room, sessionId, code, error: err || null, at: Date.now() });
         })();
       },
@@ -277,14 +283,15 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
 
   // ── artifact render (optional) ────────────────────────────────────────────
   async function render(room: string, device: string): Promise<RenderResult> {
-    if (rendering) return { ok: false, error: 'already rendering' };
+    if (rendering) return { ok: false, error: tr('server.alreadyRendering') };
+    const png = cfg.artifact.replace(/\.html?$/i, '.png');
     rendering = true;
-    setStatus('rendering', `${room}: rendering ${cfg.artifact.replace(/\.html?$/i, '.png')}…`);
+    setStatus('rendering', tr('server.rendering', { room, file: png }));
     broadcast('render-start', { room, device, at: Date.now() });
     try {
       const result = await renderArtifact({ cfg, room, device });
       if (result.ok) {
-        setStatus('ok', `${room}: ${cfg.artifact.replace(/\.html?$/i, '.png')} updated`);
+        setStatus('ok', tr('server.rendered', { room, file: png }));
       } else {
         setStatus('error', result.error);
       }
@@ -356,21 +363,21 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       process.stderr.write(`modelroom: cannot read request body: ${detail}\n`);
-      sendJson(res, 400, { error: 'request body could not be read' });
+      sendJson(res, 400, { error: tr('server.badBodyRead') });
       return null;
     }
     if (!raw.trim() && optional) return {};
     try {
       const parsed: unknown = JSON.parse(raw || '{}');
       if (!isRecord(parsed)) {
-        sendJson(res, 400, { error: 'body must be a JSON object' });
+        sendJson(res, 400, { error: tr('server.bodyObject') });
         return null;
       }
       return parsed;
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       process.stderr.write(`modelroom: invalid JSON body: ${detail}\n`);
-      sendJson(res, 400, { error: 'body must be valid JSON' });
+      sendJson(res, 400, { error: tr('server.bodyJson') });
       return null;
     }
   }
@@ -385,6 +392,10 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
       const room = isRoomName(param) && names.includes(param) ? param : (names[0] ?? null);
 
       if (path === '/health') return send(res, 200, 'text/plain; charset=utf-8', 'ok');
+      // The UI asks this once before its first paint: which language to speak.
+      if (path === '/api/meta') {
+        return sendJson(res, 200, { lang: cfg.lang, config: publicConfig(cfg) });
+      }
       if (path === '/favicon.ico') {
         res.writeHead(204);
         return res.end();
@@ -426,7 +437,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
       }
 
       if (path === '/api/room') {
-        if (!room) return sendJson(res, 404, { error: 'no rooms' });
+        if (!room) return sendJson(res, 404, { error: tr('server.noRooms') });
         const info = await roomInfo(cfg, room);
         return sendJson(res, 200, {
           room: publicRoom(info),
@@ -439,9 +450,9 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
       if (path === '/api/doc' && req.method === 'GET') {
         const name = url.searchParams.get('name') || '';
         if (!cfg.docs.includes(name)) {
-          return sendJson(res, 400, { error: `name must be one of ${cfg.docs.join(', ')}` });
+          return sendJson(res, 400, { error: tr('server.docName', { docs: cfg.docs.join(', ') }) });
         }
-        if (!room) return sendJson(res, 404, { error: 'no rooms' });
+        if (!room) return sendJson(res, 404, { error: tr('server.noRooms') });
         try {
           const p = join(cfg.roomsDir, room, name);
           const { text, mtime } = await readDoc(p);
@@ -463,9 +474,9 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
         if (!body) return;
         const target = isRoomName(body.room) && names.includes(body.room) ? body.room : room;
         const name = typeof body.name === 'string' ? body.name : '';
-        if (!target) return sendJson(res, 404, { error: 'no rooms' });
+        if (!target) return sendJson(res, 404, { error: tr('server.noRooms') });
         if (!cfg.docs.includes(name)) {
-          return sendJson(res, 403, { error: 'this file is not editable' });
+          return sendJson(res, 403, { error: tr('server.notEditable') });
         }
         const p = join(cfg.roomsDir, target, name);
         // The version this save is based on: a content hash when the client sends
@@ -490,7 +501,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
                 return {
                   status: 409,
                   body: {
-                    error: 'changed elsewhere',
+                    error: tr('server.changedElsewhere'),
                     text: current,
                     mtime: s.mtimeMs,
                     hash: currentHash,
@@ -520,13 +531,13 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
         }
         return sendJson(res, outcome.status, outcome.body);
       }
-      if (path === '/api/doc') return sendJson(res, 405, { error: 'GET or PUT' });
+      if (path === '/api/doc') return sendJson(res, 405, { error: tr('server.methodDoc') });
 
       if (path === '/api/chat' && req.method === 'POST') {
         const body = await jsonBody(req, res);
         if (!body) return;
         const target = isRoomName(body.room) && names.includes(body.room) ? body.room : room;
-        if (!target) return sendJson(res, 404, { error: 'no rooms' });
+        if (!target) return sendJson(res, 404, { error: tr('server.noRooms') });
         const r = runChat(target, typeof body.prompt === 'string' ? body.prompt : '');
         return sendJson(res, r.started ? 202 : 409, { room: target, ...r });
       }
@@ -535,8 +546,8 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
         const body = await jsonBody(req, res, true);
         if (!body) return; // malformed JSON: jsonBody already answered 400
         const target = isRoomName(body.room) && names.includes(body.room) ? body.room : room;
-        if (!target) return sendJson(res, 404, { error: 'no rooms' });
-        if (chats.has(target)) return sendJson(res, 409, { error: 'room is running' });
+        if (!target) return sendJson(res, 404, { error: tr('server.noRooms') });
+        if (chats.has(target)) return sendJson(res, 409, { error: tr('server.roomRunning') });
         const adapter = getAdapter(cfg.agent.adapter);
         const id = adapter.newSessionId();
         state.sessions[target] = id;
@@ -547,7 +558,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
       // What the agent did in this room: cost, tokens, context, transcript, MCP.
       // opencode-only, and best-effort — a failure just means `available: false`.
       if (path === '/api/session' && req.method === 'GET') {
-        if (!room) return sendJson(res, 404, { error: 'no rooms' });
+        if (!room) return sendJson(res, 404, { error: tr('server.noRooms') });
         if (cfg.agent.adapter !== 'opencode') {
           return sendJson(res, 200, { available: false, room, session: null });
         }
@@ -571,7 +582,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
         const body = await jsonBody(req, res, true);
         if (!body) return; // malformed JSON: jsonBody already answered 400
         const target = isRoomName(body.room) && names.includes(body.room) ? body.room : room;
-        if (!target) return sendJson(res, 404, { error: 'no rooms' });
+        if (!target) return sendJson(res, 404, { error: tr('server.noRooms') });
         const device = typeof body.device === 'string' ? body.device : 'tablet';
         const result = await render(target, device);
         return sendJson(res, result.ok ? 200 : 501, result);
@@ -619,7 +630,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
           res,
           code,
           'text/plain; charset=utf-8',
-          code === 400 ? 'bad request' : 'internal error',
+          code === 400 ? tr('server.badRequest') : tr('server.internal'),
         );
       } catch {
         /* nothing we can do */
@@ -666,6 +677,7 @@ export function publicConfig(cfg: Config) {
     rooms: cfg.rooms,
     artifact: cfg.artifact,
     docs: cfg.docs,
+    lang: cfg.lang,
     agent: {
       adapter: cfg.agent.adapter,
       command: cfg.agent.command,

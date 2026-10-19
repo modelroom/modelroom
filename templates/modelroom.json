@@ -1,6 +1,8 @@
 {
   "root": ".",
-  "rooms": "rooms",
+  "rooms": "{{rooms}}",
+  "state": "{{state}}",
+  "lang": "{{lang}}",
   "artifact": "index.html",
   "docs": ["BRIEF.md", "SPEC.md", "BEHAVIOUR.md"],
   "port": 4321,

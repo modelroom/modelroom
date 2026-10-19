@@ -6,6 +6,7 @@
 import { join } from 'node:path';
 import { stat } from 'node:fs/promises';
 import type { Config } from './config.ts';
+import { t } from './i18n.ts';
 
 export async function playwrightAvailable(): Promise<boolean> {
   try {
@@ -16,10 +17,7 @@ export async function playwrightAvailable(): Promise<boolean> {
   }
 }
 
-export const INSTALL_HINT =
-  'PNG rendering needs Playwright:\n' +
-  '  npm install --include=dev playwright && npx playwright install chromium\n' +
-  '(modelroom works without it — the room just has no thumbnail.)';
+export const INSTALL_HINT = t('en', 'server.installHint');
 
 export type RenderResult =
   | { ok: true; png: string; width: number; height: number }
@@ -36,7 +34,7 @@ export async function renderArtifact({
   device = 'tablet',
   scale = 2,
 }: {
-  cfg: Pick<Config, 'rooms' | 'roomsDir' | 'artifact'>;
+  cfg: Pick<Config, 'rooms' | 'roomsDir' | 'artifact' | 'lang'>;
   room: string;
   device?: string;
   scale?: number;
@@ -45,7 +43,7 @@ export async function renderArtifact({
   try {
     ({ chromium } = await import('playwright'));
   } catch {
-    return { ok: false, error: INSTALL_HINT };
+    return { ok: false, error: t(cfg.lang, 'server.installHint') };
   }
   const width = WIDTHS[device] ?? 1024;
   const src = join(cfg.roomsDir, room, cfg.artifact);
@@ -53,7 +51,12 @@ export async function renderArtifact({
   try {
     await stat(src);
   } catch {
-    return { ok: false, error: `artifact not found: ${cfg.rooms}/${room}/${cfg.artifact}` };
+    return {
+      ok: false,
+      error: t(cfg.lang, 'server.artifactNotFound', {
+        path: `${cfg.rooms}/${room}/${cfg.artifact}`,
+      }),
+    };
   }
   const browser = await chromium.launch();
   try {

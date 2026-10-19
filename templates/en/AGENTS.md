@@ -3,6 +3,8 @@
 This repository uses [modelroom](https://github.com/modelroom/modelroom): one room per screen,
 with the reason, the invisible spec, the promises and the artifact kept apart.
 
+You are working inside the design layer (`modelroom/`). Write the room's prose in English.
+
 ## Where you may write
 
 - `rooms/<room>/BRIEF.md` — why this room exists
@@ -10,7 +12,8 @@ with the reason, the invisible spec, the promises and the artifact kept apart.
 - `rooms/<room>/BEHAVIOUR.md` — what it promises (operations and results)
 - `rooms/<room>/index.html` — the artifact itself
 
-Nothing else. Do not touch the application code from here; the design layer never reads it.
+Nothing else. Do not reach outside this directory; the design layer never reads the
+application code. The application is handed this layer, not the other way round.
 
 ## How to work
 
@@ -25,7 +28,9 @@ Nothing else. Do not touch the application code from here; the design layer neve
 
 ## Conventions
 
-- Add `Status: draft|review|adopted` to `BRIEF.md` when you want the dashboard to show a state.
-  Changing it to `adopted` is a human decision, not yours.
+- Frontmatter keys (`title`, `status`, `summary`, `tags`) and promise ids (`@verb-1`) stay
+  in English, whatever language the prose uses.
+- Add `status: draft|review|adopted` to `BRIEF.md` when you want the dashboard to show a
+  state. Changing it to `adopted` is a human decision, not yours.
 
 See `docs/02-convention.md` in the modelroom package for the reasoning.

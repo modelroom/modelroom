@@ -13,6 +13,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import type { Config } from '../config.ts';
+import { t } from '../i18n.ts';
 
 export type Stream = 'stdout' | 'stderr';
 
@@ -49,6 +50,7 @@ function spawnStreaming({
   args,
   cwd,
   env,
+  lang,
   onChunk,
   onExit,
 }: {
@@ -56,6 +58,7 @@ function spawnStreaming({
   args: string[];
   cwd: string;
   env?: Record<string, string>;
+  lang: Config['lang'];
   onChunk: RunOptions['onChunk'];
   onExit: RunOptions['onExit'];
 }): ChildProcess {
@@ -75,7 +78,9 @@ function spawnStreaming({
   };
   child.stdout?.on('data', (b: Buffer) => onChunk('stdout', String(b)));
   child.stderr?.on('data', (b: Buffer) => onChunk('stderr', String(b)));
-  child.on('error', (err) => finish(-1, `cannot start ${command}: ${err.message}`));
+  child.on('error', (err) =>
+    finish(-1, t(lang, 'server.cannotStart', { command, message: err.message })),
+  );
   child.on('close', (code) => finish(code ?? -1));
   return child;
 }
@@ -91,7 +96,14 @@ export const opencode: Adapter = {
     if (a.agent) args.push('--agent', a.agent);
     if (a.model) args.push('--model', a.model);
     args.push('--session', sessionId, '--auto', prompt);
-    return spawnStreaming({ command: a.command || 'opencode', args, cwd, onChunk, onExit });
+    return spawnStreaming({
+      command: a.command || 'opencode',
+      args,
+      cwd,
+      lang: cfg.lang,
+      onChunk,
+      onExit,
+    });
   },
 };
 
@@ -105,7 +117,14 @@ export const command: Adapter = {
     const args = template.map((s) =>
       String(s).replaceAll('{prompt}', prompt).replaceAll('{session}', sessionId),
     );
-    return spawnStreaming({ command: a.command, args, cwd, onChunk, onExit });
+    return spawnStreaming({
+      command: a.command,
+      args,
+      cwd,
+      lang: cfg.lang,
+      onChunk,
+      onExit,
+    });
   },
 };
 

@@ -13,7 +13,11 @@ This repository is both the **npm package** (`modelroom`, a local server + works
 ```
 bin/modelroom.ts        CLI: serve | init | check | doctor
 lib/server.ts           HTTP + SSE + static + agent spawn
-lib/config.ts           modelroom.json (committed) and .modelroom/state.json (local)
+lib/config.ts           config discovery (root modelroom.json, then modelroom/modelroom.json)
+lib/lang.ts             Lang = 'en' | 'ja' (browser-safe)
+lib/i18n.ts             the one catalog, shared by CLI, server and UI
+lib/locale.ts           environment/OS language detection + the TTY prompt helper
+lib/templates.ts        language template lookup with English fallback
 lib/rooms.ts            room discovery, status parsing
 lib/agents/index.ts     adapters: opencode | command
 lib/artifact.ts         optional HTML → PNG (Playwright, dynamically imported)
@@ -32,7 +36,8 @@ ui/                     the tool's UI, as served (shells + built assets, committ
 ui/assets/app.js        the built bundle; never edited by hand
 ui/*.html               the four shells: `data-app` + the bundle, nothing else
 src/modelroom.css       Mantine's stylesheet + the tool's own extras → ui/modelroom.css
-templates/              what `modelroom init` writes
+templates/<lang>/       what `modelroom init` writes (en, ja)
+templates/modelroom.json  shared config template with {{rooms}}/{{state}}/{{lang}}
 examples/rooms/         the demo room(s) used by this repo's modelroom.json
 test/                   vitest: unit + one end-to-end pass over the server
 docs/                   the convention, the CLI, agents
@@ -78,6 +83,11 @@ the UI silently loses classes or ships stale code. `npm run build` does all of i
 6. **Writable files are only `cfg.docs`.** Everything else answers 403. Do not widen it.
 7. **Adapters close stdin** (`stdio: ['ignore', 'pipe', 'pipe']`) or agents hang.
 8. **Docs are English.** Keep the tone plain: what it is, what it is not, how to run it.
+9. **User-facing text goes through `t()`.** The catalog is `lib/i18n.ts`; `en` is the
+   source of truth and `ja` must satisfy its type, so a missing translation is a type
+   error. Templates live in `templates/<lang>/`; generated frontmatter keys, `status`
+   values and promise ids stay in English whatever the prose language. The workshop
+   (`/ui/kit.html`) uses the same catalog, not a second one.
 
 ## The tool UI (`web/`)
 

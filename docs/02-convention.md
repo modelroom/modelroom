@@ -6,12 +6,17 @@ audience. That is the whole idea; the rest follows.
 ## Files
 
 ```
-rooms/<room>/
-├── BRIEF.md        why this room exists        → director, everyone
-├── SPEC.md         what the artifact cannot show → designer, agent, implementer
-├── BEHAVIOUR.md    what it promises             → tests, implementer
-└── index.html      the artifact (the screen)    → director, owner, implementer
+modelroom/
+├── AGENTS.md
+├── modelroom.json
+└── rooms/<room>/
+    ├── BRIEF.md        why this room exists        → director, everyone
+    ├── SPEC.md         what the artifact cannot show → designer, agent, implementer
+    ├── BEHAVIOUR.md    what it promises             → tests, implementer
+    └── index.html      the artifact (the screen)    → director, owner, implementer
 ```
+
+Local state lives in `.modelroom/` next to `modelroom/`, and is never committed.
 
 The artifact is the visible spec. `SPEC.md` is the invisible one. They must not overlap.
 

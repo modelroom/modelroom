@@ -44,6 +44,12 @@ test('the server keeps its promises', async () => {
     const health = await fetch(`${base}/health`);
     check(health.status === 200 && (await health.text()) === 'ok', 'GET /health returns ok');
 
+    const meta = await (await fetch(`${base}/api/meta`)).json();
+    check(
+      meta.lang === 'en' && meta.config?.lang === 'en',
+      'GET /api/meta tells the UI which language to speak',
+    );
+
     const rooms = await (await fetch(`${base}/api/rooms`)).json();
     check(
       rooms.count >= 1 && rooms.rooms.some((r) => r.name === room),

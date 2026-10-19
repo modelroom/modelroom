@@ -22,6 +22,7 @@ import {
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { getRoom, postSession, type RoomResponse } from '../lib/api.ts';
+import { useI18n } from '../lib/i18n.tsx';
 import { load, save } from '../lib/storage.ts';
 import { useChat } from '../hooks/useChat.ts';
 import { useServerEvent, useServerEvents } from '../hooks/useServerEvents.tsx';
@@ -36,14 +37,14 @@ import { ThemeToggle } from '../components/ThemeToggle.tsx';
 
 type MobileTab = 'chat' | 'docs' | 'artifact' | 'session';
 
-const TABS = [
-  { value: 'chat', label: 'Chat' },
-  { value: 'docs', label: 'Docs' },
-  { value: 'artifact', label: 'Artifact' },
-  { value: 'session', label: 'Session' },
-];
-
 export function RoomApp() {
+  const { t } = useI18n();
+  const tabs = [
+    { value: 'chat', label: t('room.chat') },
+    { value: 'docs', label: t('room.docs') },
+    { value: 'artifact', label: t('room.artifact') },
+    { value: 'session', label: t('room.session') },
+  ];
   const room = decodeURIComponent(location.pathname.replace(/^\/rooms\//, '').split('?')[0] ?? '');
   const [data, setData] = useState<RoomResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,13 +56,13 @@ export function RoomApp() {
       try {
         const response = await getRoom(room);
         const maybe = response as unknown as { error?: string };
-        if (maybe.error || !response.room) setError(maybe.error ?? 'cannot load this room');
+        if (maybe.error || !response.room) setError(maybe.error ?? t('room.cannotLoad'));
         else setData(response);
       } catch {
-        setError('cannot load this room');
+        setError(t('room.cannotLoad'));
       }
     })();
-  }, [room]);
+  }, [room, t]);
 
   useEffect(() => {
     reload();
@@ -84,19 +85,18 @@ export function RoomApp() {
 
   const newSession = async () => {
     if (chat.running) return;
-    if (!window.confirm('Start a new session for this room? The conversation context resets.'))
-      return;
+    if (!window.confirm(t('room.newSessionConfirm'))) return;
     const result = await postSession(room);
     if (result.sessionId) {
       chat.setSessionId(result.sessionId);
-      chat.notice('new session started');
+      chat.notice(t('room.newSessionStarted'));
     }
   };
 
   if (error) {
     return (
       <Box h="100%" style={{ display: 'grid', placeItems: 'center', padding: 24 }}>
-        <Alert color="danger" title="Cannot open this room" maw={420}>
+        <Alert color="danger" title={t('room.cannotOpen')} maw={420}>
           <Text size="sm" c="dimmed">
             {error}
           </Text>
@@ -108,7 +108,7 @@ export function RoomApp() {
             mt="sm"
             leftSection={<Icon name="arrow-left" size={14} />}
           >
-            Rooms
+            {t('common.rooms')}
           </Button>
         </Alert>
       </Box>
@@ -119,14 +119,16 @@ export function RoomApp() {
     return (
       <Group h="100%" gap="xs" justify="center" c="dimmed">
         <Loader size="sm" />
-        <Text size="sm">loading room…</Text>
+        <Text size="sm">{t('room.loading')}</Text>
       </Group>
     );
   }
 
   const { config } = data;
   const agentLabel = `${config.agent.adapter} · ${config.agent.command}${config.agent.model ? ` · ${config.agent.model}` : ''}`;
-  const sessionLabel = chat.sessionId ? `session ${chat.sessionId.slice(0, 16)}…` : '';
+  const sessionLabel = chat.sessionId
+    ? t('room.sessionLabel', { id: chat.sessionId.slice(0, 16) })
+    : '';
   const busy = status?.phase === 'chat' || status?.phase === 'rendering';
 
   const chatPanel = <ChatPanel room={room} chat={chat} agentLabel={agentLabel} />;
@@ -155,7 +157,7 @@ export function RoomApp() {
             size="compact-sm"
             leftSection={<Icon name="arrow-left" size={15} />}
           >
-            Rooms
+            {t('common.rooms')}
           </Button>
           <Text fw={600} truncate>
             {title}
@@ -189,16 +191,19 @@ export function RoomApp() {
               disabled={chat.running}
               leftSection={<Icon name="plus" size={14} />}
             >
-              new session
+              {t('room.newSession')}
             </Button>
             <ThemeToggle />
             {!narrow && (
-              <Tooltip label={sessionOpen ? 'Hide session panel' : 'Show session panel'} withArrow>
+              <Tooltip
+                label={sessionOpen ? t('room.hideSession') : t('room.showSession')}
+                withArrow
+              >
                 <ActionIcon
                   variant={sessionOpen ? 'light' : 'subtle'}
                   color="gray"
                   size="md"
-                  aria-label={sessionOpen ? 'Hide session panel' : 'Show session panel'}
+                  aria-label={sessionOpen ? t('room.hideSession') : t('room.showSession')}
                   aria-pressed={sessionOpen}
                   onClick={() => setSessionOpen((open) => !open)}
                 >
@@ -233,9 +238,9 @@ export function RoomApp() {
                 size="xs"
                 value={mobileTab}
                 onChange={(value) => setMobileTab(value as MobileTab)}
-                data={TABS}
+                data={tabs}
                 fullWidth
-                aria-label="Room panel"
+                aria-label={t('room.sessionPanel')}
               />
             </Box>
             <Box style={{ flex: 1, display: 'flex', minHeight: 0 }}>
