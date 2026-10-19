@@ -220,17 +220,11 @@ export function Kit() {
       </Group>
 
       <Stack gap="lg">
-        <Section
-          title={t('kit.filter')}
-          hint="Mantine's provided parts: MultiSelect / Select under 500 candidates, Combobox + useVirtualizedCombobox above."
-        >
+        <Section title={t('kit.filter')} hint={t('kit.filterHint')}>
           <FacetDemo />
         </Section>
 
-        <Section
-          title={t('kit.icons')}
-          hint="lucide-react behind a name — the tool's own set, drawn at the size the caller asks for."
-        >
+        <Section title={t('kit.icons')} hint={t('kit.iconsHint')}>
           <Group gap="md">
             {ICON_NAMES.map((name) => (
               <Stack key={name} gap={2} align="center" w={64}>
@@ -243,10 +237,7 @@ export function Kit() {
           </Group>
         </Section>
 
-        <Section
-          title={t('kit.segmented')}
-          hint="The edit / split / preview, orientation and layout switches."
-        >
+        <Section title={t('kit.segmented')} hint={t('kit.segmentedHint')}>
           <SegmentedDemo />
         </Section>
 
@@ -324,10 +315,7 @@ export function Kit() {
           </Stack>
         </Section>
 
-        <Section
-          title={t('kit.markdownChat')}
-          hint="markdown-it with raw HTML disabled; code fences get a copy button; the rhythm is Mantine's Typography."
-        >
+        <Section title={t('kit.markdownChat')} hint={t('kit.markdownHint')}>
           <Box
             maw={672}
             p="sm"
@@ -340,10 +328,7 @@ export function Kit() {
           </Box>
         </Section>
 
-        <Section
-          title={t('kit.markdownDoc')}
-          hint="Frontmatter is split out by the panel, not here."
-        >
+        <Section title={t('kit.markdownDoc')} hint={t('kit.docHint')}>
           <Box
             maw={672}
             p="md"
@@ -356,10 +341,7 @@ export function Kit() {
           </Box>
         </Section>
 
-        <Section
-          title={t('kit.formControls')}
-          hint="TextInput, Checkbox, Select, MultiSelect — the settings form and the facets."
-        >
+        <Section title={t('kit.formControls')} hint={t('kit.formHint')}>
           <SimpleGrid cols={{ base: 1, sm: 2 }} maw={672}>
             <TextInput
               label={t('settings.command')}
@@ -389,7 +371,7 @@ export function Kit() {
           </SimpleGrid>
         </Section>
 
-        <Section title={t('kit.card')} hint="The dashboard's room cards and the settings sections.">
+        <Section title={t('kit.card')} hint={t('kit.cardHint')}>
           <Card withBorder radius="md" maw={448}>
             <Text fw={600}>{t('kit.noRooms')}</Text>
             <Text size="sm" c="dimmed" mt="xs">
@@ -401,10 +383,7 @@ export function Kit() {
           </Card>
         </Section>
 
-        <Section
-          title={t('kit.split')}
-          hint="Mantine has no split pane; the room's columns and the docs split use this one library."
-        >
+        <Section title={t('kit.split')} hint={t('kit.splitHint')}>
           <Split
             direction="horizontal"
             style={{

@@ -339,6 +339,18 @@ Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
   'kit.tags': 'Tags',
   'kit.noRooms': 'No rooms yet',
   'kit.noRoomsHint': 'A room is one screen: rooms/<name>/.',
+  'kit.filterHint':
+    "Mantine's provided parts: MultiSelect / Select under 500 candidates, Combobox + useVirtualizedCombobox above.",
+  'kit.iconsHint':
+    "lucide-react behind a name — the tool's own set, drawn at the size the caller asks for.",
+  'kit.segmentedHint': 'The edit / split / preview, orientation and layout switches.',
+  'kit.markdownHint':
+    "markdown-it with raw HTML disabled; code fences get a copy button; the rhythm is Mantine's Typography.",
+  'kit.docHint': 'Frontmatter is split out by the panel, not here.',
+  'kit.formHint': 'TextInput, Checkbox, Select, MultiSelect — the settings form and the facets.',
+  'kit.cardHint': "The dashboard's room cards and the settings sections.",
+  'kit.splitHint':
+    "Mantine has no split pane; the room's columns and the docs split use this one library.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -678,6 +690,18 @@ BEHAVIOUR.md、そして artifact を置きます。
   'kit.tags': 'タグ',
   'kit.noRooms': 'room がまだありません',
   'kit.noRoomsHint': 'room は1画面です: rooms/<name>/。',
+  'kit.filterHint':
+    'Mantine の部品そのまま: 候補が500以下なら MultiSelect / Select、それ以上なら Combobox + useVirtualizedCombobox。',
+  'kit.iconsHint':
+    '名前の後ろに lucide-react — ツール自身のアイコン一式を、呼び出し側のサイズで描きます。',
+  'kit.segmentedHint': '編集 / 分割 / プレビュー、向き、レイアウトの切り替え。',
+  'kit.markdownHint':
+    'markdown-it は生の HTML を無効化。コードブロックにはコピーボタン、リズムは Mantine の Typography。',
+  'kit.docHint': 'frontmatter はここではなく、パネル側で分離されます。',
+  'kit.formHint': 'TextInput、Checkbox、Select、MultiSelect — 設定フォームと facet。',
+  'kit.cardHint': 'ダッシュボードの room カードと設定セクション。',
+  'kit.splitHint':
+    'Mantine に分割ペインはありません。room の列とドキュメントの分割はこの1つのライブラリを使います。',
 };
 
 export const CATALOGS: Record<Lang, Messages> = { en, ja };
