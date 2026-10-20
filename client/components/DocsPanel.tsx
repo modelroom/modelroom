@@ -415,15 +415,15 @@ export function DocsPanel({
         preview
       ) : (
         <Split
-          direction={vertical ? 'vertical' : 'horizontal'}
+          orientation={vertical ? 'vertical' : 'horizontal'}
           autoSaveId="modelroom.docs.split"
           style={{ flex: 1, minHeight: 0 }}
         >
-          <SplitPanel defaultSize={50} minSize={15}>
+          <SplitPanel defaultSize="50%" minSize="15%">
             {editor}
           </SplitPanel>
           <SplitHandle withHandle />
-          <SplitPanel defaultSize={50} minSize={15}>
+          <SplitPanel defaultSize="50%" minSize="15%">
             {preview}
           </SplitPanel>
         </Split>
