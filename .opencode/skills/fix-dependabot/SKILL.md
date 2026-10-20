@@ -59,6 +59,16 @@ If the lockfile conflicts, do **not** hand-merge it — take either side and
 regenerate with `npm install` so the tree and the lock agree. Re-run the gates
 afterwards. A conflict resolution is a commit; keep it separate and explain it.
 
+The committed bundle `web/assets/app.js` conflicts on **every** base merge, since
+both sides rebuild the same generated file. Never resolve it by hand: take either
+side (or just leave it), run `npm run build`, and stage the result. The source
+merge is what matters; the artifact follows from it.
+
+A conflicting PR is also why CI sometimes does not re-run: GitHub cannot build
+the merge ref, so it does not dispatch the `pull_request` workflow. A push that
+shows "no checks reported" on a `CONFLICTING` PR is expected — resolve the merge
+and push again.
+
 ### 3. See what actually breaks
 
 Run the gates in CI order and stop at the first failure; later gates hide behind
