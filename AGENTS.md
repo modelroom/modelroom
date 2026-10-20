@@ -49,9 +49,9 @@ client/                 the tool's UI source (React + Mantine + CodeMirror)
   main.tsx              the one entry: the apps, picked from the shell's `data-app`
   lib/api.ts            everything the UI asks of the server, typed once
   modelroom.css         Mantine's stylesheet + the tool's own extras → web/modelroom.css
-scripts/build-client.mjs  esbuild → web/assets/app.js (committed)
+scripts/build-client.mjs  esbuild → web/assets/app.js (generated)
 scripts/verify-ui.mjs   browser pass: console, axe, the filter, screenshots
-web/                     the tool's UI, as served (shells + built assets, committed)
+web/                     the tool's UI, as served (shells committed; bundle and css generated)
 web/assets/app.js        the built bundle; never edited by hand
 web/*.html               the four shells: `data-app` + the bundle, nothing else
 templates/<lang>/       what `modelroom init` writes (en, ja)
@@ -77,16 +77,17 @@ npm run verify:ui        # Chromium pass: console, axe, the filter, screenshots
 npm run doctor           # (via bin) check the local setup
 ```
 
-There is **no build step for users**: `web/modelroom.css` and `web/assets/app.js` are
-committed, so `npx modelroom` works with the plain package. If you change the markup,
-the components or the styles, rebuild **and commit both** in the same change — otherwise
-the UI silently loses classes or ships stale code. `npm run build` does all of it.
+There is **no build step for users**: `npm run prepare` builds `web/modelroom.css` and
+`web/assets/app.js` on `npm install`, and the published tarball ships them prebuilt, so
+`npx modelroom` needs no build. They are **not committed** — a change to the markup, the
+components or the styles rebuilds them (`npm run build`), and the source is what a review
+reads. `serve` and `doctor` say so when a checkout was never installed.
 
 ## Rules
 
 1. **No new runtime dependencies.** `dependencies` stays empty. The tool's libraries
    (React, Mantine, @tanstack/react-virtual, CodeMirror, markdown-it, lucide) are
-   devDependencies bundled into the committed `web/assets/app.js`; anything optional
+   devDependencies bundled into `web/assets/app.js`; anything optional
    (Playwright) is dynamically imported and degrades.
 2. **Artifacts stay framework-free.** Every `index.html` under `templates/` — the blank
    `templates/<lang>/room/` and the example rooms in `templates/<lang>/example/rooms/` —
@@ -95,7 +96,8 @@ the UI silently loses classes or ships stale code. `npm run build` does all of i
 3. **The tool UI is React + Mantine, and nothing else.** Use the component Mantine ships;
    style it with props, the Styles API or a class in `client/modelroom.css`. Do not add a
    second component library, a utility-class layer, or a bespoke control where Mantine has
-   one. Every page is a shell that loads the same bundle; the CSS and bundle are committed.
+   one. Every page is a shell that loads the same bundle; the CSS and bundle are build
+   output, not committed.
 4. **Server-rendered HTML is never modified.** `/files/...` must stay byte-identical to disk.
    Never inject scripts into served content; the tool's own UI lives in `web/`.
 5. **The design layer never reads the application.** Do not add features that read code

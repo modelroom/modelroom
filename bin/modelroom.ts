@@ -159,6 +159,11 @@ if (cmd === 'serve') {
     // `new`, `rename` and `remove` read this: a room moved under a running
     // server loses the session it holds in memory, so they refuse by default.
     await writeFile(pidPath, String(process.pid)).catch(() => {});
+    // The UI is a build output, not a committed file: a source checkout that
+    // was never installed has no bundle, and the page would come up blank.
+    if (!(await exists(join(pkgDir, 'web', 'assets', 'app.js')))) {
+      console.warn(`modelroom: ${t(lang, 'cli.serve.noUi')}`);
+    }
     const rooms = await listRoomNames(app.cfg);
     console.log(
       [
@@ -750,6 +755,11 @@ else if (cmd === 'doctor') {
   checks.push({
     ok: true,
     label: t(lang, 'cli.doctor.state', { path: rel(cfg.stateDir, cwd) }),
+  });
+  const uiBuilt = await exists(join(pkgDir, 'web', 'assets', 'app.js'));
+  checks.push({
+    ok: uiBuilt,
+    label: t(lang, uiBuilt ? 'cli.doctor.ui' : 'cli.doctor.uiMissing'),
   });
   checks.push({ ok: true, label: t(lang, 'cli.doctor.lang', { lang }) });
   const agentsPath = join(cfg.rootDir, 'AGENTS.md');

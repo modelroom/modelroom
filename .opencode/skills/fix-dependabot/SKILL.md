@@ -21,9 +21,8 @@ These outrank speed.
   uncommitted change: leave it, or ask.
 - **One purpose per commit.** The bump stays the bot's commit; the fix is yours;
   a tooling fix is a third.
-- **Respect `AGENTS.md`.** In this repo that means `dependencies` stays empty,
-  the committed `web/` bundle and stylesheet move with the source, and every gate
-  in `.github/workflows/ci.yml` is the contract.
+- **Respect `AGENTS.md`.** In this repo that means `dependencies` stays empty and
+  every gate in `.github/workflows/ci.yml` is the contract.
 - If the change is bigger than the bump, stop and say so. A major bump that
   needs a rewrite is a project decision, not a chore.
 
@@ -59,10 +58,9 @@ If the lockfile conflicts, do **not** hand-merge it — take either side and
 regenerate with `npm install` so the tree and the lock agree. Re-run the gates
 afterwards. A conflict resolution is a commit; keep it separate and explain it.
 
-The committed bundle `web/assets/app.js` conflicts on **every** base merge, since
-both sides rebuild the same generated file. Never resolve it by hand: take either
-side (or just leave it), run `npm run build`, and stage the result. The source
-merge is what matters; the artifact follows from it.
+`web/assets/app.js` and `web/modelroom.css` are generated, not committed, so a base
+merge never conflicts on them. Run `npm run build` after a merge that touches
+`client/` if you want the served bundle to match.
 
 A conflicting PR is also why CI sometimes does not re-run: GitHub cannot build
 the merge ref, so it does not dispatch the `pull_request` workflow. A push that
@@ -80,7 +78,7 @@ npm run lint:types    # oxlint --type-aware
 npm run format:check  # oxfmt --check
 npm run typecheck     # tsc --noEmit, then the client project
 npm test              # vitest: unit + one e2e pass
-npm run build         # server + committed web/assets/app.js + web/modelroom.css
+npm run build         # server + web/assets/app.js + web/modelroom.css
 npx publint
 npx attw --pack . --ignore-rules cjs-resolves-to-esm
 ```
@@ -107,8 +105,8 @@ cat node_modules/<pkg>/dist/*.d.ts
   library's new semantics rather than shimming the old ones away. Adapters like
   a single wrapper component are the right place to absorb a rename, so the call
   sites stay in the repo's own vocabulary. If the change touches the UI, rebuild
-  the committed assets (`npm run build`) and commit them in the same commit, and
-  run `npm run verify:ui` to prove the page still renders.
+  (`npm run build`) — the assets are generated, so there is nothing to commit —
+  and run `npm run verify:ui` to prove the page still renders.
 - **The bump is not wanted.** If the repo intentionally pins the old line, or
   the migration is a project of its own, revert the dependency files and leave a
   note on the PR. Do not leave a red branch half-migrated.
@@ -132,9 +130,9 @@ lockfile, and anything the local cache is hiding.
 
 - Only files under `cfg.docs` are writable at runtime; that is unrelated to a
   dependency fix, but the boundary tests will notice if you widen it.
-- `web/assets/app.js` and `web/modelroom.css` are committed and never edited by
-  hand. `npm run build` writes them; commit them with the source that produced
-  them.
+- `web/assets/app.js` and `web/modelroom.css` are generated and never edited by
+  hand. `npm install` (`prepare`) and `npm run build` write them; they are not
+  committed, so only the source moves.
 - The pre-commit hook (lefthook) lints staged files. A commit can stage only
   files that `oxlint` ignores (the rebuilt bundle), which once failed the hook;
   the jobs pass `--no-error-on-unmatched-pattern` so that is not mistaken for a

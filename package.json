@@ -64,7 +64,7 @@
     "test:watch": "vitest",
     "verify": "npm run lint && npm run lint:types && npm run format:check && npm run typecheck && npm test && npm run build",
     "verify:ui": "node scripts/verify-ui.mjs",
-    "prepublishOnly": "npm run build"
+    "prepare": "npm run build"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
