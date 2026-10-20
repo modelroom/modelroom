@@ -17,11 +17,10 @@ or the DOM. `test/unit/boundaries.test.mjs` holds the layers to that; it is the 
 just a picture of it.
 
 ```
-bin/modelroom.ts        CLI: serve | init | check | doctor
+bin/modelroom.ts        CLI: serve | init | add | rename | remove | check | doctor
 bin/lint.ts             the convention checks behind `check`
-bin/templates.ts        what `init` writes: template lookup, English fallback
 bin/manifest.ts         the consumer's package.json, edited minimally (`npm run modelroom`)
-server/http.ts          HTTP + SSE + static + agent spawn
+server/http.ts          HTTP + SSE + static + agent spawn + the room-operation API
 server/agents/index.ts  adapters: opencode | command
 server/opencode.ts      the opencode session reader (turns, parts, stats)
 server/opencode-server.ts  the private opencode server modelroom owns
@@ -34,6 +33,9 @@ core/facets.ts          facets, filters, search built from the records
 core/frontmatter.ts     frontmatter read/write, reserved keys
 core/locale.ts          environment/OS language detection
 core/pkg.ts             where the package lives (source or dist)
+core/templates.ts       what `init` and `add` write: template lookup, English fallback
+core/roomrefs.ts        what a room reference is: the pure rename rules
+core/roomops.ts         create, rename and remove a room — shared by CLI and server
 i18n/lang.ts            Lang = 'en' | 'ja' (browser-safe)
 i18n/catalog.ts         the one catalog, shared by CLI, server and UI
 api/chat.ts             the chat turn, as the browser receives it (types only)
@@ -41,13 +43,18 @@ server/parts.ts         opencode's message → that turn
 client/                 the tool's UI source (React + Mantine + CodeMirror)
   theme.ts              the Mantine theme: colour ramps, radii, fonts
   components/           shared panels and pieces (chat · docs · artifact · session)
+    AddRoomDialog.tsx    create a room (dashboard) — name field with ✓/✘
+    RenameRoomDialog.tsx  rename a room (room header)
+    DeleteRoomDialog.tsx  the GitHub-style delete confirm (type the name)
   dashboard/            the room list and its facet filters
     FacetFilter.tsx     the filter control (MultiSelect, or Combobox + virtualizer)
   room/                 the room app
+    RoomActions.tsx      the room header's pencil and ⋯ menu (rename · delete)
   settings/             the agent settings
   kit.tsx               the component workshop (`web/kit.html`)
   main.tsx              the one entry: the apps, picked from the shell's `data-app`
   lib/api.ts            everything the UI asks of the server, typed once
+  lib/roomname.ts       the browser's copy of the name rule (dashboards' ✓/✘)
   modelroom.css         Mantine's stylesheet + the tool's own extras → web/modelroom.css
 scripts/build-client.mjs  esbuild → web/assets/app.js (generated)
 scripts/verify-ui.mjs   browser pass: console, axe, the filter, screenshots
@@ -102,9 +109,14 @@ reads. `serve` and `doctor` say so when a checkout was never installed.
    Never inject scripts into served content; the tool's own UI lives in `web/`.
 5. **The design layer never reads the application.** Do not add features that read code
    outside `root`/`rooms`. `withinRoot()` in `server/http.ts` is the guard; keep it strict.
-6. **The HTTP API writes only `cfg.docs`.** Everything else answers 403. Do not widen it.
-   The one other file the server puts on disk is a room's snapshot (`<artifact>.png`),
-   written by the renderer next to the artifact it belongs to — never by a request.
+6. **The HTTP API writes `cfg.docs` and the rooms the UI asks for.** `PUT /api/doc` writes
+   the docs and nothing else. `POST /api/rooms`, `/api/rooms/rename` and `/api/rooms/remove`
+   create, rename and delete a room with `core/roomops.ts` — the same code `add`/`rename`/
+   `remove` run — so a room made in the browser is byte-identical to one made with the CLI.
+   Everything else answers 403. The server is local only (`127.0.0.1`), and that is what
+   makes the room writes safe; nothing else widens the surface. The one other file the
+   server puts on disk is a room's snapshot (`<artifact>.png`), written by the renderer next
+   to the artifact it belongs to — never by a request.
 7. **Adapters close stdin** (`stdio: ['ignore', 'pipe', 'pipe']`) or agents hang.
 8. **Docs are English.** Keep the tone plain: what it is, what it is not, how to run it.
 9. **User-facing text goes through `t()`.** The catalog is `i18n/catalog.ts`; `en` is the
@@ -149,6 +161,14 @@ reads. `serve` and `doctor` say so when a checkout was never installed.
   with the current text) when they disagree. The mtime is still accepted as a fallback for
   scripts. Writes to one file are queued in the server, so an autosave and the agent's edit
   cannot interleave and silently lose one of them. `cfg.docs` is still the whole writable set.
+- **Rooms are made through the CLI's own code, not a second path.** The add button on the
+  dashboard and the pencil/⋯ menu in a room header (`client/room/RoomActions.tsx`) open the
+  dialogs in `client/components/`; those call `/api/rooms*`, and the server runs
+  `core/roomops.ts` — the same code `modelroom add|rename|remove` run. The name rule is
+  written twice: `core/roomrefs.ts` decides, `client/lib/roomname.ts` mirrors it so the field
+  can show ✓/✘ while you type, and the server still refuses on submit. The delete dialog is
+  the GitHub-style confirm — it shows the room, warns about the rooms that still point at it,
+  and only enables the button once the name is typed back (`--force` becomes "delete anyway").
 - **The workshop is the review surface.** A change to a primitive or a panel state should be
   visible at `/web/kit.html` without opening a room. That is the Storybook, without the
   dependency tree.

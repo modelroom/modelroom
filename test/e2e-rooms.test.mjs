@@ -1,6 +1,6 @@
 // modelroom — room operations, end to end.
 //
-// `new`, `rename`, `remove` and `update` in a throwaway project: the name stays
+// `add`, `rename`, `remove` and `update` in a throwaway project: the name stays
 // unique, the required docs are written, the references move with the directory,
 // and `update` refreshes only what modelroom generated.
 
@@ -56,11 +56,11 @@ async function writeState(dir, sessions) {
   );
 }
 
-test('new creates a room with the required docs and a title', async () => {
+test('add creates a room with the required docs and a title', async () => {
   const dir = await project();
   try {
     assert.equal((await cliRun(dir, ['init', 'hello', '--lang', 'en'])).code, 0);
-    const result = await cliRun(dir, ['new', 'sign-in', '--title', 'Sign in']);
+    const result = await cliRun(dir, ['add', 'sign-in', '--title', 'Sign in']);
     assert.equal(result.code, 0);
     assert.match(result.stdout, /created room sign-in/);
 
@@ -75,22 +75,34 @@ test('new creates a room with the required docs and a title', async () => {
   }
 });
 
-test('new refuses an invalid, an existing and a case-only name', async () => {
+test('`new` stays as a hidden alias for `add`', async () => {
+  const dir = await project();
+  try {
+    await cliRun(dir, ['init', 'hello', '--lang', 'en']);
+    const result = await cliRun(dir, ['new', 'cart']);
+    assert.equal(result.code, 0);
+    assert.match(result.stdout, /created room cart/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('add refuses an invalid, an existing and a case-only name', async () => {
   const dir = await project();
   try {
     await cliRun(dir, ['init', 'Checkout', '--lang', 'en']);
     await cliRun(dir, ['init', 'cart', '--lang', 'en']);
 
-    const upper = await cliRun(dir, ['new', 'Sign-in']);
+    const upper = await cliRun(dir, ['add', 'Sign-in']);
     assert.equal(upper.code, 1);
     assert.match(upper.stderr, /invalid room name/);
 
-    const dup = await cliRun(dir, ['new', 'cart']);
+    const dup = await cliRun(dir, ['add', 'cart']);
     assert.equal(dup.code, 1);
     assert.match(dup.stderr, /already exists/);
 
     // A lowercase name that only differs by case from an existing room.
-    const caseOnly = await cliRun(dir, ['new', 'checkout']);
+    const caseOnly = await cliRun(dir, ['add', 'checkout']);
     assert.equal(caseOnly.code, 1);
     assert.match(caseOnly.stderr, /differs only by case/);
   } finally {
@@ -98,10 +110,10 @@ test('new refuses an invalid, an existing and a case-only name', async () => {
   }
 });
 
-test('new without a config says how to start', async () => {
+test('add without a config says how to start', async () => {
   const dir = await project();
   try {
-    const result = await cliRun(dir, ['new', 'checkout']);
+    const result = await cliRun(dir, ['add', 'checkout']);
     assert.equal(result.code, 1);
     assert.match(result.stderr, /npx modelroom init/);
   } finally {
@@ -113,7 +125,7 @@ test('rename moves the directory, the references and the session', async () => {
   const dir = await project();
   try {
     await cliRun(dir, ['init', 'checkout', '--lang', 'en']);
-    await cliRun(dir, ['new', 'sign-in']);
+    await cliRun(dir, ['add', 'sign-in']);
     await writeFile(
       room(dir, 'sign-in', 'SPEC.md'),
       `---
@@ -161,7 +173,7 @@ test('remove refuses while a room points at it, and takes --yes to delete', asyn
   const dir = await project();
   try {
     await cliRun(dir, ['init', 'checkout', '--lang', 'en']);
-    await cliRun(dir, ['new', 'sign-in']);
+    await cliRun(dir, ['add', 'sign-in']);
     await writeFile(room(dir, 'sign-in', 'SPEC.md'), 'superseded_by: checkout\n');
     await writeState(dir, { checkout: 'ses_test' });
 
@@ -210,7 +222,7 @@ test('a running serve blocks a room move until --force', async () => {
   }
 });
 
-test('new fills in a doc and an artifact the templates do not have', async () => {
+test('add fills in a doc and an artifact the templates do not have', async () => {
   const dir = await project();
   try {
     await cliRun(dir, ['init', 'checkout', '--lang', 'en']);
@@ -220,7 +232,7 @@ test('new fills in a doc and an artifact the templates do not have', async () =>
     raw.artifact = 'screen.html';
     await writeFile(config, JSON.stringify(raw, null, 2) + '\n');
 
-    const result = await cliRun(dir, ['new', 'cart']);
+    const result = await cliRun(dir, ['add', 'cart']);
     assert.equal(result.code, 0);
     assert.equal(
       await readFile(room(dir, 'cart', 'NOTES.md'), 'utf8'),

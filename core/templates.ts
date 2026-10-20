@@ -1,8 +1,11 @@
-// modelroom — the templates `init` copies.
+// modelroom — the templates `init` and `add` copy.
 //
 // Each language is a directory under `templates/`, so a language is data, not a
 // branch in the code. English is the fallback: a missing file never makes `init`
 // fail, it just lands in the language we know we have.
+//
+// This lives in `core/` because both the CLI and the server read it: the UI adds
+// a room with the same templates the command uses, not a second copy.
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';

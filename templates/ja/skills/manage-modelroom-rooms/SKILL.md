@@ -13,12 +13,14 @@ room そのもの**です。一意で、小文字の slug で、`modelroom.json`
 すべて備えている必要があります。
 
 room ディレクトリを手で `mkdir`、`mv`、`rm` しないでください。参照が置き去りに
-なります。CLI を使えば、名前とリンクが揃ったまま動きます。
+なります。CLI を使えば、名前とリンクが揃ったまま動きます。ツール UI の
+**room を追加**ボタンや、room ヘッダーの鉛筆・⋯メニューも同じコードを実行します。
+コマンドを打つより、クリックしたい人のためです。
 
 ## room を追加する
 
 ```sh
-npx modelroom new <room> --title "Sign in"
+npx modelroom add <room> --title "Sign in"
 ```
 
 あとは room を書きます。`BRIEF.md` から始め、最後に次を実行します:

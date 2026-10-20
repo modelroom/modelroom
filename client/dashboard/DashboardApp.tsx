@@ -28,6 +28,7 @@ import {
   searchRooms,
   type DashboardRoom,
   type Facet,
+  type RoomConfig,
   type SearchHit,
 } from '../lib/api.ts';
 import { stamp } from '../lib/format.ts';
@@ -36,6 +37,7 @@ import { useServerEvent, useServerEvents } from '../hooks/useServerEvents.tsx';
 import { AgentStatus, ToneBadge, toneForStatus } from '../components/Status.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
+import { AddRoomDialog } from '../components/AddRoomDialog.tsx';
 import { FacetFilter } from './FacetFilter.tsx';
 
 const ESCAPES: Record<string, string> = {
@@ -179,11 +181,13 @@ export function DashboardApp() {
   const { t } = useI18n();
   const [rooms, setRooms] = useState<DashboardRoom[]>([]);
   const [facets, setFacets] = useState<Facet[]>([]);
+  const [config, setConfig] = useState<RoomConfig | null>(null);
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [archived, setArchived] = useState(false);
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
 
   const seq = useRef(0);
   const searchTimer = useRef<number | null>(null);
@@ -224,6 +228,7 @@ export function DashboardApp() {
     if (!data) return;
     setRooms(data.rooms ?? []);
     setFacets(data.facets ?? []);
+    setConfig(data.config ?? null);
     setLoading(false);
   }, []);
 
@@ -377,6 +382,13 @@ export function DashboardApp() {
           </Box>
 
           <Group gap="xs" ml="auto" wrap="nowrap">
+            <Button
+              size="compact-sm"
+              onClick={() => setAdding(true)}
+              leftSection={<Icon name="plus" size={14} />}
+            >
+              {t('dashboard.addRoom')}
+            </Button>
             <AgentStatus connected={connected} busy={busy} message={status?.message} />
             <ThemeToggle />
             <Button component="a" href="/settings" variant="subtle" color="gray" size="compact-sm">
@@ -487,7 +499,17 @@ export function DashboardApp() {
                   </Text>
                 )}
                 {!filtered && (
-                  <Code block>$ npx modelroom init my-first-room{'\n'}$ npx modelroom serve</Code>
+                  <>
+                    <Button
+                      size="compact-sm"
+                      onClick={() => setAdding(true)}
+                      leftSection={<Icon name="plus" size={14} />}
+                      w="fit-content"
+                    >
+                      {t('dashboard.addRoom')}
+                    </Button>
+                    <Code block>$ npx modelroom init my-first-room{'\n'}$ npx modelroom serve</Code>
+                  </>
                 )}
                 {filtered && (
                   <Button variant="default" size="compact-sm" onClick={clearAll} w="fit-content">
@@ -499,6 +521,14 @@ export function DashboardApp() {
           )}
         </Box>
       </AppShell.Main>
+
+      <AddRoomDialog
+        opened={adding}
+        onClose={() => setAdding(false)}
+        names={rooms.map((room) => room.name)}
+        prefix={config?.rooms ?? 'rooms'}
+        onCreated={(room) => window.location.assign(`/rooms/${encodeURIComponent(room)}`)}
+      />
     </AppShell>
   );
 }

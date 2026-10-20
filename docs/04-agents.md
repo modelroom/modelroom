@@ -122,7 +122,7 @@ modelroom pr-body <room>           # the description's material, as markdown
 ```
 
 Rooms are added, renamed and removed through the CLI, which is what keeps the directory name
-unique and the references to it in step: `modelroom new`, `rename` and `remove`. The script
+unique and the references to it in step: `modelroom add`, `rename` and `remove`. The script
 rewrites what is a reference (`superseded_by`, `/rooms/<name>`, relative links) and lists the
 prose it leaves alone; the skill carries the reasoning and the approval a removal needs.
 When the layer is upgraded, `modelroom update` refreshes the skills and `AGENTS.md` — the

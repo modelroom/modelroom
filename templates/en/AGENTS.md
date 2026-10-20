@@ -15,8 +15,10 @@ You are working inside the design layer (`modelroom/`). Write the room's prose i
 `rooms/<room>/index.png` is the artifact's rendering: do not hand-edit it, produce
 it with `npx modelroom render <room>` and commit it with the html.
 
-A new room, a rename and a removal go through the CLI (`npx modelroom new|rename|remove`);
-the directory name is the room, and the references to it have to move with it.
+A new room, a rename and a removal go through the CLI
+(`npx modelroom add|rename|remove`), or the tool UI's add button and room menu —
+the same code; the directory name is the room, and the references to it have to
+move with it.
 
 Nothing else. Do not reach outside this directory; the design layer never reads the
 application code. The application is handed this layer, not the other way round.

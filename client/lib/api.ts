@@ -46,6 +46,7 @@ export interface RoomInfo {
   version: string | number | null;
   deprecated: boolean;
   updatedAt: number;
+  createdAt: number;
   hasArtifact: boolean;
   hasThumb: boolean;
   /** The artifact changed after its snapshot: the committed png is out of date. */
@@ -58,6 +59,8 @@ export interface RoomInfo {
 export interface RoomResponse {
   room: RoomInfo;
   session: string | null;
+  /** Every room's name: what the rename dialog checks a new name against. */
+  names: string[];
   config: RoomConfig;
 }
 
@@ -247,3 +250,46 @@ export const postSettings = (
   patch: Record<string, unknown>,
 ): Promise<{ applied?: Record<string, unknown>; config?: RoomConfig; error?: string }> =>
   json('/api/settings', jsonPost(patch));
+
+/* ── room operations — add, rename, remove ────────────────────────────────── */
+
+export interface CreateRoomResult {
+  room?: string;
+  url?: string;
+  error?: string;
+  collide?: string;
+}
+
+export interface Rewrite {
+  file: string;
+  count: number;
+  mentions: Array<{ line: number; text: string }>;
+}
+
+export interface RenameRoomResult {
+  from?: string;
+  to?: string;
+  url?: string;
+  rewrites?: Rewrite[];
+  error?: string;
+  collide?: string;
+}
+
+export interface RemoveRoomResult {
+  room?: string;
+  forced?: boolean;
+  error?: string;
+  referencing?: string[];
+}
+
+export const createRoom = (name: string, title?: string): Promise<CreateRoomResult> =>
+  json('/api/rooms', jsonPost({ name, title }));
+
+export const renameRoom = (from: string, to: string): Promise<RenameRoomResult> =>
+  json('/api/rooms/rename', jsonPost({ from, to }));
+
+export const removeRoom = (name: string, force = false): Promise<RemoveRoomResult> =>
+  json('/api/rooms/remove', jsonPost({ name, force }));
+
+export const getRoomRefs = (room: string): Promise<{ room?: string; referencing?: string[] }> =>
+  json(`/api/rooms/refs?room=${encodeURIComponent(room)}`);

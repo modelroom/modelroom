@@ -45,7 +45,10 @@ import { ToneBadge } from './components/Status.tsx';
 import { FacetFilter, SYNC_LIMIT } from './dashboard/FacetFilter.tsx';
 import { ThemeToggle } from './components/ThemeToggle.tsx';
 import { QuestionCard } from './components/QuestionCard.tsx';
-import type { Ask, Facet } from './lib/api.ts';
+import { AddRoomDialog } from './components/AddRoomDialog.tsx';
+import { RenameRoomDialog } from './components/RenameRoomDialog.tsx';
+import { DeleteRoomDialog } from './components/DeleteRoomDialog.tsx';
+import type { Ask, Facet, RoomInfo } from './lib/api.ts';
 import { useI18n } from './lib/i18n.tsx';
 import { renderDoc } from './lib/markdown.ts';
 
@@ -127,6 +130,75 @@ const SAMPLE_ASK: Ask = {
     },
   ],
 };
+
+const SAMPLE_ROOM: RoomInfo = {
+  name: 'checkout',
+  title: 'Checkout',
+  status: 'review',
+  summary: 'The order review, before the payment method is asked for.',
+  tags: ['form', 'payment'],
+  keyPoints: [],
+  version: 2,
+  deprecated: false,
+  updatedAt: Date.now() - 1000 * 60 * 60 * 5,
+  createdAt: Date.now() - 1000 * 60 * 60 * 24 * 12,
+  hasArtifact: true,
+  hasThumb: true,
+  thumbStale: false,
+  artifactUrl: '/files/rooms/checkout/index.html',
+  thumbUrl: '/files/rooms/checkout/index.png',
+  behaviourIds: ['@verb-1'],
+};
+
+const SAMPLE_NAMES = ['checkout', 'sign-in', 'cart'];
+
+function DialogsDemo() {
+  const { t } = useI18n();
+  const [add, setAdd] = useState(false);
+  const [rename, setRename] = useState(false);
+  const [remove, setRemove] = useState(false);
+  return (
+    <Stack gap="sm">
+      <Group gap="xs">
+        <Button variant="default" size="compact-sm" onClick={() => setAdd(true)}>
+          {t('dashboard.addRoom')}
+        </Button>
+        <Button variant="default" size="compact-sm" onClick={() => setRename(true)}>
+          {t('room.rename')}
+        </Button>
+        <Button variant="default" size="compact-sm" onClick={() => setRemove(true)}>
+          {t('room.remove')}
+        </Button>
+      </Group>
+      <Text size="xs" c="dimmed">
+        Try: an empty name, <Code>Sign-in</Code> (invalid), <Code>cart</Code> (taken), then a free
+        name. In the delete dialog, type <Code>checkout</Code> to enable the button.
+      </Text>
+      <AddRoomDialog
+        opened={add}
+        onClose={() => setAdd(false)}
+        names={SAMPLE_NAMES}
+        prefix="rooms"
+        onCreated={() => setAdd(false)}
+      />
+      <RenameRoomDialog
+        opened={rename}
+        onClose={() => setRename(false)}
+        current="checkout"
+        names={SAMPLE_NAMES}
+        prefix="rooms"
+        onRenamed={() => setRename(false)}
+      />
+      <DeleteRoomDialog
+        opened={remove}
+        onClose={() => setRemove(false)}
+        room={SAMPLE_ROOM}
+        prefix="rooms"
+        onDeleted={() => setRemove(false)}
+      />
+    </Stack>
+  );
+}
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
@@ -412,6 +484,10 @@ export function Kit() {
               Rooms
             </Anchor>
           </Card>
+        </Section>
+
+        <Section title={t('kit.dialogs')} hint={t('kit.dialogsHint')}>
+          <DialogsDemo />
         </Section>
 
         <Section title={t('kit.split')} hint={t('kit.splitHint')}>

@@ -28,6 +28,14 @@ import {
   type RoomInfo,
 } from '../core/rooms.ts';
 import { buildFacets, searchRooms } from '../core/facets.ts';
+import {
+  applyRename,
+  createRoom,
+  planRename,
+  referencingRooms,
+  removeRoom,
+} from '../core/roomops.ts';
+import { collidingRoom, isNewRoomName } from '../core/roomrefs.ts';
 import { getAdapter, stripAnsi } from './agents/index.ts';
 import {
   renderArtifact,
@@ -48,6 +56,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 const pkgDir = findPackageRoot(dirname(fileURLToPath(import.meta.url)));
 const webDir = join(pkgDir, 'web');
+const templatesDir = join(pkgDir, 'templates');
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -518,6 +527,29 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
   }
 
   // ── routing ───────────────────────────────────────────────────────────────
+  /** The create/rename name check: a lowercase slug, then uniqueness. */
+  function roomNameError(
+    name: string,
+    taken: readonly string[],
+  ): { status: number; body: Record<string, unknown> } | null {
+    if (!isNewRoomName(name)) {
+      return { status: 400, body: { error: tr('server.room.invalidName') } };
+    }
+    const collide = collidingRoom(taken, name);
+    if (collide) {
+      return {
+        status: 409,
+        body: {
+          error: tr(collide === name ? 'server.room.exists' : 'server.room.caseExists', {
+            name: collide,
+          }),
+          collide,
+        },
+      };
+    }
+    return null;
+  }
+
   const server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? '/', `http://${req.headers.host || 'localhost'}`);
@@ -552,7 +584,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
         return;
       }
 
-      if (path === '/api/rooms') {
+      if (path === '/api/rooms' && req.method === 'GET') {
         const rooms = await Promise.all(names.map((n) => roomInfo(cfg, n)));
         void thumbnails.ensure(names); // the browser is here: make sure it can see them
         return sendJson(res, 200, {
@@ -562,6 +594,90 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
           facets: buildFacets(rooms),
           config: publicConfig(cfg),
         });
+      }
+
+      // ── room operations ─────────────────────────────────────────────────────
+      // The UI adds, renames and removes a room with the same code the CLI runs
+      // (`core/roomops.ts`), so a room made in the browser is byte-identical to
+      // one made with `modelroom add`. This is the one write surface beyond the
+      // docs, and the reason `serve` is local only — see AGENTS.md.
+      if (path === '/api/rooms' && req.method === 'POST') {
+        const body = await jsonBody(req, res);
+        if (!body) return;
+        const name = typeof body.name === 'string' ? body.name.trim() : '';
+        const invalid = roomNameError(name, names);
+        if (invalid) return sendJson(res, invalid.status, invalid.body);
+        const title =
+          typeof body.title === 'string' && body.title.trim() ? body.title.trim() : undefined;
+        await createRoom(cfg, templatesDir, cfg.lang, name, title);
+        broadcast('change', { file: `${cfg.rooms}/${name}`, at: Date.now() });
+        void thumbnails.ensure([name]);
+        return sendJson(res, 201, { room: name, url: `/rooms/${encodeURIComponent(name)}` });
+      }
+
+      if (path === '/api/rooms/rename' && req.method === 'POST') {
+        const body = await jsonBody(req, res);
+        if (!body) return;
+        const from = typeof body.from === 'string' ? body.from : '';
+        const to = typeof body.to === 'string' ? body.to.trim() : '';
+        if (!names.includes(from)) return sendJson(res, 404, { error: tr('server.noRooms') });
+        if (from === to) return sendJson(res, 400, { error: tr('server.room.sameName') });
+        const invalid = roomNameError(to, names);
+        if (invalid) return sendJson(res, invalid.status, invalid.body);
+        if (chats.has(from)) return sendJson(res, 409, { error: tr('server.roomRunning') });
+        const plans = await planRename(cfg, names, from, to);
+        await applyRename(cfg, from, to, plans);
+        // A running server is the one place the room's chat session is held in
+        // memory, so it moves it here rather than refusing as the CLI must.
+        if (state.sessions[from]) {
+          state.sessions[to] = state.sessions[from];
+          delete state.sessions[from];
+          await persist();
+        }
+        broadcast('change', { file: `${cfg.rooms}/${to}`, at: Date.now() });
+        void thumbnails.ensure([to]);
+        return sendJson(res, 200, {
+          from,
+          to,
+          url: `/rooms/${encodeURIComponent(to)}`,
+          rewrites: plans.map((plan) => ({
+            file: relative(cfg.rootDir, plan.file),
+            count: plan.count,
+            mentions: plan.mentions,
+          })),
+        });
+      }
+
+      if (path === '/api/rooms/refs' && req.method === 'GET') {
+        const target = url.searchParams.get('room') || '';
+        if (!isRoomName(target) || !names.includes(target)) {
+          return sendJson(res, 404, { error: tr('server.noRooms') });
+        }
+        const referencing = await referencingRooms(cfg, target, names);
+        return sendJson(res, 200, { room: target, referencing });
+      }
+
+      if (path === '/api/rooms/remove' && req.method === 'POST') {
+        const body = await jsonBody(req, res);
+        if (!body) return;
+        const name = typeof body.name === 'string' ? body.name : '';
+        const force = body.force === true;
+        if (!names.includes(name)) return sendJson(res, 404, { error: tr('server.noRooms') });
+        if (chats.has(name)) return sendJson(res, 409, { error: tr('server.roomRunning') });
+        const refs = await referencingRooms(cfg, name, names);
+        if (refs.length && !force) {
+          return sendJson(res, 409, {
+            error: tr('server.room.referenced', { rooms: refs.join(', ') }),
+            referencing: refs,
+          });
+        }
+        await removeRoom(cfg, name);
+        if (state.sessions[name]) {
+          delete state.sessions[name];
+          await persist();
+        }
+        broadcast('change', { file: `${cfg.rooms}/${name}`, at: Date.now() });
+        return sendJson(res, 200, { room: name, forced: refs.length > 0 });
       }
 
       // Full-text search happens here, over the derived index in memory: the
@@ -578,6 +694,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
         return sendJson(res, 200, {
           room: publicRoom(info),
           session: state.sessions[room] || null,
+          names,
           status,
           config: publicConfig(cfg),
         });

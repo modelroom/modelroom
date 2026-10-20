@@ -117,7 +117,7 @@ An agent adds; it does not delete. Retiring a room is `deprecated: true` plus
 verifies the convention without writing anything. `adopted` is a human decision — an agent
 must never set it.
 
-Rooms are made, renamed and removed with the CLI — `npx modelroom new`, `rename`, `remove`
+Rooms are made, renamed and removed with the CLI — `npx modelroom add`, `rename`, `remove`
 — so the unique directory name and the references to it move together. `modelroom update`
 refreshes the generated skills and `AGENTS.md` when you upgrade.
 
