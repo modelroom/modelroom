@@ -34,6 +34,7 @@ import { SessionPanel } from '../components/SessionPanel.tsx';
 import { Split, SplitHandle, SplitPanel } from '../components/Split.tsx';
 import { AgentStatus, ToneBadge, toneForStatus } from '../components/Status.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
+import { RoomActions } from './RoomActions.tsx';
 
 type MobileTab = 'chat' | 'docs' | 'artifact' | 'session';
 
@@ -171,6 +172,11 @@ export function RoomApp() {
           {data.room.status && (
             <ToneBadge tone={toneForStatus(data.room.status)}>{data.room.status}</ToneBadge>
           )}
+          <RoomActions
+            room={data.room}
+            names={data.names ?? [data.room.name]}
+            prefix={config.rooms}
+          />
 
           <Group gap="xs" ml="auto" wrap="nowrap">
             {sessionLabel && (

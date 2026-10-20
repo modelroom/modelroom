@@ -55,6 +55,8 @@ export interface RoomInfo {
   fields: Frontmatter;
   files: FileInfo[];
   updatedAt: number;
+  /** The oldest file's mtime: when the room was first written. */
+  createdAt: number;
   hasArtifact: boolean;
   hasThumb: boolean;
   /** The artifact changed after its snapshot: the committed png is out of date. */
@@ -206,6 +208,7 @@ export async function roomInfo(cfg: RoomsConfig, name: string): Promise<RoomInfo
   const thumb = files.find((f) => f.name === png);
   const hasThumb = Boolean(thumb?.exists);
   const hasArtifact = Boolean(artifact?.exists);
+  const born = files.filter((f) => f.exists && f.mtime > 0).map((f) => f.mtime);
 
   return {
     name,
@@ -223,6 +226,7 @@ export async function roomInfo(cfg: RoomsConfig, name: string): Promise<RoomInfo
     fields,
     files,
     updatedAt: Math.max(0, ...files.map((f) => f.mtime)),
+    createdAt: born.length ? Math.min(...born) : 0,
     hasArtifact,
     hasThumb,
     // The artifact is the source of the snapshot: when it moved, the png is old.

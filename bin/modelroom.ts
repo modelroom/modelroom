@@ -9,16 +9,7 @@
 //
 // `modelroom` with no command serves. See docs/03-cli.md.
 
-import {
-  readFile,
-  writeFile,
-  mkdir,
-  access,
-  readdir,
-  stat,
-  rename as fsRename,
-  rm as fsRm,
-} from 'node:fs/promises';
+import { readFile, writeFile, mkdir, access, readdir, stat, rm as fsRm } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, join, relative, resolve, basename } from 'node:path';
@@ -34,7 +25,14 @@ import {
 } from '../core/config.ts';
 import { detectLang } from '../core/locale.ts';
 import { t, type MessageKey } from '../i18n/catalog.ts';
-import { readTemplate, ROOM_FILES, SKILLS } from './templates.ts';
+import { readTemplate, ROOM_FILES, SKILLS } from '../core/templates.ts';
+import {
+  applyRename,
+  createRoom,
+  planRename,
+  referencingRooms,
+  removeRoom,
+} from '../core/roomops.ts';
 import {
   LOCAL_COMMAND,
   NPX_COMMAND,
@@ -49,13 +47,7 @@ import {
 } from './manifest.ts';
 import { createModelroom } from '../server/http.ts';
 import { listRoomNames, roomInfo, snapshotName } from '../core/rooms.ts';
-import {
-  collidingRoom,
-  isNewRoomName,
-  roomMentions,
-  rewriteRoomRefs,
-  type RoomMention,
-} from '../core/roomrefs.ts';
+import { collidingRoom, isNewRoomName } from '../core/roomrefs.ts';
 import { lintRooms } from './lint.ts';
 import { findPackageRoot } from '../core/pkg.ts';
 
@@ -156,7 +148,7 @@ if (cmd === 'serve') {
   process.on('SIGTERM', shutdown);
   try {
     const { url } = await app.listen();
-    // `new`, `rename` and `remove` read this: a room moved under a running
+    // `add`, `rename` and `remove` read this: a room moved under a running
     // server loses the session it holds in memory, so they refuse by default.
     await writeFile(pidPath, String(process.pid)).catch(() => {});
     // The UI is a build output, not a committed file: a source checkout that
@@ -507,11 +499,12 @@ else if (cmd === 'pr-body') {
   console.log(lines.join('\n').trimEnd());
 }
 
-// ── new ─────────────────────────────────────────────────────────────────────
+// ── add ─────────────────────────────────────────────────────────────────────
 // A room is `rooms/<name>/` with the required docs. The directory name is the
 // record, so it has to be unique and it has to carry every doc the config names.
-// Creating is additive: an existing directory is never overwritten.
-else if (cmd === 'new' || cmd === 'add') {
+// Creating is additive: an existing directory is never overwritten. `new` is a
+// hidden alias, for the muscle memory `cargo new` and the like.
+else if (cmd === 'add' || cmd === 'new') {
   const cfg = await loadConfig(cwd);
   const lang = isLang(opts.lang) ? opts.lang : cfg.lang;
   const room = positional[1] ?? str(opts.room) ?? '';
@@ -520,7 +513,7 @@ else if (cmd === 'new' || cmd === 'add') {
     process.exit(1);
   }
   if (!room) {
-    console.error(t(lang, 'cli.room.needsName', { cmd: 'new' }));
+    console.error(t(lang, 'cli.room.needsName', { cmd: 'add' }));
     process.exit(1);
   }
   if (!isNewRoomName(room)) {
@@ -538,9 +531,9 @@ else if (cmd === 'new' || cmd === 'add') {
     );
     process.exit(1);
   }
-  const written = await createRoom(cfg, lang, room, str(opts.title));
+  const written = await createRoom(cfg, templatesDir, lang, room, str(opts.title));
   console.log(t(lang, 'cli.room.created', { room }));
-  for (const w of written) console.log(`  ${w}`);
+  for (const w of written) console.log(`  ${rel(w, cwd)}`);
   console.log(`\n${t(lang, 'cli.room.next', { port: cfg.port, room })}`);
 }
 
@@ -588,37 +581,11 @@ else if (cmd === 'rename' || cmd === 'mv') {
   await refuseWhenServing(cfg, lang, Boolean(opts.force));
 
   const dry = Boolean(opts['dry-run']);
-  const plans: RewritePlan[] = [];
-  for (const name of names) {
-    for (const file of await roomTextFiles(cfg, name)) {
-      const text = await readFile(file, 'utf8').catch(() => null);
-      if (text === null) continue;
-      const { text: next, count } = rewriteRoomRefs(text, from, to, cfg.rooms);
-      if (!count) continue;
-      plans.push({
-        file,
-        path: rel(file, cwd),
-        count,
-        next,
-        mentions: roomMentions(next, from),
-      });
-    }
-  }
+  const plans = await planRename(cfg, names, from, to);
 
   console.log(t(lang, 'cli.room.renamed', { from, to }));
   if (!dry) {
-    for (const p of plans) await writeFile(p.file, p.next);
-    const fromDir = join(cfg.roomsDir, from);
-    const toDir = join(cfg.roomsDir, to);
-    if (from.toLowerCase() === to.toLowerCase()) {
-      // A case-only rename is the same directory to a case-insensitive disk:
-      // go through a name that differs by more than case.
-      const tmp = join(cfg.roomsDir, `${from}.__modelroom_tmp__${Date.now()}`);
-      await fsRename(fromDir, tmp);
-      await fsRename(tmp, toDir);
-    } else {
-      await fsRename(fromDir, toDir);
-    }
+    await applyRename(cfg, from, to, plans);
     if (await moveSession(cfg, from, to))
       console.log(t(lang, 'cli.room.sessionMoved', { from, to }));
   } else {
@@ -626,8 +593,9 @@ else if (cmd === 'rename' || cmd === 'mv') {
   }
 
   for (const p of plans) {
-    console.log(t(lang, 'cli.room.rewrite', { count: p.count, file: p.path }));
-    for (const m of p.mentions) console.log(`    ${p.path}:${m.line}  ${m.text}`);
+    const path = rel(p.file, cwd);
+    console.log(t(lang, 'cli.room.rewrite', { count: p.count, file: path }));
+    for (const m of p.mentions) console.log(`    ${path}:${m.line}  ${m.text}`);
   }
   if (dry) console.log(t(lang, 'cli.room.dryRun'));
   else console.log(`\n${t(lang, 'cli.room.next', { port: cfg.port, room: to })}`);
@@ -676,7 +644,7 @@ else if (cmd === 'remove' || cmd === 'rm') {
     console.error(t(lang, 'cli.room.confirm', { room }));
     process.exit(1);
   }
-  await fsRm(join(cfg.roomsDir, room), { recursive: true, force: true });
+  await removeRoom(cfg, room);
   const state = await loadState(cfg);
   if (state.sessions[room]) {
     delete state.sessions[room];
@@ -963,14 +931,6 @@ function lastLine(output: string): string | undefined {
 
 // ── room operations ─────────────────────────────────────────────────────────
 
-interface RewritePlan {
-  file: string;
-  path: string;
-  count: number;
-  next: string;
-  mentions: RoomMention[];
-}
-
 /** The pid of a running `serve`, or null. `EPERM` means the process exists. */
 async function servePid(cfg: Config): Promise<number | null> {
   const raw = await readFile(join(cfg.stateDir, 'serve.pid'), 'utf8').catch(() => null);
@@ -995,110 +955,6 @@ async function refuseWhenServing(cfg: Config, lang: Lang, force: boolean): Promi
     console.error(t(lang, 'cli.room.serveRunning', { pid }));
     process.exit(1);
   }
-}
-
-/** Create a room: the directory, every doc the config names, and the artifact. */
-async function createRoom(
-  cfg: Config,
-  lang: Lang,
-  room: string,
-  title?: string,
-): Promise<string[]> {
-  const roomDir = join(cfg.roomsDir, room);
-  await mkdir(roomDir, { recursive: true });
-  const written: string[] = [];
-  const targets = [...cfg.docs];
-  if (!targets.includes(cfg.artifact)) targets.push(cfg.artifact);
-  for (const name of targets) {
-    const dest = join(roomDir, name);
-    await writeFile(dest, await roomFile(cfg, lang, name, room, title));
-    written.push(rel(dest, process.cwd()));
-  }
-  // The docs are the record: a room that cannot carry all of them is not a room.
-  for (const name of cfg.docs) {
-    if (!(await exists(join(roomDir, name)))) throw new Error(`could not write ${name}`);
-  }
-  return written;
-}
-
-/**
- * A doc or artifact from the shipped templates, or a minimal skeleton when the
- * project names something the templates do not have. `{{room}}` is the room's
- * directory name; `--title` replaces the human title on the first doc only.
- */
-async function roomFile(
-  cfg: Config,
-  lang: Lang,
-  name: string,
-  room: string,
-  title?: string,
-): Promise<string> {
-  let text: string;
-  try {
-    text = await readTemplate(templatesDir, lang, join('room', name));
-  } catch {
-    text = /\.html?$/i.test(name) ? htmlSkeleton(room, lang) : docSkeleton(room);
-  }
-  text = text.replaceAll('{{room}}', room);
-  if (title && name === cfg.docs[0]) text = applyTitle(text, title);
-  return text;
-}
-
-function applyTitle(text: string, title: string): string {
-  return text
-    .replace(/^title:.*$/m, () => `title: ${title}`)
-    .replace(/^#\s+.*$/m, () => `# ${title}`);
-}
-
-function docSkeleton(room: string): string {
-  return `---\ntitle: ${room}\n---\n# ${room}\n`;
-}
-
-function htmlSkeleton(room: string, lang: Lang): string {
-  return `<!doctype html>
-<html lang="${lang}">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${room}</title>
-</head>
-<body>
-<h1>${room}</h1>
-</body>
-</html>
-`;
-}
-
-/** The docs plus every html file in a room: what a rename or a removal must read. */
-async function roomTextFiles(cfg: Config, room: string): Promise<string[]> {
-  const dir = join(cfg.roomsDir, room);
-  const out: string[] = cfg.docs.map((d) => join(dir, d));
-  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
-  for (const entry of entries) {
-    if (entry.isFile() && /\.html?$/i.test(entry.name)) out.push(join(dir, entry.name));
-  }
-  return [...new Set(out)];
-}
-
-/** Which other rooms point at `room` — frontmatter or a path in a doc/artifact. */
-async function referencingRooms(
-  cfg: Config,
-  room: string,
-  names: readonly string[],
-): Promise<string[]> {
-  const out: string[] = [];
-  for (const other of names) {
-    if (other === room) continue;
-    for (const file of await roomTextFiles(cfg, other)) {
-      const text = await readFile(file, 'utf8').catch(() => null);
-      if (text === null) continue;
-      if (rewriteRoomRefs(text, room, room, cfg.rooms).count) {
-        out.push(other);
-        break;
-      }
-    }
-  }
-  return out;
 }
 
 /** Carry the room's chat session across a rename, so the conversation stays. */

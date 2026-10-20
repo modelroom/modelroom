@@ -14,12 +14,14 @@ name is the room.** It must be unique, it must be a lowercase slug, and it must
 carry every doc `modelroom.json` names.
 
 Do not create, move or delete a room directory by hand. `mkdir`, `mv` and `rm`
-leave the references behind; the CLI keeps the name and the links in step.
+leave the references behind; the CLI keeps the name and the links in step. The
+tool UI's **Add room** button and a room header's pencil/⋯ menu run this same
+code, when a person would rather click than type a command.
 
 ## Add a room
 
 ```sh
-npx modelroom new <room> --title "Sign in"
+npx modelroom add <room> --title "Sign in"
 ```
 
 Then write the room, `BRIEF.md` first, and finish with:

@@ -3,7 +3,7 @@
 ```
 modelroom [serve] [--port 4321] [--host 127.0.0.1] [--open] [--lang en|ja]
 modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force] [--skip-install] [--no-script]
-modelroom new <room> [--title "Sign in"]
+modelroom add <room> [--title "Sign in"]
 modelroom rename <old> <new> [--dry-run] [--force]
 modelroom remove <room> [--yes] [--dry-run] [--force]
 modelroom update [--dry-run]
@@ -15,9 +15,13 @@ modelroom --version | --help
 ```
 
 `modelroom` with no command is `serve`. `serve` needs Node 20+ and nothing else. `init` only
-copies templates. `new`, `rename` and `remove` keep the rooms unique and their references in
+copies templates. `add`, `rename` and `remove` keep the rooms unique and their references in
 step. `update` refreshes the files modelroom generated. `check` reads the frontmatter of every
 room and reports convention problems.
+
+The tool UI does the same three room operations with this same code: the dashboard's **Add
+room** button, and the pencil and ⋯ menu in a room's header. A room made in the browser is
+byte-identical to one made with the command.
 `doctor` checks the setup and exits non-zero when something is broken (optionally missing things
 do not count). `render` keeps each room's snapshot png current; `pr-body` prints what a pull
 request description should carry.
@@ -111,14 +115,15 @@ a project that already has rooms, pin the language and ask the agent to translat
 existing `BRIEF.md` / `SPEC.md` / `BEHAVIOUR.md` files — the frontmatter keys and promise
 ids stay as they are.
 
-## new
+## add
 
 Adds one room to an existing project — the directory plus every doc the config names and
-the artifact. It is additive: an existing directory is never overwritten.
+the artifact. It is additive: an existing directory is never overwritten. `add` is the
+name; `new` is a hidden alias.
 
 ```
-modelroom new checkout
-modelroom new checkout --title "Checkout"
+modelroom add checkout
+modelroom add checkout --title "Checkout"
 ```
 
 The name is the room's record, so it must be unique and it must be a lowercase slug
@@ -127,7 +132,7 @@ refused, because a case-insensitive disk cannot hold both. `--title` sets the hu
 on `BRIEF.md` (frontmatter and H1) while the directory keeps the slug.
 
 ```
-$ modelroom new sign-in
+$ modelroom add sign-in
 created room sign-in:
   modelroom/rooms/sign-in/BRIEF.md
   ...

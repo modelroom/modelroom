@@ -16,6 +16,7 @@ import {
   LayoutGrid,
   LoaderCircle,
   Moon,
+  MoreVertical,
   PanelRight,
   Pencil,
   Plus,
@@ -27,6 +28,7 @@ import {
   Square,
   Sun,
   Terminal,
+  Trash2,
   TriangleAlert,
   X,
   type LucideIcon,
@@ -58,7 +60,9 @@ export type IconName =
   | 'clock'
   | 'file'
   | 'loader'
-  | 'search';
+  | 'search'
+  | 'more'
+  | 'trash';
 
 export const ICON_NAMES: IconName[] = [
   'arrow-left',
@@ -87,6 +91,8 @@ export const ICON_NAMES: IconName[] = [
   'file',
   'loader',
   'search',
+  'more',
+  'trash',
 ];
 
 const ICONS = {
@@ -116,6 +122,8 @@ const ICONS = {
   file: FileText,
   loader: LoaderCircle,
   search: Search,
+  more: MoreVertical,
+  trash: Trash2,
 } satisfies Record<IconName, LucideIcon>;
 
 export function Icon({

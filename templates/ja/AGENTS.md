@@ -15,8 +15,9 @@
 `rooms/<room>/index.png` は artifact を描画したものです。手で編集せず、
 `npx modelroom render <room>` で生成し、html と一緒にコミットします。
 
-room の追加・改名・削除は CLI（`npx modelroom new|rename|remove`）で行います。
-ディレクトリ名が room そのもので、その room への参照も一緒に動かす必要があります。
+room の追加・改名・削除は CLI（`npx modelroom add|rename|remove`）、またはツール UI の
+追加ボタンと room メニューで行います（同じコードです）。ディレクトリ名が room そのもので、
+その room への参照も一緒に動かす必要があります。
 
 それ以外は書き込まないでください。このディレクトリの外には出ないでください。
 デザインレイヤーはアプリケーションのコードを読みません。アプリケーションに渡すのは

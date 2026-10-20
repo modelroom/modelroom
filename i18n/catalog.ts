@@ -15,7 +15,7 @@ export const en = {
 usage
   modelroom [serve] [--port 4321] [--host 127.0.0.1] [--open] [--lang en|ja]
   modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force] [--skip-install] [--no-script]
-  modelroom new <room> [--title "Sign in"]
+  modelroom add <room> [--title "Sign in"]
   modelroom rename <old> <new> [--dry-run] [--force]
   modelroom remove <room> [--yes] [--dry-run] [--force]
   modelroom update [--dry-run]
@@ -157,6 +157,11 @@ Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
   'server.emptyPrompt': 'empty prompt',
   'server.roomRunningChat': 'this room is already running',
   'server.roomRunning': 'room is running',
+  'server.room.invalidName': 'a room name is a lowercase slug (a-z, 0-9, ., -, _)',
+  'server.room.exists': 'room {name} already exists',
+  'server.room.caseExists': 'room {name} differs only by case',
+  'server.room.sameName': 'the new name is the same as the old',
+  'server.room.referenced': 'referenced by {rooms}',
   'server.alreadyRendering': 'already rendering',
   'server.badBodyRead': 'request body could not be read',
   'server.bodyObject': 'body must be a JSON object',
@@ -234,6 +239,46 @@ Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
   'dashboard.clearAll': 'clear all',
   'dashboard.clearSearch': 'Clear search and filters',
   'dashboard.loosen': 'Loosen a filter, or search for something else.',
+
+  // ── room operations — add, rename, remove ──────────────────────────────────
+  'dashboard.addRoom': 'Add room',
+  'dashboard.addRoomHint':
+    'A room is one screen. The name becomes the directory: {prefix}/<name>/.',
+  'dashboard.roomName': 'Room name',
+  'dashboard.roomTitle': 'Title (optional)',
+  'dashboard.roomNamePlaceholder': 'sign-in',
+  'dashboard.roomTitlePlaceholder': 'Sign in',
+  'dashboard.roomNameInvalid':
+    'Lowercase letters, digits, dot, dash or underscore, starting with a letter or digit.',
+  'dashboard.roomNameOk': 'Available',
+  'dashboard.roomNameTaken': 'room {name} already exists',
+  'dashboard.roomNameCase': 'room {name} differs only by case',
+  'dashboard.create': 'Create',
+  'dashboard.creating': 'Creating…',
+  'dashboard.createFailed': 'Could not create the room.',
+  'room.rename': 'Rename room',
+  'room.renameHint': 'The directory name is the room. Every reference to it moves too.',
+  'room.renameName': 'New name',
+  'room.renameSame': 'the new name is the same as the old',
+  'room.renameAction': 'Rename',
+  'room.renaming': 'Renaming…',
+  'room.renameFailed': 'Could not rename the room.',
+  'room.renameRewrote': 'rewrote {count} reference(s) in {file}',
+  'room.menu': 'Room actions',
+  'room.remove': 'Delete room',
+  'room.removeHint': 'This deletes {prefix}/{name}/. It cannot be undone except from git.',
+  'room.removeReferenced': 'Other rooms still point at this one: {rooms}.',
+  'room.removeForce': 'Delete anyway — those references will be left broken.',
+  'room.removeConfirm': 'Type {name} to confirm',
+  'room.removeAction': 'Delete this room',
+  'room.removing': 'Deleting…',
+  'room.removeFailed': 'Could not delete the room.',
+  'room.removeCreated': 'Created',
+  'room.removeUpdated': 'Updated',
+  'room.removeStatus': 'Status',
+  'room.removeTitle': 'Title',
+  'room.removeSnapshot': 'Snapshot',
+  'room.removeNoSnapshot': 'none yet',
 
   // ── room ───────────────────────────────────────────────────────────────────
   'room.chat': 'Chat',
@@ -427,6 +472,9 @@ Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
   'kit.askHint':
     'The dock the chat shows while an agent is blocked on an answer: options, plus a free-form answer.',
   'kit.cardHint': "The dashboard's room cards and the settings sections.",
+  'kit.dialogs': 'Room dialogs — add / rename / delete',
+  'kit.dialogsHint':
+    'The add and rename dialogs, and the delete confirm: type the name to enable the button.',
   'kit.splitHint':
     "Mantine has no split pane; the room's columns and the docs split use this one library.",
 } as const;
@@ -441,7 +489,7 @@ export const ja: Messages = {
 使い方
   modelroom [serve] [--port 4321] [--host 127.0.0.1] [--open] [--lang en|ja]
   modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force] [--skip-install] [--no-script]
-  modelroom new <room> [--title "Sign in"]
+  modelroom add <room> [--title "Sign in"]
   modelroom rename <old> <new> [--dry-run] [--force]
   modelroom remove <room> [--yes] [--dry-run] [--force]
   modelroom update [--dry-run]
@@ -588,6 +636,11 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'server.emptyPrompt': 'プロンプトが空です',
   'server.roomRunningChat': 'この room はすでに実行中です',
   'server.roomRunning': 'room は実行中です',
+  'server.room.invalidName': 'room 名は小文字のスラッグです（a-z, 0-9, ., -, _）',
+  'server.room.exists': 'room {name} はすでに存在します',
+  'server.room.caseExists': 'room {name} は大文字小文字だけが違います',
+  'server.room.sameName': '新しい名前が元と同じです',
+  'server.room.referenced': '{rooms} から参照されています',
   'server.alreadyRendering': 'すでにレンダリング中です',
   'server.badBodyRead': 'リクエスト本文を読み取れませんでした',
   'server.bodyObject': '本文は JSON オブジェクトである必要があります',
@@ -665,6 +718,45 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'dashboard.clearAll': 'すべてクリア',
   'dashboard.clearSearch': '検索とフィルターをクリア',
   'dashboard.loosen': 'フィルターを緩めるか、別の言葉で検索してください。',
+
+  // ── room 操作 — 追加・改名・削除 ──────────────────────────────────────────
+  'dashboard.addRoom': 'room を追加',
+  'dashboard.addRoomHint':
+    'room は1画面です。名前がそのままディレクトリになります: {prefix}/<name>/。',
+  'dashboard.roomName': 'room 名',
+  'dashboard.roomTitle': 'タイトル（任意）',
+  'dashboard.roomNamePlaceholder': 'sign-in',
+  'dashboard.roomTitlePlaceholder': 'Sign in',
+  'dashboard.roomNameInvalid': '小文字の英数字と . - _ のみ。先頭は英数字にしてください。',
+  'dashboard.roomNameOk': '使用できます',
+  'dashboard.roomNameTaken': 'room {name} はすでに存在します',
+  'dashboard.roomNameCase': 'room {name} は大文字小文字だけが違います',
+  'dashboard.create': '作成',
+  'dashboard.creating': '作成中…',
+  'dashboard.createFailed': 'room を作成できませんでした。',
+  'room.rename': 'room を改名',
+  'room.renameHint': 'ディレクトリ名が room です。それを指す参照もすべて移動します。',
+  'room.renameName': '新しい名前',
+  'room.renameSame': '新しい名前が元と同じです',
+  'room.renameAction': '改名',
+  'room.renaming': '改名中…',
+  'room.renameFailed': 'room を改名できませんでした。',
+  'room.renameRewrote': '{file} の参照を {count} 件書き換えました',
+  'room.menu': 'room の操作',
+  'room.remove': 'room を削除',
+  'room.removeHint': '{prefix}/{name}/ を削除します。git 以外では元に戻せません。',
+  'room.removeReferenced': 'この room を指している room があります: {rooms}。',
+  'room.removeForce': 'それでも削除する — それらの参照は壊れたまま残ります。',
+  'room.removeConfirm': '確認のため {name} を入力',
+  'room.removeAction': 'この room を削除',
+  'room.removing': '削除中…',
+  'room.removeFailed': 'room を削除できませんでした。',
+  'room.removeCreated': '作成',
+  'room.removeUpdated': '更新',
+  'room.removeStatus': '状態',
+  'room.removeTitle': 'タイトル',
+  'room.removeSnapshot': 'スナップショット',
+  'room.removeNoSnapshot': 'まだありません',
 
   // ── room ───────────────────────────────────────────────────────────────────
   'room.chat': 'チャット',
@@ -859,6 +951,9 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'kit.ask': 'エージェントからの質問',
   'kit.askHint': '回答待ちのあいだチャットに出すドック: 選択肢と、自由入力。',
   'kit.cardHint': 'ダッシュボードの room カードと設定セクション。',
+  'kit.dialogs': 'room ダイアログ — 追加 / 改名 / 削除',
+  'kit.dialogsHint':
+    '追加と改名のダイアログ、そして削除の確認: 名前を入力するとボタンが有効になります。',
   'kit.splitHint':
     'Mantine に分割ペインはありません。room の列とドキュメントの分割はこの1つのライブラリを使います。',
 };
