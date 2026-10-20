@@ -61,6 +61,7 @@ test('init creates modelroom/ + .modelroom/ and writes Japanese templates', asyn
     assert.equal(config.lang, 'ja');
 
     assert.match(await readFile(join(dir, 'modelroom', 'AGENTS.md'), 'utf8'), /日本語で書いて/);
+    assert.match(await readFile(join(dir, 'modelroom', 'DESIGN.md'), 'utf8'), /デザインシステム/);
     const brief = await readFile(join(dir, 'modelroom', 'rooms', 'checkout', 'BRIEF.md'), 'utf8');
     assert.match(brief, /^---\ntitle: checkout\nstatus: draft\n/);
     assert.match(brief, /次に読む人/);

@@ -29,7 +29,8 @@ your-repo/
 ├── modelroom/                 # committed
 │   ├── modelroom.json
 │   ├── AGENTS.md
-│   ├── .opencode/skills/      # read-modelroom, create-modelroom-pr, manage-modelroom-rooms
+│   ├── DESIGN.md
+│   ├── .agents/skills/        # read-modelroom, create-modelroom-pr, manage-modelroom-rooms
 │   └── rooms/checkout/
 │       ├── BRIEF.md
 │       ├── SPEC.md
@@ -43,7 +44,8 @@ your-repo/
 |---|---|---|
 | `modelroom/modelroom.json` | yes | the config: agent, rooms, language |
 | `modelroom/AGENTS.md` | yes | what the agent may write, and in which language |
-| `modelroom/.opencode/skills/` | yes | the agent's three skills: read the picture, put it in the PR, manage rooms |
+| `modelroom/DESIGN.md` | yes | the layer's design rules: tokens, components, the design system and its MCP server |
+| `modelroom/.agents/skills/` | yes | the agent's three skills: read the picture, put it in the PR, manage rooms |
 | `modelroom/rooms/<room>/` | yes | one screen: `BRIEF`, `SPEC`, `BEHAVIOUR`, the artifact, its snapshot `index.png` |
 | `.modelroom/state.json` | no | local session ids and settings changed from `/settings` |
 
@@ -119,7 +121,8 @@ must never set it.
 
 Rooms are made, renamed and removed with the CLI — `npx modelroom add`, `rename`, `remove`
 — so the unique directory name and the references to it move together. `modelroom update`
-refreshes the generated skills and `AGENTS.md` when you upgrade.
+refreshes the generated skills and `AGENTS.md` when you upgrade; `DESIGN.md` is yours and is
+left alone.
 
 ## Agents
 

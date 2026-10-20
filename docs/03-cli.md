@@ -46,16 +46,20 @@ your-repo/
 ├── modelroom/                 # committed
 │   ├── modelroom.json
 │   ├── AGENTS.md
-│   ├── .opencode/skills/       # read-modelroom, create-modelroom-pr, manage-modelroom-rooms
+│   ├── DESIGN.md
+│   ├── .agents/skills/         # read-modelroom, create-modelroom-pr, manage-modelroom-rooms
 │   └── rooms/<room>/{BRIEF,SPEC,BEHAVIOUR}.md + index.html + index.png
 └── .modelroom/                # git-ignored state
 ```
 
-`init` writes the room templates, the three skills, and — if missing —
-`modelroom/modelroom.json`, `modelroom/AGENTS.md` and a `/.modelroom/` line in the
-project's `.gitignore`.
+`init` writes the room templates and the three skills, and — if missing —
+`modelroom/modelroom.json`, `modelroom/AGENTS.md`, `modelroom/DESIGN.md` and a
+`/.modelroom/` line in the project's `.gitignore`.
 An existing project keeps its config; running `init` again only adds what is
 missing (`--force` overwrites).
+
+The skills go to `.agents/skills/`, the portable location: OpenCode and Claude Code
+both read it (OpenCode also reads its own `.opencode/skills/`).
 
 ```
 modelroom init checkout            # modelroom/rooms/checkout/
@@ -180,7 +184,7 @@ undo beyond git: commit the removal on its own so it can be reverted.
 
 ## update
 
-Refreshes the files modelroom generated — the skills in `.opencode/skills/` and `AGENTS.md`
+Refreshes the files modelroom generated — the skills in `.agents/skills/` and `AGENTS.md`
 — from the installed version. Those change with the version, so this is how an existing
 project picks them up:
 
@@ -189,8 +193,8 @@ npx modelroom@latest update
 npx modelroom@latest update --dry-run
 ```
 
-It never touches a room or `modelroom.json`: those belong to the project. A new install
-gets the same files from `init`.
+It never touches a room, `DESIGN.md` or `modelroom.json`: those are the project's, not
+modelroom's. A new install gets the same generated files from `init`.
 
 ## check
 
@@ -279,6 +283,7 @@ ok   config: modelroom/modelroom.json
 ok   state: .modelroom
 ok   language: ja
 ok   agent instructions: modelroom/AGENTS.md
+ok   design rules: modelroom/DESIGN.md
 ok   agent command on PATH: opencode
 ok   png rendering (playwright): not installed (optional)
 ok   room checkout: docs ok

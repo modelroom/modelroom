@@ -7,8 +7,10 @@ audience. That is the whole idea; the rest follows.
 
 ```
 modelroom/
-├── AGENTS.md
+├── AGENTS.md          how to work in this layer    → agent
+├── DESIGN.md          the layer's design rules     → designer, agent
 ├── modelroom.json
+├── .agents/skills/    the agent's three skills
 └── rooms/<room>/
     ├── BRIEF.md        why this room exists        → director, everyone
     ├── SPEC.md         what the artifact cannot show → designer, agent, implementer
@@ -18,6 +20,11 @@ modelroom/
 ```
 
 Local state lives in `.modelroom/` next to `modelroom/`, and is never committed.
+
+`DESIGN.md` holds what every room shares — the tokens, the components, the
+accessibility floor — and names the design system they come from (and the MCP server
+that carries it, when there is one). A room takes from it and names what it took in its
+`SPEC.md`. It is the project's file: `init` seeds it once, `update` never touches it.
 
 The artifact is the visible spec. `SPEC.md` is the invisible one. They must not overlap.
 
@@ -48,7 +55,8 @@ denied access outside it (for example, OpenCode `permissions` with
 - Self-contained: no CDN, no web fonts, no framework, no build step. It is going to be handed
   to implementation, so it has to stand on its own (and render with no network).
 - One file per state (`index-error.html` and so on). Steps in a flow are separate rooms.
-- Anything shared (a component, a token) is named in `SPEC.md`, not reinvented per room.
+- Anything shared (a component, a token) lives in the layer's `DESIGN.md` and is named in
+  `SPEC.md`, not reinvented per room.
 
 ## Frontmatter is the record
 

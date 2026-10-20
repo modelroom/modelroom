@@ -77,6 +77,8 @@ Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
   'cli.doctor.lang': 'language: {lang}',
   'cli.doctor.agents': 'agent instructions: {path}',
   'cli.doctor.agentsMissing': 'agent instructions: missing ({path})',
+  'cli.doctor.design': 'design rules: {path}',
+  'cli.doctor.designMissing': 'design rules: missing ({path})',
   'cli.doctor.agentPath': 'agent command on PATH: {command}',
   'cli.doctor.agentMissing': 'agent command on PATH: {command} (not found — the chat will fail)',
   'cli.doctor.playwright': 'png rendering (playwright): available',
@@ -554,6 +556,8 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'cli.doctor.lang': '言語: {lang}',
   'cli.doctor.agents': 'エージェント指示: {path}',
   'cli.doctor.agentsMissing': 'エージェント指示: なし（{path}）',
+  'cli.doctor.design': 'デザインルール: {path}',
+  'cli.doctor.designMissing': 'デザインルール: なし（{path}）',
   'cli.doctor.agentPath': 'agent コマンドが PATH にあります: {command}',
   'cli.doctor.agentMissing':
     'agent コマンドが PATH にありません: {command}（チャットは失敗します）',
