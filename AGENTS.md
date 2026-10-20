@@ -20,6 +20,8 @@ just a picture of it.
 bin/modelroom.ts        CLI: serve | init | add | rename | remove | check | doctor
 bin/lint.ts             the convention checks behind `check`
 bin/manifest.ts         the consumer's package.json, edited minimally (`npm run modelroom`)
+bin/prompt.ts           the one interactive prompt: `init`'s language question
+bin/langchoice.ts       flag · config · environment → the language `init` uses, and why
 server/http.ts          HTTP + SSE + static + agent spawn + the room-operation API
 server/agents/index.ts  adapters: opencode | command
 server/opencode.ts      the opencode session reader (turns, parts, stats)

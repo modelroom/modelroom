@@ -16,13 +16,13 @@ It is agent-agnostic. Bring OpenCode, Claude Code, Codex, or any CLI. modelroom 
 and no chat product: it gives your agent a place to work, and gives you a place to look.
 
 ```bash
-npx modelroom init checkout    # a room, with its docs and a starter artifact
+npx modelroom init checkout    # asks the language, then a room with its docs
 npx modelroom                  # → http://127.0.0.1:4321
 ```
 
 `init` keeps the design layer in one place — `modelroom/` for what you commit and
-`.modelroom/` for local state — and picks the language from your environment (pass
-`--lang en` / `--lang ja` to pin it):
+`.modelroom/` for local state — and asks which language to use (↑/↓ then Enter; pass
+`--lang en` / `--lang ja` to answer it without being asked):
 
 ```
 your-repo/
@@ -129,7 +129,7 @@ refreshes the generated skills and `AGENTS.md` when you upgrade.
   "root": ".",
   "rooms": "rooms",
   "state": "../.modelroom",
-  "lang": "ja",                                // optional; omit it and the OS decides
+  "lang": "ja",                                // optional; init writes it when you answer
   "agent": {
     "adapter": "opencode",                       // or "command" for any CLI
     "command": "opencode",
