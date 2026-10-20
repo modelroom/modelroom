@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/modelroom/modelroom/compare/modelroom-v0.4.0...modelroom-v0.5.0) (2026-10-20)
+
+
+### Features
+
+* **cli:** ask which language in init ([#29](https://github.com/modelroom/modelroom/issues/29)) ([85f82c4](https://github.com/modelroom/modelroom/commit/85f82c4942deb95645ff157037fb758111c2811d))
+
 ## [0.4.0](https://github.com/modelroom/modelroom/compare/modelroom-v0.3.0...modelroom-v0.4.0) (2026-10-20)
 
 
