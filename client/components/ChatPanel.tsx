@@ -21,6 +21,7 @@ import { Icon } from './Icon.tsx';
 import { Markdown } from './Markdown.tsx';
 import { Panel } from './Status.tsx';
 import { PartView } from './parts.tsx';
+import { QuestionCard } from './QuestionCard.tsx';
 
 function LogBlock({ message }: { message: Extract<ChatMessage, { role: 'log' }> }) {
   const { t } = useI18n();
@@ -238,6 +239,15 @@ export function ChatPanel({
           <MessageRow key={message.id} message={message} />
         ))}
       </Box>
+
+      {chat.asks[0] && (
+        <QuestionCard
+          key={chat.asks[0].id}
+          ask={chat.asks[0]}
+          onSubmit={(askId, answer) => void chat.answerAsk(askId, answer)}
+          onDismiss={(askId) => void chat.dismissAsk(askId)}
+        />
+      )}
 
       <Composer
         key={room}

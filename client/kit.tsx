@@ -44,7 +44,8 @@ import { Split, SplitHandle, SplitPanel } from './components/Split.tsx';
 import { ToneBadge } from './components/Status.tsx';
 import { FacetFilter, SYNC_LIMIT } from './dashboard/FacetFilter.tsx';
 import { ThemeToggle } from './components/ThemeToggle.tsx';
-import type { Facet } from './lib/api.ts';
+import { QuestionCard } from './components/QuestionCard.tsx';
+import type { Ask, Facet } from './lib/api.ts';
 import { useI18n } from './lib/i18n.tsx';
 import { renderDoc } from './lib/markdown.ts';
 
@@ -100,6 +101,30 @@ const SINGLE_FACET: Facet = {
     { value: 'draft', count: 4 },
     { value: 'review', count: 2 },
     { value: 'adopted', count: 1 },
+  ],
+};
+
+/** What the chat docks above the composer while an agent waits for an answer. */
+const SAMPLE_ASK: Ask = {
+  id: 'frm_sample',
+  title: 'Questions',
+  questions: [
+    {
+      key: 'q0',
+      header: 'Spacing',
+      question: 'Which spacing scale should the sign-in screen use?',
+      options: [
+        { label: 'Compact (Recommended)', description: 'Tighter gaps, an 8px rhythm' },
+        { label: 'Airy', description: 'More whitespace, a 16px rhythm' },
+      ],
+    },
+    {
+      key: 'q1',
+      header: 'States',
+      question: 'Which states should the room cover?',
+      multiple: true,
+      options: [{ label: 'Loading' }, { label: 'Error' }, { label: 'Empty' }],
+    },
   ],
 };
 
@@ -369,6 +394,12 @@ export function Kit() {
             />
             <Checkbox label={t('dashboard.archived', { count: 2 })} defaultChecked />
           </SimpleGrid>
+        </Section>
+
+        <Section title={t('kit.ask')} hint={t('kit.askHint')}>
+          <Box maw={448}>
+            <QuestionCard ask={SAMPLE_ASK} onSubmit={() => undefined} onDismiss={() => undefined} />
+          </Box>
         </Section>
 
         <Section title={t('kit.card')} hint={t('kit.cardHint')}>

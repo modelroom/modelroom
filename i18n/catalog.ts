@@ -135,6 +135,9 @@ Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
   'server.artifactNotFound': 'artifact not found: {path}',
   'server.changed': 'changed: {file}',
   'server.agentWorking': '{room}: agent is working…',
+  'server.agentUnavailable': '{room}: the agent could not be reached',
+  'server.agentTimeout': '{room}: the agent did not finish in time',
+  'server.noQuestion': 'no question is waiting for an answer',
   'server.rendering': '{room}: rendering {file}…',
   'server.rendered': '{room}: {file} updated',
   'server.renderUnchanged': ' (unchanged)',
@@ -310,6 +313,14 @@ Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
   'status.done': 'done',
   'status.error': 'error',
 
+  // ── the agent's question ───────────────────────────────────────────────────
+  'ask.title': 'The agent asks',
+  'ask.multiple': 'Select all that apply',
+  'ask.custom': 'Type your own answer',
+  'ask.submit': 'Answer',
+  'ask.dismiss': 'Dismiss',
+  'ask.couldNotSend': 'could not send the answer',
+
   // ── settings ───────────────────────────────────────────────────────────────
   'settings.title': 'Settings',
   'settings.agent': 'Agent',
@@ -379,6 +390,9 @@ Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
     "markdown-it with raw HTML disabled; code fences get a copy button; the rhythm is Mantine's Typography.",
   'kit.docHint': 'Frontmatter is split out by the panel, not here.',
   'kit.formHint': 'TextInput, Checkbox, Select, MultiSelect — the settings form and the facets.',
+  'kit.ask': "The agent's question",
+  'kit.askHint':
+    'The dock the chat shows while an agent is blocked on an answer: options, plus a free-form answer.',
   'kit.cardHint': "The dashboard's room cards and the settings sections.",
   'kit.splitHint':
     "Mantine has no split pane; the room's columns and the docs split use this one library.",
@@ -517,6 +531,9 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'server.artifactNotFound': 'artifact が見つかりません: {path}',
   'server.changed': '変更: {file}',
   'server.agentWorking': '{room}: エージェントが作業中…',
+  'server.agentUnavailable': '{room}: エージェントに接続できません',
+  'server.agentTimeout': '{room}: エージェントが時間内に終わりませんでした',
+  'server.noQuestion': '回答待ちの質問はありません',
   'server.rendering': '{room}: {file} を描画中…',
   'server.rendered': '{room}: {file} を更新しました',
   'server.renderUnchanged': '（変更なし）',
@@ -694,6 +711,14 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'status.done': '完了',
   'status.error': 'エラー',
 
+  // ── the agent's question ───────────────────────────────────────────────────
+  'ask.title': 'エージェントからの質問',
+  'ask.multiple': '当てはまるものをすべて選択',
+  'ask.custom': '自分で回答を入力',
+  'ask.submit': '回答する',
+  'ask.dismiss': '閉じる',
+  'ask.couldNotSend': '回答を送信できませんでした',
+
   // ── settings ───────────────────────────────────────────────────────────────
   'settings.title': '設定',
   'settings.agent': 'エージェント',
@@ -763,6 +788,8 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
     'markdown-it は生の HTML を無効化。コードブロックにはコピーボタン、リズムは Mantine の Typography。',
   'kit.docHint': 'frontmatter はここではなく、パネル側で分離されます。',
   'kit.formHint': 'TextInput、Checkbox、Select、MultiSelect — 設定フォームと facet。',
+  'kit.ask': 'エージェントからの質問',
+  'kit.askHint': '回答待ちのあいだチャットに出すドック: 選択肢と、自由入力。',
   'kit.cardHint': 'ダッシュボードの room カードと設定セクション。',
   'kit.splitHint':
     'Mantine に分割ペインはありません。room の列とドキュメントの分割はこの1つのライブラリを使います。',

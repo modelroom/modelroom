@@ -24,6 +24,8 @@ bin/manifest.ts         the consumer's package.json, edited minimally (`npm run 
 server/http.ts          HTTP + SSE + static + agent spawn
 server/agents/index.ts  adapters: opencode | command
 server/opencode.ts      the opencode session reader (turns, parts, stats)
+server/opencode-server.ts  the private opencode server modelroom owns
+server/opencode-turn.ts  one turn, driven through that server's API
 server/artifact.ts      HTML → PNG (Playwright, dynamically imported)
 server/thumbs.ts        keeps every room's snapshot current (serial, idempotent)
 core/config.ts          config and state: modelroom.json + .modelroom/state.json

@@ -36,7 +36,10 @@ import {
   type RenderResult,
 } from './artifact.ts';
 import { createThumbnailer } from './thumbs.ts';
-import { sessionView, watchParts, type PartsWatcher } from './opencode.ts';
+import { sessionView, watchParts } from './opencode.ts';
+import { createOpenCodeServer } from './opencode-server.ts';
+import { startTurn, type Turn } from './opencode-turn.ts';
+import type { Ask, AskAnswer } from '../api/chat.ts';
 import { t, type MessageKey } from '../i18n/catalog.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -77,6 +80,15 @@ export interface ChatResult {
   pid?: number;
 }
 
+/** A turn in progress: how to stop it, and how to answer the agent's questions. */
+interface ActiveChat {
+  stop: () => Promise<void>;
+  replyAsk?: (askId: string, answer: AskAnswer) => Promise<void>;
+  dismissAsk?: (askId: string) => Promise<void>;
+  /** Questions still waiting, so a page that reloads can show them again. */
+  asks?: () => Ask[];
+}
+
 export interface App {
   cfg: Config;
   server: ReturnType<typeof createServer>;
@@ -108,7 +120,10 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
   // so a saved model survives the next start.
   applySettings(cfg, state.settings);
   const clients = new Set<ServerResponse>();
-  const chats = new Map<string, PartsWatcher | null>(); // room -> its watcher, if it has one
+  // A room runs at most one turn. `command` keeps its watcher here; `opencode`
+  // keeps the turn itself, so the chat can answer the agent's question.
+  const chats = new Map<string, ActiveChat>();
+  const opencodeServer = createOpenCodeServer(cfg);
   let rendering = false;
   const status: ModelroomStatus = {
     phase: 'idle',
@@ -287,6 +302,15 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
       stream: 'meta',
       chunk: `$ ${cfg.agent.command} (agent=${cfg.agent.agent || '-'}, model=${cfg.agent.model || 'default'}, session=${sessionId})\n`,
     });
+
+    // opencode is driven through the server modelroom owns, not a one-shot CLI:
+    // only that keeps the agent's question open long enough to answer it.
+    const run = adapter.run;
+    if (!run) {
+      startApiTurn(room, sessionId, prompt, startedAt);
+      return { started: true, sessionId };
+    }
+
     // A structured agent keeps its turn on its own server while it works — the text,
     // the tool calls, the patches it wrote. Follow that: it is the only live view of
     // the *shape* of the work, where stdout is just prose. `since` is what separates
@@ -296,8 +320,8 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
           since: startedAt,
         })
       : null;
-    chats.set(room, watcher);
-    const child = adapter.run({
+    chats.set(room, { stop: () => watcher?.stop().catch(() => {}) ?? Promise.resolve() });
+    const child = run({
       cfg,
       cwd: cfg.rootDir,
       prompt,
@@ -322,6 +346,74 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
       },
     });
     return { started: true, sessionId, pid: child.pid };
+  }
+
+  /**
+   * Drive an opencode turn through the server modelroom owns. The turn ends when
+   * the session goes idle. A form the agent raised is broadcast so the person can
+   * answer it, and the answer goes back to the same turn.
+   */
+  function startApiTurn(room: string, sessionId: string, prompt: string, startedAt: number): void {
+    let turn: Turn | null = null;
+    let cancelled = false;
+    chats.set(room, {
+      stop: async () => {
+        cancelled = true;
+        await turn?.stop();
+      },
+      replyAsk: async (askId, answer) => {
+        await turn?.replyAsk(askId, answer);
+      },
+      dismissAsk: async (askId) => {
+        await turn?.dismissAsk(askId);
+      },
+      asks: () => turn?.pending() ?? [],
+    });
+
+    const done = (code: number, error: string | null) => {
+      chats.delete(room);
+      if (error) setStatus('error', error);
+      else setStatus(code === 0 ? 'ok' : 'error', tr('server.agentExited', { room, code }));
+      broadcast('chat-done', { room, sessionId, code, error, at: Date.now() });
+    };
+
+    void (async () => {
+      const api = await opencodeServer.ensure();
+      if (cancelled) return;
+      if (!api) {
+        done(-1, tr('server.agentUnavailable', { room }));
+        return;
+      }
+      turn = await startTurn({
+        cfg,
+        api,
+        sessionId,
+        prompt,
+        since: startedAt,
+        callbacks: {
+          onParts: (parts) => broadcast('chat-parts', { room, sessionId, parts }),
+          onAsk: (ask) => broadcast('chat-ask', { room, sessionId, ask }),
+          onAskDone: (askId) => broadcast('chat-ask-done', { room, askId, at: Date.now() }),
+          onExit: (code, error) => done(code, error ?? null),
+        },
+      });
+      if (!turn && !cancelled) done(-1, tr('server.agentUnavailable', { room }));
+    })();
+  }
+
+  /** Whatever the browser sent, as `{ key: string[] }`. */
+  function answerOf(raw: unknown): AskAnswer {
+    const answer: AskAnswer = {};
+    if (!isRecord(raw)) return answer;
+    for (const [key, value] of Object.entries(raw)) {
+      if (Array.isArray(value)) {
+        const list = value.filter((entry): entry is string => typeof entry === 'string');
+        if (list.length) answer[key] = list;
+      } else if (typeof value === 'string' && value.trim()) {
+        answer[key] = [value];
+      }
+    }
+    return answer;
   }
 
   // ── artifact render (optional) ────────────────────────────────────────────
@@ -586,6 +678,34 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
         return sendJson(res, r.started ? 202 : 409, { room: target, ...r });
       }
 
+      // Answer (or dismiss) the question the agent is blocked on. The answer goes
+      // back to the turn that is running, so the agent continues where it stopped.
+      if (path === '/api/chat/answer' && req.method === 'POST') {
+        const body = await jsonBody(req, res);
+        if (!body) return;
+        const target = isRoomName(body.room) && names.includes(body.room) ? body.room : room;
+        if (!target) return sendJson(res, 404, { error: tr('server.noRooms') });
+        const chat = chats.get(target);
+        if (!chat?.replyAsk || typeof body.askId !== 'string') {
+          return sendJson(res, 409, { error: tr('server.noQuestion') });
+        }
+        await chat.replyAsk(body.askId, answerOf(body.answer));
+        return sendJson(res, 200, { ok: true });
+      }
+
+      if (path === '/api/chat/dismiss' && req.method === 'POST') {
+        const body = await jsonBody(req, res);
+        if (!body) return;
+        const target = isRoomName(body.room) && names.includes(body.room) ? body.room : room;
+        if (!target) return sendJson(res, 404, { error: tr('server.noRooms') });
+        const chat = chats.get(target);
+        if (!chat?.dismissAsk || typeof body.askId !== 'string') {
+          return sendJson(res, 409, { error: tr('server.noQuestion') });
+        }
+        await chat.dismissAsk(body.askId);
+        return sendJson(res, 200, { ok: true });
+      }
+
       if (path === '/api/session' && req.method === 'POST') {
         const body = await jsonBody(req, res, true);
         if (!body) return; // malformed JSON: jsonBody already answered 400
@@ -608,7 +728,10 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
         }
         const sessionId = state.sessions[room] ?? null;
         const view = await sessionView(cfg, sessionId);
-        const base = { available: Boolean(view), room, session: sessionId };
+        // A question the agent is blocked on travels with the session, so a page
+        // that reloads while the turn waits still shows the card.
+        const asks = chats.get(room)?.asks?.() ?? [];
+        const base = { available: Boolean(view), room, session: sessionId, asks };
         return sendJson(res, 200, view ? { ...base, ...view } : base);
       }
 
@@ -711,7 +834,8 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
       new Promise((r) => {
         clearInterval(heartbeat);
         for (const w of watchers) w.close();
-        for (const chat of chats.values()) void chat?.stop();
+        for (const chat of chats.values()) void chat.stop();
+        opencodeServer.stop();
         void thumbnails.close();
         void closeBrowser();
         server.close(() => r());
