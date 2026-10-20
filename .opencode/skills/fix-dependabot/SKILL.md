@@ -22,7 +22,7 @@ These outrank speed.
 - **One purpose per commit.** The bump stays the bot's commit; the fix is yours;
   a tooling fix is a third.
 - **Respect `AGENTS.md`.** In this repo that means `dependencies` stays empty,
-  the committed `ui/` bundle and stylesheet move with the source, and every gate
+  the committed `web/` bundle and stylesheet move with the source, and every gate
   in `.github/workflows/ci.yml` is the contract.
 - If the change is bigger than the bump, stop and say so. A major bump that
   needs a rewrite is a project decision, not a chore.
@@ -70,7 +70,7 @@ npm run lint:types    # oxlint --type-aware
 npm run format:check  # oxfmt --check
 npm run typecheck     # tsc --noEmit, then the client project
 npm test              # vitest: unit + one e2e pass
-npm run build         # server + committed ui/assets/app.js + ui/modelroom.css
+npm run build         # server + committed web/assets/app.js + web/modelroom.css
 npx publint
 npx attw --pack . --ignore-rules cjs-resolves-to-esm
 ```
@@ -122,7 +122,7 @@ lockfile, and anything the local cache is hiding.
 
 - Only files under `cfg.docs` are writable at runtime; that is unrelated to a
   dependency fix, but the boundary tests will notice if you widen it.
-- `ui/assets/app.js` and `ui/modelroom.css` are committed and never edited by
+- `web/assets/app.js` and `web/modelroom.css` are committed and never edited by
   hand. `npm run build` writes them; commit them with the source that produced
   them.
 - The pre-commit hook (lefthook) lints staged files. A commit can stage only
