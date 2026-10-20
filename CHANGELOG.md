@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/modelroom/modelroom/compare/modelroom-v0.3.0...modelroom-v0.4.0) (2026-10-20)
+
+
+### Features
+
+* **init:** a DESIGN.md, and skills under .agents/ ([#27](https://github.com/modelroom/modelroom/issues/27)) ([23db229](https://github.com/modelroom/modelroom/commit/23db229cd281b69c49e09623d14424ac0b4f1d77))
+
 ## [0.3.0](https://github.com/modelroom/modelroom/compare/modelroom-v0.2.0...modelroom-v0.3.0) (2026-10-20)
 
 
