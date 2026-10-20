@@ -15,6 +15,9 @@ You are working inside the design layer (`modelroom/`). Write the room's prose i
 `rooms/<room>/index.png` is the artifact's rendering: do not hand-edit it, produce
 it with `npx modelroom render <room>` and commit it with the html.
 
+A new room, a rename and a removal go through the CLI (`npx modelroom new|rename|remove`);
+the directory name is the room, and the references to it have to move with it.
+
 Nothing else. Do not reach outside this directory; the design layer never reads the
 application code. The application is handed this layer, not the other way round.
 
@@ -39,11 +42,13 @@ is meant to be invisible — an accessibility fix, a refactor that must not move
 temporary file and compares. A change that *is* meant to move the picture leaves a new
 `index.png`, and the pull request shows it.
 
-Two skills come with the layer, under `.opencode/skills/`:
+Three skills come with the layer, under `.opencode/skills/`:
 
 - `read-modelroom` — read the docs **and the picture** before changing the room.
 - `create-modelroom-pr` — snapshot first, then open a PR carrying the image, the context
   and the BEHAVIOUR.
+- `manage-modelroom-rooms` — create, rename or remove a room without leaving a broken
+  reference behind.
 
 The snapshot keeps a fixed name (`index.png`) and is overwritten in place, so GitHub can
 diff it on the pull request. Merge with **Squash and Merge**: main keeps the final image

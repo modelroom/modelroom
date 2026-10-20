@@ -3,6 +3,10 @@
 ```
 modelroom [serve] [--port 4321] [--host 127.0.0.1] [--open] [--lang en|ja]
 modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force] [--skip-install] [--no-script]
+modelroom new <room> [--title "Sign in"]
+modelroom rename <old> <new> [--dry-run] [--force]
+modelroom remove <room> [--yes] [--dry-run] [--force]
+modelroom update [--dry-run]
 modelroom check [--json] [--strict]
 modelroom doctor
 modelroom render [<room>] [--all] [--check] [--force] [--device sp|tablet|pc]
@@ -11,7 +15,9 @@ modelroom --version | --help
 ```
 
 `modelroom` with no command is `serve`. `serve` needs Node 20+ and nothing else. `init` only
-copies templates. `check` reads the frontmatter of every room and reports convention problems.
+copies templates. `new`, `rename` and `remove` keep the rooms unique and their references in
+step. `update` refreshes the files modelroom generated. `check` reads the frontmatter of every
+room and reports convention problems.
 `doctor` checks the setup and exits non-zero when something is broken (optionally missing things
 do not count). `render` keeps each room's snapshot png current; `pr-body` prints what a pull
 request description should carry.
@@ -36,12 +42,12 @@ your-repo/
 ├── modelroom/                 # committed
 │   ├── modelroom.json
 │   ├── AGENTS.md
-│   ├── .opencode/skills/       # read-modelroom, create-modelroom-pr
+│   ├── .opencode/skills/       # read-modelroom, create-modelroom-pr, manage-modelroom-rooms
 │   └── rooms/<room>/{BRIEF,SPEC,BEHAVIOUR}.md + index.html + index.png
 └── .modelroom/                # git-ignored state
 ```
 
-`init` writes the room templates, the two skills, and — if missing —
+`init` writes the room templates, the three skills, and — if missing —
 `modelroom/modelroom.json`, `modelroom/AGENTS.md` and a `/.modelroom/` line in the
 project's `.gitignore`.
 An existing project keeps its config; running `init` again only adds what is
@@ -104,6 +110,82 @@ Existing room documents are never rewritten; `--lang` affects new rooms only. To
 a project that already has rooms, pin the language and ask the agent to translate the
 existing `BRIEF.md` / `SPEC.md` / `BEHAVIOUR.md` files — the frontmatter keys and promise
 ids stay as they are.
+
+## new
+
+Adds one room to an existing project — the directory plus every doc the config names and
+the artifact. It is additive: an existing directory is never overwritten.
+
+```
+modelroom new checkout
+modelroom new checkout --title "Checkout"
+```
+
+The name is the room's record, so it must be unique and it must be a lowercase slug
+(`a-z`, `0-9`, `.`, `-`, `_`). A name that differs only by case from an existing room is
+refused, because a case-insensitive disk cannot hold both. `--title` sets the human title
+on `BRIEF.md` (frontmatter and H1) while the directory keeps the slug.
+
+```
+$ modelroom new sign-in
+created room sign-in:
+  modelroom/rooms/sign-in/BRIEF.md
+  ...
+next: npx modelroom (or open http://127.0.0.1:4321/rooms/sign-in)
+```
+
+## rename
+
+Moves the directory and every reference to it. Run it with `--dry-run` first: it prints the
+move and what it would rewrite without writing.
+
+```
+modelroom rename sign-in sign-in-v2 --dry-run
+modelroom rename sign-in sign-in-v2
+```
+
+What is a *reference* is rewritten: the `superseded_by` frontmatter, `/rooms/<name>`,
+`/files/<rooms>/<name>`, and relative links (`../<name>/…`) in every room's docs and html.
+What is *prose* is not — a `title`, an H1, a sentence — because the directory name and the
+name on the screen are allowed to differ. Those places are listed so a person (or the
+agent) can decide:
+
+```
+renamed sign-in → sign-in-v2
+rewrite  modelroom/rooms/checkout/SPEC.md  (2 reference(s))
+    modelroom/rooms/checkout/SPEC.md:4  superseded_by: sign-in — replaced by
+```
+
+The room's chat session moves with it. Because a running `serve` holds that session in
+memory, `rename` refuses while a server is up; stop it first, or pass `--force`.
+
+## remove
+
+Deleting a room is a human decision, so it takes `--yes`. An agent retires a room instead
+with `deprecated: true` and `superseded_by: <room>`. A room another room points at is
+refused unless `--force`, which leaves those references broken.
+
+```
+modelroom remove sign-in --dry-run    # who still points at it? (writes nothing)
+modelroom remove sign-in --yes
+```
+
+`--dry-run` reports before it refuses, so it always shows the referencing rooms. There is no
+undo beyond git: commit the removal on its own so it can be reverted.
+
+## update
+
+Refreshes the files modelroom generated — the skills in `.opencode/skills/` and `AGENTS.md`
+— from the installed version. Those change with the version, so this is how an existing
+project picks them up:
+
+```
+npx modelroom@latest update
+npx modelroom@latest update --dry-run
+```
+
+It never touches a room or `modelroom.json`: those belong to the project. A new install
+gets the same files from `init`.
 
 ## check
 

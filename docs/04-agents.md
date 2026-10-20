@@ -104,15 +104,16 @@ to change that language for new rooms and for the UI; existing documents are not
 ## The snapshot and the pull request
 
 A room's reviewable output is the docs and the snapshot `index.png`, not the markup. An
-agent that only reads `index.html` is reading half the room, so the layer ships two skills
+agent that only reads `index.html` is reading half the room, so the layer ships three skills
 (`init` writes them to `modelroom/.opencode/skills/`):
 
 | Skill | When | What it does |
 |---|---|---|
 | `read-modelroom` | before changing or implementing a room | `render` (idempotent), then read the docs **and the picture** |
 | `create-modelroom-pr` | when a change is ready to review | `render`, commit the room's files together, open a PR with the image, the context and the BEHAVIOUR |
+| `manage-modelroom-rooms` | a room is added, renamed or removed | use the CLI so the unique name and its references move together |
 
-Both lean on two commands:
+The first two lean on two commands:
 
 ```
 modelroom render <room>            # bring the snapshot up to date
@@ -120,9 +121,16 @@ modelroom render <room> --check    # prove the pixels did not move (CI gate)
 modelroom pr-body <room>           # the description's material, as markdown
 ```
 
+Rooms are added, renamed and removed through the CLI, which is what keeps the directory name
+unique and the references to it in step: `modelroom new`, `rename` and `remove`. The script
+rewrites what is a reference (`superseded_by`, `/rooms/<name>`, relative links) and lists the
+prose it leaves alone; the skill carries the reasoning and the approval a removal needs.
+When the layer is upgraded, `modelroom update` refreshes the skills and `AGENTS.md` — the
+files modelroom generated — and never a room or `modelroom.json`.
+
 Skills are plain `SKILL.md` files. OpenCode reads `.opencode/skills/`; Claude Code reads
 `.claude/skills/`, and `.agents/skills/` is read by both. To use the shipped skills with
-another agent, copy or symlink the two directories.
+another agent, copy or symlink the three directories.
 
 **modelroom never touches git or `gh`.** It renders and prints; the agent owns the branch,
 the commit and the pull request. That is the same line the rest of the design layer holds:

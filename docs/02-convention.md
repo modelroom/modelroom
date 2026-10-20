@@ -96,6 +96,11 @@ An agent adds. It does not delete.
 - retire a room → `deprecated: true` and `superseded_by: <room>`
 - remove a file or a key → a human does it
 
+A room is created, renamed and removed through the CLI (`modelroom new`, `rename`,
+`remove`), because the directory name is the room and the references to it have to move
+with it. `rename` rewrites the references it can see and lists the prose it leaves; a
+removal takes `--yes` and is refused while another room points at the room.
+
 That is what makes "the agent keeps the record tidy" safe: every move is additive and
 reversible in git.
 
