@@ -18,6 +18,9 @@ const run = promisify(execFile);
 const pkgDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const cli = join(pkgDir, 'bin', 'modelroom.ts');
 
+/** The version this checkout reports — `init` pins it, so the tests must not. */
+const { version } = JSON.parse(await readFile(join(pkgDir, 'package.json'), 'utf8'));
+
 /** A project with no package manager on PATH: an install, if attempted, fails. */
 const noPackageManager = { PATH: '/nonexistent' };
 
@@ -255,8 +258,11 @@ test('a failed install falls back to the npx script and init still succeeds', as
     const pkg = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8'));
     assert.equal(pkg.scripts.modelroom, 'npx --yes modelroom');
     assert.equal(pkg.devDependencies, undefined);
-    assert.match(result.stdout, /could not install modelroom@\^0\.1\.0 with npm/);
-    assert.match(result.stdout, /npm install --save-dev modelroom@\^0\.1\.0/);
+    // The message carries the version this checkout reports, so a release bump
+    // does not break it.
+    const spec = `modelroom@^${version}`;
+    assert.ok(result.stdout.includes(`could not install ${spec} with npm`));
+    assert.ok(result.stdout.includes(`npm install --save-dev ${spec}`));
     assert.match(
       await readFile(join(dir, 'modelroom', 'rooms', 'checkout', 'BRIEF.md'), 'utf8'),
       /One sentence/,

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/modelroom/modelroom/compare/modelroom-v0.1.0...modelroom-v0.2.0) (2026-10-20)
+
+
+### Features
+
+* a room's snapshot is a deliverable, not a cache ([#21](https://github.com/modelroom/modelroom/issues/21)) ([e6a8d71](https://github.com/modelroom/modelroom/commit/e6a8d7140b600b8cb3c9d4623570b407f5ca89ea))
+* **chat:** answer the agent's question in the chat ([#23](https://github.com/modelroom/modelroom/issues/23)) ([d2d00dc](https://github.com/modelroom/modelroom/commit/d2d00dc27f7dd5d810b641d95c5521484e2fe7a5))
+
 ## [0.1.0](https://github.com/modelroom/modelroom/compare/modelroom-v0.0.6...modelroom-v0.1.0) (2026-10-19)
 
 
