@@ -302,11 +302,22 @@ else if (cmd === 'init') {
     written.push(rel(agentsDest, cwd));
   }
 
-  // The skills, next to the agent that runs in this layer. OpenCode reads
-  // `.opencode/skills/`; `.claude/skills/` and `.agents/skills/` work too — see
-  // docs/04-agents.md for pointing another agent at them.
+  // DESIGN.md is the project's, not modelroom's: `init` seeds it once and
+  // `update` leaves it alone, the way it leaves a room alone. The layer's shared
+  // tokens, components and accessibility floor live here; a room references it.
+  const designDest = join(cfg.rootDir, 'DESIGN.md');
+  if (!force && (await exists(designDest))) {
+    console.log(t(lang, 'cli.init.skip', { label: rel(designDest, cwd) }));
+  } else {
+    await writeFile(designDest, await readTemplate(templatesDir, lang, 'DESIGN.md'));
+    written.push(rel(designDest, cwd));
+  }
+
+  // The skills, next to the agent that runs in this layer. `.agents/skills/` is
+  // the portable location — OpenCode and Claude Code both read it. (OpenCode
+  // also reads its own `.opencode/skills/`.) See docs/04-agents.md.
   for (const id of SKILLS) {
-    const dest = join(cfg.rootDir, '.opencode', 'skills', id, 'SKILL.md');
+    const dest = join(cfg.rootDir, '.agents', 'skills', id, 'SKILL.md');
     if (!force && (await exists(dest))) {
       console.log(t(lang, 'cli.init.skip', { label: rel(dest, cwd) }));
       continue;
@@ -738,6 +749,14 @@ else if (cmd === 'doctor') {
     }),
     optional: true,
   });
+  const designPath = join(cfg.rootDir, 'DESIGN.md');
+  checks.push({
+    ok: await exists(designPath),
+    label: t(lang, (await exists(designPath)) ? 'cli.doctor.design' : 'cli.doctor.designMissing', {
+      path: rel(designPath, cwd),
+    }),
+    optional: true,
+  });
   if (
     (await exists(join(cwd, 'modelroom.json'))) &&
     (await exists(join(cwd, 'modelroom', 'modelroom.json')))
@@ -976,7 +995,7 @@ async function generatedFiles(
   const out: Array<{ path: string; text: string }> = [];
   for (const id of SKILLS) {
     out.push({
-      path: join(cfg.rootDir, '.opencode', 'skills', id, 'SKILL.md'),
+      path: join(cfg.rootDir, '.agents', 'skills', id, 'SKILL.md'),
       text: await readTemplate(templatesDir, lang, join('skills', id, 'SKILL.md')),
     });
   }

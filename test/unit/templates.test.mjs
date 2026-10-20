@@ -13,6 +13,8 @@ test('every language ships the agent instructions and every room file', async ()
   for (const lang of LANGS) {
     const agents = await readFile(join(templatesDir, lang, 'AGENTS.md'), 'utf8');
     assert.ok(agents.length > 100, `${lang}/AGENTS.md is not empty`);
+    const design = await readFile(join(templatesDir, lang, 'DESIGN.md'), 'utf8');
+    assert.ok(design.length > 100, `${lang}/DESIGN.md is not empty`);
     for (const file of ROOM_FILES) {
       const text = await readFile(join(templatesDir, lang, 'room', file), 'utf8');
       assert.ok(text.length > 50, `${lang}/room/${file} is not empty`);

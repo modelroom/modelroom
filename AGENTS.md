@@ -62,7 +62,9 @@ web/                     the tool's UI, as served (shells committed; bundle and 
 web/assets/app.js        the built bundle; never edited by hand
 web/*.html               the four shells: `data-app` + the bundle, nothing else
 templates/<lang>/       what `modelroom init` writes (en, ja)
-templates/<lang>/skills/ the three skills `init` drops into `.opencode/skills/`
+templates/<lang>/AGENTS.md  the layer's agent instructions (design layer)
+templates/<lang>/DESIGN.md  the layer's design rules; project-owned, never refreshed by `update`
+templates/<lang>/skills/ the three skills `init` drops into `.agents/skills/`
 templates/<lang>/example/rooms/  the demo room, per language (this repo serves the en one)
 templates/modelroom.json  shared config template with {{rooms}}/{{state}}/{{lang}}
 test/                   vitest: unit + one end-to-end pass over the server

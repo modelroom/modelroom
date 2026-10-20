@@ -249,11 +249,13 @@ test('update refreshes the generated files and leaves the project alone', async 
   const dir = await project();
   try {
     await cliRun(dir, ['init', 'checkout', '--lang', 'en']);
-    const skill = join(dir, 'modelroom', '.opencode', 'skills', 'read-modelroom', 'SKILL.md');
+    const skill = join(dir, 'modelroom', '.agents', 'skills', 'read-modelroom', 'SKILL.md');
     const agents = join(dir, 'modelroom', 'AGENTS.md');
+    const design = join(dir, 'modelroom', 'DESIGN.md');
     const config = join(dir, 'modelroom', 'modelroom.json');
     await writeFile(skill, 'edited\n');
     await writeFile(agents, 'edited\n');
+    await writeFile(design, 'mine\n');
     await writeFile(room(dir, 'checkout', 'BRIEF.md'), 'mine\n');
     const configText = (await readFile(config, 'utf8')) + '\n';
     await writeFile(config, configText);
@@ -272,8 +274,9 @@ test('update refreshes the generated files and leaves the project alone', async 
       await readFile(agents, 'utf8'),
       await readFile(join(templates, 'AGENTS.md'), 'utf8'),
     );
-    // A room and the committed config are the project's, not modelroom's.
+    // A room, DESIGN.md and the committed config are the project's, not modelroom's.
     assert.equal(await readFile(room(dir, 'checkout', 'BRIEF.md'), 'utf8'), 'mine\n');
+    assert.equal(await readFile(design, 'utf8'), 'mine\n');
     assert.equal(await readFile(config, 'utf8'), configText);
 
     const again = await cliRun(dir, ['update']);

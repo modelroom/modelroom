@@ -23,6 +23,17 @@ move with it.
 Nothing else. Do not reach outside this directory; the design layer never reads the
 application code. The application is handed this layer, not the other way round.
 
+## The layer's design rules
+
+`DESIGN.md` holds what is shared across rooms — the tokens, the components, the
+accessibility floor. A room takes from it and names what it took in its `SPEC.md`; it
+does not invent a colour or a component that is already there. Change `DESIGN.md` only
+when the decision is genuinely layer-wide — otherwise it belongs to the room.
+
+It also names the design system's MCP server, when there is one. The server itself is
+configured in `opencode.json`, which OpenCode reads from this layer; use its tools to
+look components and tokens up before writing markup.
+
 ## How to work
 
 1. Read the room's `BRIEF.md` first, then `SPEC.md` and `BEHAVIOUR.md`.
@@ -44,7 +55,7 @@ is meant to be invisible — an accessibility fix, a refactor that must not move
 temporary file and compares. A change that *is* meant to move the picture leaves a new
 `index.png`, and the pull request shows it.
 
-Three skills come with the layer, under `.opencode/skills/`:
+Three skills come with the layer, under `.agents/skills/`:
 
 - `read-modelroom` — read the docs **and the picture** before changing the room.
 - `create-modelroom-pr` — snapshot first, then open a PR carrying the image, the context

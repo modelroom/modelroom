@@ -6,4 +6,4 @@ artifact, not here.
 - **Where it is used:** (device, input, environment)
 - **States:** (e.g. default, empty, error — and the file each one lives in)
 - **Constraints:** (what must stay true regardless of the layout)
-- **Uses:** (shared components and tokens this room is allowed to use)
+- **Uses:** (what this room takes from the layer's `DESIGN.md` — its tokens and components)

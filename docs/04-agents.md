@@ -105,7 +105,7 @@ to change that language for new rooms and for the UI; existing documents are not
 
 A room's reviewable output is the docs and the snapshot `index.png`, not the markup. An
 agent that only reads `index.html` is reading half the room, so the layer ships three skills
-(`init` writes them to `modelroom/.opencode/skills/`):
+(`init` writes them to `modelroom/.agents/skills/`):
 
 | Skill | When | What it does |
 |---|---|---|
@@ -126,11 +126,11 @@ unique and the references to it in step: `modelroom add`, `rename` and `remove`.
 rewrites what is a reference (`superseded_by`, `/rooms/<name>`, relative links) and lists the
 prose it leaves alone; the skill carries the reasoning and the approval a removal needs.
 When the layer is upgraded, `modelroom update` refreshes the skills and `AGENTS.md` — the
-files modelroom generated — and never a room or `modelroom.json`.
+files modelroom generated — and never `DESIGN.md`, a room or `modelroom.json`.
 
-Skills are plain `SKILL.md` files. OpenCode reads `.opencode/skills/`; Claude Code reads
-`.claude/skills/`, and `.agents/skills/` is read by both. To use the shipped skills with
-another agent, copy or symlink the three directories.
+Skills are plain `SKILL.md` files. They are written to `.agents/skills/`, which OpenCode
+and Claude Code both read; OpenCode also reads its own `.opencode/skills/`. To use the
+shipped skills with an agent that reads neither, copy or symlink the three directories.
 
 **modelroom never touches git or `gh`.** It renders and prints; the agent owns the branch,
 the commit and the pull request. That is the same line the rest of the design layer holds:
@@ -139,6 +139,37 @@ the tool stays inside `rooms/` and hands the rest over.
 Merge the pull request with **Squash and Merge**. The snapshot is a binary under a fixed
 name, so the branch holds one per revision; squashing leaves main with a single current
 image and lets git collect the rest. `05-preview-images.md` has the reasoning.
+
+## The design system, and MCP
+
+A room is drawn from the project's design system, and an agent often reads that design
+system through its **MCP server** — component and token lookups instead of guessing. The
+layer keeps the two halves apart:
+
+- `DESIGN.md` names the design system, where its truth lives, and the MCP server that
+  carries it. It is the project's file; `update` never touches it.
+- The server itself is *configured* in `opencode.json`. modelroom runs `opencode serve`
+  with its working directory set to the layer (`modelroom/`), so OpenCode reads
+  `modelroom/opencode.json`, plus any `opencode.json` above it up to the repository root.
+  Add the server under `mcp`:
+
+  ```json
+  {
+    "$schema": "https://opencode.ai/config.json",
+    "mcp": {
+      "design-system": { "type": "remote", "url": "https://example.com/mcp" }
+    }
+  }
+  ```
+
+  OpenCode V2 nests these under `mcp.servers` instead. Keep secrets in the environment —
+  OpenCode substitutes `{env:NAME}` — and out of the committed file.
+
+There is no portable MCP file across agents: `.mcp.json` is Claude Code's,
+`.cursor/mcp.json` is Cursor's, `.vscode/mcp.json` is VS Code's, and OpenCode reads none
+of them. If the layer is driven by more than one agent, each gets its own file; OpenCode's
+is `opencode.json`. The shipped `read-modelroom` skill carries the *how*: read `DESIGN.md`,
+then use the design system's MCP tools before writing markup.
 
 ## Writing an adapter
 

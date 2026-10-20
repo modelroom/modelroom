@@ -23,14 +23,20 @@ just the markup.
    npx modelroom render <room>
    ```
 
-3. Read, in order: `BRIEF.md`, `SPEC.md`, `BEHAVIOUR.md`.
-4. **Look at `index.png`.** It is the room's screen at the committed width.
+3. Read `DESIGN.md` at the layer root. It names the design system the rooms draw
+   from and, when the project reads it through Model Context Protocol, the MCP
+   server that carries it. **Use that server's tools** to look up the components
+   and tokens a room uses before you write markup — do not invent a colour or a
+   component the design system already defines.
+4. Read, in order: `BRIEF.md`, `SPEC.md`, `BEHAVIOUR.md`.
+5. **Look at `index.png`.** It is the room's screen at the committed width.
    Treat it as the visual source of truth; the html explains how it was drawn.
-5. Work from the docs and the picture together. If they disagree, say so — do
+6. Work from the docs and the picture together. If they disagree, say so — do
    not quietly pick one.
 
 ## What the files mean
 
+- `DESIGN.md` — the design system and the tokens/components shared across rooms.
 - `BRIEF.md` — why the room exists.
 - `SPEC.md` — what the picture cannot show (devices, states, constraints).
 - `BEHAVIOUR.md` — what the screen promises, each promise by id (`@checkout-1`).

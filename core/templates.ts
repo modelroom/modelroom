@@ -16,7 +16,8 @@ export const ROOM_FILES = ['BRIEF.md', 'SPEC.md', 'BEHAVIOUR.md', 'index.html'] 
 /**
  * The skills `init` drops into the design layer, so the agent that runs there
  * knows to read the snapshot, to put it in the pull request, and how to create,
- * rename or remove a room without leaving a broken reference behind.
+ * rename or remove a room without leaving a broken reference behind. They land in
+ * `.agents/skills/`, the portable location both OpenCode and Claude Code read.
  */
 export const SKILLS = ['read-modelroom', 'create-modelroom-pr', 'manage-modelroom-rooms'] as const;
 
