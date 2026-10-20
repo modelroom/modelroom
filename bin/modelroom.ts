@@ -5,10 +5,11 @@
 //   modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force] [--skip-install] [--no-script]
 //   modelroom check [--json] [--strict]
 //   modelroom doctor
+//   modelroom render [<room>] [--all] [--check] [--force] [--device sp|tablet|pc]
 //
 // `modelroom` with no command serves. See docs/03-cli.md.
 
-import { readFile, writeFile, mkdir, access, readdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, access, readdir, stat } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, join, relative, resolve, basename } from 'node:path';
@@ -16,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { findConfigPath, isLang, loadConfig, type Config, type Lang } from '../core/config.ts';
 import { detectLang } from '../core/locale.ts';
 import { t, type MessageKey } from '../i18n/catalog.ts';
-import { readTemplate, ROOM_FILES } from './templates.ts';
+import { readTemplate, ROOM_FILES, SKILLS } from './templates.ts';
 import {
   LOCAL_COMMAND,
   NPX_COMMAND,
@@ -30,7 +31,7 @@ import {
   parseManifest,
 } from './manifest.ts';
 import { createModelroom } from '../server/http.ts';
-import { listRoomNames } from '../core/rooms.ts';
+import { listRoomNames, roomInfo, snapshotName } from '../core/rooms.ts';
 import { lintRooms } from './lint.ts';
 import { findPackageRoot } from '../core/pkg.ts';
 
@@ -51,6 +52,8 @@ const booleanFlags = new Set([
   'strict',
   'help',
   'version',
+  'all',
+  'check',
 ]);
 for (let i = 0; i < args.length; i++) {
   const arg = args[i] as string;
@@ -178,6 +181,7 @@ else if (cmd === 'init') {
       port: 4321,
       host: '127.0.0.1',
       lang,
+      thumbnail: { device: 'tablet', scale: 1 },
       agent: {
         adapter: 'opencode',
         command: 'opencode',
@@ -257,6 +261,20 @@ else if (cmd === 'init') {
   } else {
     await writeFile(agentsDest, await readTemplate(templatesDir, lang, 'AGENTS.md'));
     written.push(rel(agentsDest, cwd));
+  }
+
+  // The skills, next to the agent that runs in this layer. OpenCode reads
+  // `.opencode/skills/`; `.claude/skills/` and `.agents/skills/` work too — see
+  // docs/04-agents.md for pointing another agent at them.
+  for (const id of SKILLS) {
+    const dest = join(cfg.rootDir, '.opencode', 'skills', id, 'SKILL.md');
+    if (!force && (await exists(dest))) {
+      console.log(t(lang, 'cli.init.skip', { label: rel(dest, cwd) }));
+      continue;
+    }
+    await mkdir(dirname(dest), { recursive: true });
+    await writeFile(dest, await readTemplate(templatesDir, lang, join('skills', id, 'SKILL.md')));
+    written.push(rel(dest, cwd));
   }
 
   // The project root: the one directory outside modelroom/ that init touches.
@@ -340,6 +358,108 @@ else if (cmd === 'check') {
   process.exit(stats.errors || (opts.strict && stats.warnings) ? 1 : 0);
 }
 
+// ── render ──────────────────────────────────────────────────────────────────
+// The png next to an artifact is the room's snapshot: what a reviewer reads and
+// what GitHub diffs on a pull request. `render` brings it up to date and is
+// idempotent — a render whose bytes do not change writes nothing, so the
+// committed file only moves when the picture does. `--check` renders to a temp
+// file and compares instead, so CI can hold the line.
+else if (cmd === 'render') {
+  const cfg = await loadConfig(cwd);
+  const lang = isLang(opts.lang) ? opts.lang : cfg.lang;
+  const device = str(opts.device) ?? cfg.thumbnail.device;
+  const scale = str(opts.scale) ? Number(opts.scale) : cfg.thumbnail.scale;
+  const check = Boolean(opts.check);
+  const force = Boolean(opts.force);
+  const names = await listRoomNames(cfg);
+  const named = positional[1];
+  if (named && !names.includes(named)) {
+    console.error(t(lang, 'cli.render.noRoom', { room: named }));
+    process.exit(1);
+  }
+  // No argument renders every room; only the stale ones actually render.
+  const targets = opts.all || !named ? names : [named];
+  if (!targets.length) {
+    console.error(t(lang, 'cli.render.needsTarget'));
+    process.exit(1);
+  }
+
+  const { renderArtifact, checkArtifact } = await import('../server/artifact.ts');
+  let written = 0;
+  let same = 0;
+  let failed = 0;
+  for (const room of targets) {
+    if (check) {
+      const result = await checkArtifact({ cfg, room, device, scale });
+      if (!result.ok) {
+        failed++;
+        console.log(t(lang, 'cli.render.error', { room, message: result.error }));
+      } else if (result.same) {
+        same++;
+        console.log(t(lang, 'cli.render.same', { room }));
+      } else {
+        failed++;
+        console.log(t(lang, 'cli.render.differs', { room }));
+      }
+      continue;
+    }
+    const result = await renderArtifact({ cfg, room, device, scale, force });
+    if (!result.ok) {
+      failed++;
+      console.log(t(lang, 'cli.render.error', { room, message: result.error }));
+    } else if (result.changed) {
+      written++;
+      console.log(t(lang, 'cli.render.updated', { room, file: rel(result.png, cwd) }));
+    } else {
+      same++;
+      console.log(t(lang, 'cli.render.unchanged', { room }));
+    }
+  }
+  if (check) {
+    console.log(
+      `\n${t(lang, failed ? 'cli.render.checkSummary' : 'cli.render.upToDate', { count: failed })}`,
+    );
+  } else {
+    console.log(`\n${t(lang, 'cli.render.summary', { rooms: targets.length, written, same })}`);
+  }
+  process.exit(failed ? 1 : 0);
+}
+
+// ── pr-body ─────────────────────────────────────────────────────────────────
+// The material a reviewer needs, in one place: what the room is, where the
+// snapshot is, and what it promises. The agent fills in the diff context and
+// opens the PR; modelroom does not touch git or gh.
+else if (cmd === 'pr-body') {
+  const cfg = await loadConfig(cwd);
+  const lang = isLang(opts.lang) ? opts.lang : cfg.lang;
+  const named = positional[1];
+  const names = await listRoomNames(cfg);
+  if (!named || !names.includes(named)) {
+    console.error(t(lang, 'cli.render.noRoom', { room: named ?? '' }));
+    process.exit(1);
+  }
+  const info = await roomInfo(cfg, named);
+  const png = snapshotName(cfg.artifact);
+  const strip = (text: string): string =>
+    text.replace(/^\uFEFF?---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
+  const behaviour = await readFile(join(cfg.roomsDir, named, 'BEHAVIOUR.md'), 'utf8').catch(
+    () => null,
+  );
+  const imageUrl = str(opts['image-url']);
+  const lines: string[] = [`## ${info.title || named}`, ''];
+  if (info.summary) lines.push(info.summary, '');
+  lines.push(
+    imageUrl
+      ? `![${info.title || named}](${imageUrl})`
+      : t(lang, 'cli.pr.snapshot', { path: `${cfg.rooms}/${named}/${png}` }),
+    '',
+  );
+  if (behaviour && strip(behaviour).trim()) {
+    lines.push(t(lang, 'cli.pr.behaviour'), '', strip(behaviour).trim(), '');
+  }
+  console.log(lines.join('\n').trimEnd());
+}
+
 // ── doctor ──────────────────────────────────────────────────────────────────
 else if (cmd === 'doctor') {
   const cfg = await loadConfig(cwd);
@@ -413,6 +533,7 @@ else if (cmd === 'doctor') {
     optional: !pw,
   });
 
+  const png = snapshotName(cfg.artifact);
   for (const room of rooms) {
     const missing: string[] = [];
     for (const d of cfg.docs) if (!(await exists(join(cfg.roomsDir, room, d)))) missing.push(d);
@@ -426,6 +547,17 @@ else if (cmd === 'doctor') {
             docs: missing.join(', '),
           }) + (hasArtifact ? '' : t(lang, 'cli.doctor.noArtifact', { artifact: cfg.artifact })),
       }),
+    });
+    if (!hasArtifact) continue;
+    // A stale snapshot is a warning, not a failure: it is exactly what the next
+    // render fixes, and a checkout without Playwright cannot fix it here.
+    const source = await stat(join(cfg.roomsDir, room, cfg.artifact)).catch(() => null);
+    const snapshot = await stat(join(cfg.roomsDir, room, png)).catch(() => null);
+    const stale = !snapshot || (source?.mtimeMs ?? 0) > snapshot.mtimeMs;
+    checks.push({
+      ok: !stale,
+      optional: true,
+      label: t(lang, stale ? 'cli.doctor.snapshotStale' : 'cli.doctor.snapshot', { room, png }),
     });
   }
 

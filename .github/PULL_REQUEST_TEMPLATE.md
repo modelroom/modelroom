@@ -9,6 +9,6 @@
 ## Checks
 
 - [ ] `npm run verify` passes
-- [ ] `ui/modelroom.css` rebuilt if `ui/` or `client/` changed
+- [ ] `web/modelroom.css` rebuilt if `web/` or `client/` changed
 - [ ] No new runtime dependencies (or a reason in the description)
 - [ ] Docs updated when behaviour or the convention changed

@@ -17,10 +17,13 @@ usage
   modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force] [--skip-install] [--no-script]
   modelroom check [--json] [--strict]
   modelroom doctor
+  modelroom render [<room>] [--all] [--check] [--force] [--device sp|tablet|pc]
+  modelroom pr-body <room> [--image-url <url>]
   modelroom --version | --help
 
 A room is one screen: modelroom/rooms/<name>/ with BRIEF.md, SPEC.md,
-BEHAVIOUR.md and an artifact.
+BEHAVIOUR.md and an artifact. The artifact's png is the room's snapshot: it is
+rendered next to it and committed, so a reviewer reads the picture.
 Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
 (git-ignore it).`,
   'cli.error.unknownCommand': 'unknown command: {cmd}',
@@ -80,6 +83,23 @@ Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
   'cli.doctor.allGood': 'all good',
   'cli.doctor.problems': '{count} problem(s)',
   'cli.doctor.optional': ' (optional)',
+  'cli.doctor.snapshot': 'room {room}: snapshot {png}',
+  'cli.doctor.snapshotStale':
+    'room {room}: snapshot {png} is older than the artifact (run: npx modelroom render)',
+  'cli.render.updated': 'render  {room}  {file}',
+  'cli.render.unchanged': 'ok      {room}  (unchanged)',
+  'cli.render.same': 'ok      {room}  (snapshot matches)',
+  'cli.render.stale': 'stale   {room}  ({artifact} is newer than {png})',
+  'cli.render.differs': 'stale   {room}  (snapshot no longer matches {artifact})',
+  'cli.render.error': 'error   {room}  {message}',
+  'cli.render.noRoom': 'no such room: {room}',
+  'cli.render.summary': '{rooms} room(s): {written} written, {same} unchanged',
+  'cli.render.checkSummary': '{count} snapshot(s) out of date',
+  'cli.render.upToDate': 'snapshots are up to date',
+  'cli.render.needsTarget': 'name a room, or pass --all',
+  'cli.pr.snapshot':
+    '**Snapshot:** `{path}` — review the picture under Files changed (the png diff).',
+  'cli.pr.behaviour': '## Behaviour',
 
   // ── lint / frontmatter ─────────────────────────────────────────────────────
   'lint.reserved-type': '{key} must be {allowed}, got {got}',
@@ -117,6 +137,8 @@ Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
   'server.agentWorking': '{room}: agent is working…',
   'server.rendering': '{room}: rendering {file}…',
   'server.rendered': '{room}: {file} updated',
+  'server.renderUnchanged': ' (unchanged)',
+  'server.renderFailed': 'could not render the artifact',
   'server.installHint':
     'PNG rendering needs Playwright:\n  npm install --include=dev playwright && npx playwright install chromium\n(modelroom works without it — the room just has no thumbnail.)',
 
@@ -166,6 +188,7 @@ Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
     'A room is one screen: rooms/<name>/ with BRIEF.md, SPEC.md, BEHAVIOUR.md and an artifact.',
   'dashboard.noThumb': 'no thumbnail yet',
   'dashboard.noArtifact': 'no artifact yet',
+  'dashboard.thumbStale': 'snapshot out of date',
   'dashboard.roomsCount': 'rooms {total}',
   'dashboard.roomsFiltered': '{visible} / {total}',
   'dashboard.archivedBadge': 'archived',
@@ -249,6 +272,7 @@ Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
   'artifact.noArtifact': 'No artifact yet — {artifact}. Ask the agent to create it.',
   'artifact.thumbnail': 'artifact thumbnail',
   'artifact.noPng': 'No PNG yet. Use “make png” — it needs Playwright.',
+  'artifact.stale': 'The snapshot is older than the artifact. Use “make png”.',
   'artifact.reload': 'Reload the artifact',
   'artifact.empty': 'No artifact yet.',
   'artifact.error': 'Could not render the artifact.',
@@ -312,11 +336,11 @@ Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
   'settings.agentLine': 'agent name {agent}',
   'settings.modelLine': 'model {model}',
   'settings.default': 'default',
-  'settings.thumbnails': 'Thumbnails',
+  'settings.thumbnails': 'Snapshots',
   'settings.thumbnailsHint':
-    'Rendering a room to PNG is optional and needs Playwright. modelroom works without it — rooms simply show no thumbnail.',
+    'A room keeps a png next to its artifact: the picture is what a reviewer reads, and GitHub diffs it on a pull request. modelroom renders it when the artifact changes; rendering needs Playwright.',
   'settings.thumbnailsAlert':
-    'Rendering an artifact to PNG needs Playwright and a browser: {command}. modelroom works without it — rooms simply show no thumbnail.',
+    'Rendering the snapshot needs Playwright and a browser: {command}. Until it is installed, a room keeps whatever snapshot is already committed.',
   'settings.saved': 'saved {time}',
   'settings.failed': 'failed: {error}',
   'settings.couldNotReach': 'failed: could not reach the server',
@@ -372,10 +396,14 @@ export const ja: Messages = {
   modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force] [--skip-install] [--no-script]
   modelroom check [--json] [--strict]
   modelroom doctor
+  modelroom render [<room>] [--all] [--check] [--force] [--device sp|tablet|pc]
+  modelroom pr-body <room> [--image-url <url>]
   modelroom --version | --help
 
 room は1画面です: modelroom/rooms/<name>/ に BRIEF.md、SPEC.md、
-BEHAVIOUR.md、そして artifact を置きます。
+BEHAVIOUR.md、そして artifact を置きます。artifact の png は room の
+スナップショットです — artifact の隣に生成・コミットし、レビュアーは
+その画像を読みます。
 設定は modelroom/modelroom.json、ローカル状態は .modelroom/state.json
 （git-ignore してください）。`,
   'cli.error.unknownCommand': '不明なコマンド: {cmd}',
@@ -437,6 +465,23 @@ BEHAVIOUR.md、そして artifact を置きます。
   'cli.doctor.allGood': 'すべて正常です',
   'cli.doctor.problems': '{count} 件の問題',
   'cli.doctor.optional': '（任意）',
+  'cli.doctor.snapshot': 'room {room}: スナップショット {png}',
+  'cli.doctor.snapshotStale':
+    'room {room}: スナップショット {png} が artifact より古い（npx modelroom render を実行）',
+  'cli.render.updated': 'render  {room}  {file}',
+  'cli.render.unchanged': 'ok      {room}  （変更なし）',
+  'cli.render.same': 'ok      {room}  （スナップショット一致）',
+  'cli.render.stale': 'stale   {room}  （{artifact} が {png} より新しい）',
+  'cli.render.differs': 'stale   {room}  （スナップショットが {artifact} と一致しません）',
+  'cli.render.error': 'error   {room}  {message}',
+  'cli.render.noRoom': 'room がありません: {room}',
+  'cli.render.summary': '{rooms} room: {written} 件を書き込み、{same} 件は変更なし',
+  'cli.render.checkSummary': '{count} 件のスナップショットが古い',
+  'cli.render.upToDate': 'スナップショットは最新です',
+  'cli.render.needsTarget': 'room を指定するか --all を付けてください',
+  'cli.pr.snapshot':
+    '**スナップショット:** `{path}` — 画像の差分は Files changed（png の diff）で確認できます。',
+  'cli.pr.behaviour': '## ふるまい',
 
   // ── lint / frontmatter ─────────────────────────────────────────────────────
   'lint.reserved-type': '{key} は {allowed} である必要があります（実際は {got}）',
@@ -474,6 +519,8 @@ BEHAVIOUR.md、そして artifact を置きます。
   'server.agentWorking': '{room}: エージェントが作業中…',
   'server.rendering': '{room}: {file} を描画中…',
   'server.rendered': '{room}: {file} を更新しました',
+  'server.renderUnchanged': '（変更なし）',
+  'server.renderFailed': 'artifact を描画できませんでした',
   'server.installHint':
     'PNG 生成には Playwright が必要です:\n  npm install --include=dev playwright && npx playwright install chromium\n（なくても modelroom は動きます — room のサムネイルが出ないだけです。）',
 
@@ -522,6 +569,7 @@ BEHAVIOUR.md、そして artifact を置きます。
   'dashboard.noRoomsHint':
     'room は1画面です: rooms/<name>/ に BRIEF.md、SPEC.md、BEHAVIOUR.md、artifact を置きます。',
   'dashboard.noThumb': 'サムネイルはまだありません',
+  'dashboard.thumbStale': 'スナップショットが古い',
   'dashboard.noArtifact': 'artifact はまだありません',
   'dashboard.roomsCount': 'rooms {total}',
   'dashboard.roomsFiltered': '{visible} / {total}',
@@ -607,6 +655,7 @@ BEHAVIOUR.md、そして artifact を置きます。
   'artifact.noArtifact':
     'artifact はまだありません — {artifact}。エージェントに作成を依頼してください。',
   'artifact.thumbnail': 'artifact のサムネイル',
+  'artifact.stale': 'スナップショットが artifact より古いです。「make png」を使ってください。',
   'artifact.noPng': 'PNG はまだありません。「PNG 生成」を使います（Playwright が必要）。',
   'artifact.reload': 'Artifact を再読み込み',
   'artifact.empty': 'Artifact はまだありません。',
@@ -671,11 +720,11 @@ BEHAVIOUR.md、そして artifact を置きます。
   'settings.agentLine': 'agent 名 {agent}',
   'settings.modelLine': 'model {model}',
   'settings.default': '既定',
-  'settings.thumbnails': 'サムネイル',
+  'settings.thumbnails': 'スナップショット',
   'settings.thumbnailsHint':
-    'room を PNG にするのは任意で、Playwright が必要です。なくても modelroom は動きます — サムネイルが出ないだけです。',
+    'room は artifact の隣に png を持ちます。レビュアーが読むのはこの画像で、PR では GitHub が画像の差分を表示します。artifact が変わると modelroom が描画します（Playwright が必要）。',
   'settings.thumbnailsAlert':
-    'artifact を PNG にするには Playwright とブラウザが必要です: {command}。なくても modelroom は動きます — サムネイルが出ないだけです。',
+    'スナップショットの描画には Playwright とブラウザが必要です: {command}。インストールするまでは、コミット済みのスナップショットをそのまま使います。',
   'settings.saved': '保存しました {time}',
   'settings.failed': '失敗: {error}',
   'settings.couldNotReach': '失敗: サーバーに接続できません',

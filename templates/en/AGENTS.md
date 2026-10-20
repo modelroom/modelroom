@@ -12,6 +12,9 @@ You are working inside the design layer (`modelroom/`). Write the room's prose i
 - `rooms/<room>/BEHAVIOUR.md` — what it promises (operations and results)
 - `rooms/<room>/index.html` — the artifact itself
 
+`rooms/<room>/index.png` is the artifact's rendering: do not hand-edit it, produce
+it with `npx modelroom render <room>` and commit it with the html.
+
 Nothing else. Do not reach outside this directory; the design layer never reads the
 application code. The application is handed this layer, not the other way round.
 
@@ -25,6 +28,26 @@ application code. The application is handed this layer, not the other way round.
    two files; reference it by id (`@verb-1`) instead.
 5. Promises that need the real system (records, timestamps, permissions) do not belong in
    this layer.
+6. After changing `index.html`, run `npx modelroom render <room>` so `index.png` matches.
+   The picture is what gets reviewed; a stale snapshot is worse than no commit.
+
+## The picture is the deliverable
+
+The room's reviewable output is the docs and the snapshot, not the markup. When a change
+is meant to be invisible — an accessibility fix, a refactor that must not move a pixel —
+`npx modelroom render <room> --check` proves the pixels are unchanged: it renders to a
+temporary file and compares. A change that *is* meant to move the picture leaves a new
+`index.png`, and the pull request shows it.
+
+Two skills come with the layer, under `.opencode/skills/`:
+
+- `read-modelroom` — read the docs **and the picture** before changing the room.
+- `create-modelroom-pr` — snapshot first, then open a PR carrying the image, the context
+  and the BEHAVIOUR.
+
+The snapshot keeps a fixed name (`index.png`) and is overwritten in place, so GitHub can
+diff it on the pull request. Merge with **Squash and Merge**: main keeps the final image
+and git collects the intermediate ones.
 
 ## Conventions
 

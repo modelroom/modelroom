@@ -24,7 +24,8 @@ bin/manifest.ts         the consumer's package.json, edited minimally (`npm run 
 server/http.ts          HTTP + SSE + static + agent spawn
 server/agents/index.ts  adapters: opencode | command
 server/opencode.ts      the opencode session reader (turns, parts, stats)
-server/artifact.ts      optional HTML → PNG (Playwright, dynamically imported)
+server/artifact.ts      HTML → PNG (Playwright, dynamically imported)
+server/thumbs.ts        keeps every room's snapshot current (serial, idempotent)
 core/config.ts          config and state: modelroom.json + .modelroom/state.json
 core/rooms.ts           room discovery, status parsing
 core/facets.ts          facets, filters, search built from the records
@@ -42,16 +43,17 @@ client/                 the tool's UI source (React + Mantine + CodeMirror)
     FacetFilter.tsx     the filter control (MultiSelect, or Combobox + virtualizer)
   room/                 the room app
   settings/             the agent settings
-  kit.tsx               the component workshop (`ui/kit.html`)
+  kit.tsx               the component workshop (`web/kit.html`)
   main.tsx              the one entry: the apps, picked from the shell's `data-app`
   lib/api.ts            everything the UI asks of the server, typed once
-  modelroom.css         Mantine's stylesheet + the tool's own extras → ui/modelroom.css
-scripts/build-client.mjs  esbuild → ui/assets/app.js (committed)
+  modelroom.css         Mantine's stylesheet + the tool's own extras → web/modelroom.css
+scripts/build-client.mjs  esbuild → web/assets/app.js (committed)
 scripts/verify-ui.mjs   browser pass: console, axe, the filter, screenshots
-ui/                     the tool's UI, as served (shells + built assets, committed)
-ui/assets/app.js        the built bundle; never edited by hand
-ui/*.html               the four shells: `data-app` + the bundle, nothing else
+web/                     the tool's UI, as served (shells + built assets, committed)
+web/assets/app.js        the built bundle; never edited by hand
+web/*.html               the four shells: `data-app` + the bundle, nothing else
 templates/<lang>/       what `modelroom init` writes (en, ja)
+templates/<lang>/skills/ the two skills `init` drops into `.opencode/skills/`
 templates/<lang>/example/rooms/  the demo room, per language (this repo serves the en one)
 templates/modelroom.json  shared config template with {{rooms}}/{{state}}/{{lang}}
 test/                   vitest: unit + one end-to-end pass over the server
@@ -64,16 +66,16 @@ docs/                   the convention, the CLI, agents
 npm test                 # unit + e2e (the e2e starts the server on a free port)
 npm start                # = node bin/modelroom.ts serve
 npm run build            # server (tsc) + UI bundle + CSS
-npm run build:client     # rebuild ui/assets/app.js after touching client/**
+npm run build:client     # rebuild web/assets/app.js after touching client/**
 npm run dev:client       # the same, watching
-npm run build:css        # rebuild ui/modelroom.css after touching ui/*.html or client/modelroom.css
+npm run build:css        # rebuild web/modelroom.css after touching web/*.html or client/modelroom.css
 npm run dev:css          # the same, watching
 npm run typecheck        # bin · server · core · i18n · api + client
 npm run verify:ui        # Chromium pass: console, axe, the filter, screenshots
 npm run doctor           # (via bin) check the local setup
 ```
 
-There is **no build step for users**: `ui/modelroom.css` and `ui/assets/app.js` are
+There is **no build step for users**: `web/modelroom.css` and `web/assets/app.js` are
 committed, so `npx modelroom` works with the plain package. If you change the markup,
 the components or the styles, rebuild **and commit both** in the same change — otherwise
 the UI silently loses classes or ships stale code. `npm run build` does all of it.
@@ -82,7 +84,7 @@ the UI silently loses classes or ships stale code. `npm run build` does all of i
 
 1. **No new runtime dependencies.** `dependencies` stays empty. The tool's libraries
    (React, Mantine, @tanstack/react-virtual, CodeMirror, markdown-it, lucide) are
-   devDependencies bundled into the committed `ui/assets/app.js`; anything optional
+   devDependencies bundled into the committed `web/assets/app.js`; anything optional
    (Playwright) is dynamically imported and degrades.
 2. **Artifacts stay framework-free.** Every `index.html` under `templates/` — the blank
    `templates/<lang>/room/` and the example rooms in `templates/<lang>/example/rooms/` —
@@ -93,17 +95,19 @@ the UI silently loses classes or ships stale code. `npm run build` does all of i
    second component library, a utility-class layer, or a bespoke control where Mantine has
    one. Every page is a shell that loads the same bundle; the CSS and bundle are committed.
 4. **Server-rendered HTML is never modified.** `/files/...` must stay byte-identical to disk.
-   Never inject scripts into served content; the tool's own UI lives in `ui/`.
+   Never inject scripts into served content; the tool's own UI lives in `web/`.
 5. **The design layer never reads the application.** Do not add features that read code
    outside `root`/`rooms`. `withinRoot()` in `server/http.ts` is the guard; keep it strict.
-6. **Writable files are only `cfg.docs`.** Everything else answers 403. Do not widen it.
+6. **The HTTP API writes only `cfg.docs`.** Everything else answers 403. Do not widen it.
+   The one other file the server puts on disk is a room's snapshot (`<artifact>.png`),
+   written by the renderer next to the artifact it belongs to — never by a request.
 7. **Adapters close stdin** (`stdio: ['ignore', 'pipe', 'pipe']`) or agents hang.
 8. **Docs are English.** Keep the tone plain: what it is, what it is not, how to run it.
 9. **User-facing text goes through `t()`.** The catalog is `i18n/catalog.ts`; `en` is the
    source of truth and `ja` must satisfy its type, so a missing translation is a type
    error. Templates live in `templates/<lang>/`; generated frontmatter keys, `status`
    values and promise ids stay in English whatever the prose language. The workshop
-   (`/ui/kit.html`) uses the same catalog, not a second one.
+   (`/web/kit.html`) uses the same catalog, not a second one.
 10. **A layer imports only its neighbours.** `i18n/` and `api/` touch neither `node:` nor any
     package; `client/` imports only those two and itself, never `server/` or `core/`;
     `server/` and `bin/` never import `client/`. `test/unit/boundaries.test.mjs` fails when an
@@ -114,7 +118,7 @@ the UI silently loses classes or ships stale code. `npm run build` does all of i
 - **One entry, one bundle.** `client/main.tsx` renders the app the shell asks for
   (`data-app` = room | dashboard | settings | kit), so nothing is shipped twice and a page
   is a shell plus one script. `scripts/build-client.mjs` is the only build; it writes
-  `ui/assets/app.js`.
+  `web/assets/app.js`.
 - **One design system: Mantine, and its tokens are in `client/theme.ts`.** The theme is
   installed once in `client/main.tsx` (`MantineProvider` + `theme` +
   `cssVariablesResolver`). The switch is `data-mantine-color-scheme` on `<html>`, set
@@ -142,7 +146,7 @@ the UI silently loses classes or ships stale code. `npm run build` does all of i
   scripts. Writes to one file are queued in the server, so an autosave and the agent's edit
   cannot interleave and silently lose one of them. `cfg.docs` is still the whole writable set.
 - **The workshop is the review surface.** A change to a primitive or a panel state should be
-  visible at `/ui/kit.html` without opening a room. That is the Storybook, without the
+  visible at `/web/kit.html` without opening a room. That is the Storybook, without the
   dependency tree.
 
 ## Decisions that must not drift
@@ -153,6 +157,10 @@ the UI silently loses classes or ships stale code. `npm run build` does all of i
   role names, no tool names.
 - Scope is expressed by the directory (product → flow → room), not by the filename.
 - `Status:` in a room's brief drives the badge. `adopted` is a human decision.
+- A room's snapshot (`<artifact>.png`, so `index.png`) is a deliverable, not a cache: a
+  fixed name, overwritten in place, committed next to the artifact, and reviewed on the
+  pull request. Rendering is idempotent (only an artifact newer than its png renders, and
+  an unchanged render writes nothing). The how and the why are in `docs/05-preview-images.md`.
 
 ## Commits
 

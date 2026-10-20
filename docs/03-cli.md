@@ -5,13 +5,16 @@ modelroom [serve] [--port 4321] [--host 127.0.0.1] [--open] [--lang en|ja]
 modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force] [--skip-install] [--no-script]
 modelroom check [--json] [--strict]
 modelroom doctor
+modelroom render [<room>] [--all] [--check] [--force] [--device sp|tablet|pc]
+modelroom pr-body <room> [--image-url <url>]
 modelroom --version | --help
 ```
 
 `modelroom` with no command is `serve`. `serve` needs Node 20+ and nothing else. `init` only
 copies templates. `check` reads the frontmatter of every room and reports convention problems.
 `doctor` checks the setup and exits non-zero when something is broken (optionally missing things
-do not count).
+do not count). `render` keeps each room's snapshot png current; `pr-body` prints what a pull
+request description should carry.
 
 ## serve
 
@@ -33,12 +36,14 @@ your-repo/
 ├── modelroom/                 # committed
 │   ├── modelroom.json
 │   ├── AGENTS.md
-│   └── rooms/<room>/{BRIEF,SPEC,BEHAVIOUR}.md + index.html
+│   ├── .opencode/skills/       # read-modelroom, create-modelroom-pr
+│   └── rooms/<room>/{BRIEF,SPEC,BEHAVIOUR}.md + index.html + index.png
 └── .modelroom/                # git-ignored state
 ```
 
-`init` writes the room templates and, if missing, `modelroom/modelroom.json`,
-`modelroom/AGENTS.md` and a `/.modelroom/` line in the project's `.gitignore`.
+`init` writes the room templates, the two skills, and — if missing —
+`modelroom/modelroom.json`, `modelroom/AGENTS.md` and a `/.modelroom/` line in the
+project's `.gitignore`.
 An existing project keeps its config; running `init` again only adds what is
 missing (`--force` overwrites).
 
@@ -120,6 +125,61 @@ warn  sign-in/BRIEF.md   variant        status: draft / Draft — same value, di
 
 Exit code is 1 on errors (or on warnings with `--strict`).
 
+## render
+
+`render` produces the snapshot png next to a room's artifact. It is idempotent: a room
+is rendered only when its artifact is newer than its png, and a render whose bytes do
+not change writes nothing — so the committed file moves only when the picture does.
+
+```
+modelroom render checkout          # one room, only if stale
+modelroom render --all             # every room, the stale ones only
+modelroom render checkout --force  # render even when it looks current
+modelroom render checkout --device pc
+```
+
+`serve` runs the same pass in the background: on start, when an artifact changes, and
+whenever the dashboard asks for the room list. You do not have to call `render` to make
+the tool work; you call it to be sure a commit carries the current picture.
+
+`--check` renders to a temporary file and compares instead of writing:
+
+```
+modelroom render --all --check
+ok      checkout  (snapshot matches)
+stale   sign-in   (snapshot no longer matches index.html)
+
+1 snapshot(s) out of date
+```
+
+Exit code is 1 when a snapshot is missing or out of date — the gate for CI, and the way
+to prove that a change meant to be invisible (an accessibility fix, a refactor) left the
+pixels alone.
+
+Rendering needs Playwright:
+
+```
+npm i -D playwright && npx playwright install chromium
+```
+
+Without it, `render` reports what is missing and the room keeps whatever snapshot is
+already committed — which is exactly the point of committing it.
+
+## pr-body
+
+Prints, as markdown, what a pull request description should carry: the room's title and
+summary, where its snapshot is, and its `BEHAVIOUR.md`.
+
+```
+modelroom pr-body checkout --image-url \
+  "https://raw.githubusercontent.com/<owner>/<repo>/<branch>/rooms/checkout/index.png"
+```
+
+Without `--image-url` it points the reviewer at the file instead of embedding it — the
+primary way to read the picture is the pull request's **Files changed** image diff. The
+command does not touch git or `gh`; those belong to the agent, which knows the branch and
+the repository.
+
 ## doctor
 
 ```
@@ -148,6 +208,10 @@ ok   room checkout: docs ok
   "artifact": "index.html",                     // the file that is the screen
   "docs": ["BRIEF.md", "SPEC.md", "BEHAVIOUR.md"], // the only files the UI may write
   "port": 4321,
+  "thumbnail": {
+    "device": "tablet",                         // "sp" | "tablet" | "pc" — one per room
+    "scale": 1                                  // 1 keeps the committed png small and stable
+  },
   "agent": {
     "adapter": "opencode",                      // "opencode" | "command"
     "command": "opencode",
@@ -167,12 +231,23 @@ code. `modelroom` looks for `./modelroom.json` first (the old layout) and then
 Anything you change from `/settings` is kept locally in `.modelroom/state.json`
 (git-ignore it) — committed configuration stays in `modelroom/modelroom.json`.
 
-## Thumbnails
+## Snapshots
 
-Rendering the artifact to PNG is optional and needs Playwright:
+Each room keeps a png next to its artifact, rendered at one device (`thumbnail.device`)
+and one scale. It is a deliverable, not a cache: it is committed with the room, a reviewer
+reads it, and a pull request diffs it. `thumbnail.device` and `thumbnail.scale` are
+committed configuration; keep them steady, since changing the device re-renders every
+snapshot in the project.
+
+Rendering needs Playwright:
 
 ```
 npm i -D playwright && npx playwright install chromium
 ```
 
-Without it, rooms simply show no thumbnail and the **make png** button reports why.
+Without it, nothing breaks: a room keeps whatever snapshot is already committed, and
+`render` (or the **make png** button) reports what is missing. Committing the png is what
+lets someone review a room without installing anything.
+
+The full reasoning — why the png is committed, why the name never changes, and why the
+merge is a squash — is in `05-preview-images.md`.

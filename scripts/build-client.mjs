@@ -2,7 +2,7 @@
 //
 // The UI is React + CodeMirror + markdown-it, but the *published package* has no
 // build step and no runtime dependencies: this script bundles everything into one
-// committed file, `ui/assets/app.js`. That is the same deal as `ui/modelroom.css`
+// committed file, `web/assets/app.js`. That is the same deal as `web/modelroom.css`
 // — source in `client/`, the built asset committed next to the shells.
 //
 //   node scripts/build-client.mjs            one production bundle (minified)
@@ -20,7 +20,7 @@ const watch = process.argv.includes('--watch');
 /** @type {import('esbuild').BuildOptions} */
 const options = {
   entryPoints: { app: 'client/main.tsx' },
-  outdir: 'ui/assets',
+  outdir: 'web/assets',
   entryNames: '[name]',
   bundle: true,
   format: 'esm',
@@ -42,8 +42,8 @@ const options = {
 if (watch) {
   const ctx = await context({ ...options, minify: false, sourcemap: 'inline' });
   await ctx.watch();
-  console.log('modelroom: watching client/ (bundle → ui/assets/app.js)');
+  console.log('modelroom: watching client/ (bundle → web/assets/app.js)');
 } else {
   await build(options);
-  console.log(`modelroom: built ui/assets/app.js (${dev ? 'dev' : 'production'})`);
+  console.log(`modelroom: built web/assets/app.js (${dev ? 'dev' : 'production'})`);
 }

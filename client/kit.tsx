@@ -1,7 +1,7 @@
 // The workshop — a Storybook without the dependency tree.
 //
 // Every Mantine component the tool wires up can be seen here on its own, before
-// it is used for real. It is served at `/ui/kit.html`, it is the same bundle as
+// it is used for real. It is served at `/web/kit.html`, it is the same bundle as
 // the room, and it needs no build of its own: add a section below when you add a
 // component, and a change is still reviewable in one screenshot.
 //

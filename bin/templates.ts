@@ -10,6 +10,12 @@ import { LANGS, type Lang } from '../i18n/lang.ts';
 
 export const ROOM_FILES = ['BRIEF.md', 'SPEC.md', 'BEHAVIOUR.md', 'index.html'] as const;
 
+/**
+ * The skills `init` drops into the design layer, so the agent that runs there
+ * knows to read the snapshot and to put it in the pull request.
+ */
+export const SKILLS = ['read-modelroom', 'create-modelroom-pr'] as const;
+
 /** The file for a language, falling back to English. */
 export async function readTemplate(
   templatesDir: string,

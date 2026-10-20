@@ -150,6 +150,7 @@ function RoomCard({
           {room.deprecated && (
             <ToneBadge tone="destructive">{t('dashboard.archivedBadge')}</ToneBadge>
           )}
+          {room.thumbStale && <ToneBadge tone="warning">{t('dashboard.thumbStale')}</ToneBadge>}
           {room.tags.slice(0, 4).map((tag) => (
             <ToneBadge key={tag} tone="outline">
               {tag}

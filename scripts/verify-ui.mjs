@@ -57,7 +57,7 @@ const PAGES = [
   { name: 'dashboard', path: '/' },
   { name: 'room', path: '/rooms/sign-in' },
   { name: 'settings', path: '/settings' },
-  { name: 'kit', path: '/ui/kit.html' },
+  { name: 'kit', path: '/web/kit.html' },
 ];
 
 try {
@@ -147,7 +147,7 @@ try {
     if (message.type() === 'error') consoleErrors.push(message.text());
   });
   page.on('pageerror', (error) => consoleErrors.push(String(error)));
-  await page.goto(`${url}/ui/kit.html`, { waitUntil: 'networkidle' });
+  await page.goto(`${url}/web/kit.html`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(400);
 
   const input = page.locator('input[aria-label="component filter"]');
