@@ -11,7 +11,7 @@ import {
   SegmentedControl,
   Text,
 } from '@mantine/core';
-import { postRender, type RoomInfo } from '../lib/api.ts';
+import { postRender, type Device, type RoomInfo } from '../lib/api.ts';
 import { useI18n } from '../lib/i18n.tsx';
 import { useServerEvent } from '../hooks/useServerEvents.tsx';
 import { Icon } from './Icon.tsx';
@@ -21,9 +21,8 @@ const DEVICES = [
   { value: 'sp', label: 'sp 390', width: 390 },
   { value: 'tablet', label: 'tablet 1024', width: 1024 },
   { value: 'pc', label: 'pc 1280', width: 1280 },
-] as const;
+] as const satisfies ReadonlyArray<{ value: Device; label: string; width: number }>;
 
-type Device = (typeof DEVICES)[number]['value'];
 type View = 'artifact' | 'png';
 
 const widthOf = (device: Device): number =>
@@ -34,14 +33,17 @@ export function ArtifactPanel({
   roomsPath,
   artifact,
   info,
+  snapshotDevice,
 }: {
   room: string;
   roomsPath: string;
   artifact: string;
   info: RoomInfo;
+  /** The width the committed snapshot uses; "make png" starts here. */
+  snapshotDevice: Device;
 }) {
   const { t } = useI18n();
-  const [device, setDevice] = useState<Device>('tablet');
+  const [device, setDevice] = useState<Device>(snapshotDevice);
   const [fit, setFit] = useState(true);
   const [view, setView] = useState<View>('artifact');
   const [nonce, setNonce] = useState(() => Date.now());
@@ -226,15 +228,22 @@ export function ArtifactPanel({
             </Box>
           </Box>
         ) : thumb ? (
-          <img
-            src={pngSrc}
-            alt={t('artifact.thumbnail')}
-            style={{
-              width: '100%',
-              borderRadius: 'var(--mantine-radius-md)',
-              border: '1px solid var(--mantine-color-default-border)',
-            }}
-          />
+          <Box>
+            {info.thumbStale && (
+              <Text size="xs" c="dimmed" mb={6}>
+                {t('artifact.stale')}
+              </Text>
+            )}
+            <img
+              src={pngSrc}
+              alt={t('artifact.thumbnail')}
+              style={{
+                width: '100%',
+                borderRadius: 'var(--mantine-radius-md)',
+                border: '1px solid var(--mantine-color-default-border)',
+              }}
+            />
+          </Box>
         ) : (
           <Empty>{t('artifact.noPng')}</Empty>
         )}

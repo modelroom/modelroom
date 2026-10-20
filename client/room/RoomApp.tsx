@@ -141,6 +141,7 @@ export function RoomApp() {
       roomsPath={config.rooms}
       artifact={config.artifact}
       info={data.room}
+      snapshotDevice={config.thumbnail.device}
     />
   );
   const sessionPanel = <SessionPanel room={room} />;

@@ -13,17 +13,25 @@ modelroom/
     ├── BRIEF.md        why this room exists        → director, everyone
     ├── SPEC.md         what the artifact cannot show → designer, agent, implementer
     ├── BEHAVIOUR.md    what it promises             → tests, implementer
-    └── index.html      the artifact (the screen)    → director, owner, implementer
+    ├── index.html      the artifact (the screen)    → director, owner, implementer
+    └── index.png       the screen, as reviewed      → reviewer, agent
 ```
 
 Local state lives in `.modelroom/` next to `modelroom/`, and is never committed.
 
 The artifact is the visible spec. `SPEC.md` is the invisible one. They must not overlap.
 
+`index.png` is the artifact **rendered** — the same screen as a picture, committed next
+to it under a fixed name. It is what a reviewer reads and what a pull request diffs; the
+html is the source it was drawn from. See `05-preview-images.md` for why it is committed
+and how it is kept current.
+
 ## Rules
 
 1. **The artifact owns what is visible.** If a statement can be shown in a screenshot, it
-   belongs to `index.html`, not to `SPEC.md`.
+   belongs to `index.html`, not to `SPEC.md`. The snapshot is that screenshot: when the
+   artifact changes, regenerate it (`modelroom render`) so the room the reviewer reads is
+   the room that was drawn.
 2. **A statement lives in one file.** To reach another file, reference it by id
    (`@sign-in-1`) instead of copying it.
 3. **The design layer never reads the application.** Rooms hold promises the room itself can

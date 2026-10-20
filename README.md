@@ -29,11 +29,13 @@ your-repo/
 ├── modelroom/                 # committed
 │   ├── modelroom.json
 │   ├── AGENTS.md
+│   ├── .opencode/skills/      # read-modelroom, create-modelroom-pr
 │   └── rooms/checkout/
 │       ├── BRIEF.md
 │       ├── SPEC.md
 │       ├── BEHAVIOUR.md
-│       └── index.html
+│       ├── index.html
+│       └── index.png
 └── .modelroom/                # git-ignored state
 ```
 
@@ -41,7 +43,8 @@ your-repo/
 |---|---|---|
 | `modelroom/modelroom.json` | yes | the config: agent, rooms, language |
 | `modelroom/AGENTS.md` | yes | what the agent may write, and in which language |
-| `modelroom/rooms/<room>/` | yes | one screen: `BRIEF`, `SPEC`, `BEHAVIOUR`, the artifact |
+| `modelroom/.opencode/skills/` | yes | the agent's two skills: read the picture, put it in the PR |
+| `modelroom/rooms/<room>/` | yes | one screen: `BRIEF`, `SPEC`, `BEHAVIOUR`, the artifact, its snapshot `index.png` |
 | `.modelroom/state.json` | no | local session ids and settings changed from `/settings` |
 
 `.modelroom/` is disposable: delete it to reset sessions and local settings. The committed
@@ -68,13 +71,18 @@ application code.
 
 | Where | What |
 |---|---|
-| `/` | every room, side by side, with thumbnails — full-text search and filters built from the records |
-| `/rooms/<name>` | chat, the room's docs (editable), and the artifact — updating as the agent works |
+| `/` | every room, side by side, with its snapshot — full-text search and filters built from the records |
+| `/rooms/<name>` | chat, the room's docs (editable), the artifact, and its snapshot — updating as the agent works |
 | `/settings` | which agent to run, and with which model |
 | `/files/<path>` | the design layer (`modelroom/`), served read-only and **unmodified** (no injected scripts) |
 
 The room's docs are the only files the UI can write. Changing `index.html` (from the agent or by
 hand) reloads the preview with no manual refresh; changes elsewhere in the room stream in the same way.
+
+Each room also keeps `index.png` — its artifact rendered, committed under a fixed name. That is
+the picture a reviewer reads: it shows on the dashboard, and a pull request diffs it under
+**Files changed**. Rendering needs Playwright; reading a snapshot does not, which is why it is
+committed. See [`docs/05-preview-images.md`](docs/05-preview-images.md).
 
 ## The convention in one table
 
@@ -139,19 +147,21 @@ git clone https://github.com/modelroom/modelroom && cd modelroom
 npm install                 # dev only: Mantine + React (both bundled, committed) + playwright (optional)
 npm test                    # smoke checks
 npm run modelroom           # serves templates/en/example/rooms
-npm run build:css           # after changing ui/*.html or client/modelroom.css
+npm run build:css           # after changing web/*.html or client/modelroom.css
 npm run build:client        # after changing client/**
 ```
 
-The stylesheet and the JS bundle in `ui/` are built and committed, so users never run a build
+The stylesheet and the JS bundle in `web/` are built and committed, so users never run a build
 step. The tool's UI is React + [Mantine](https://mantine.dev); artifacts (in `templates/`)
 are deliberately framework-free: plain HTML and CSS, no CDN, no web fonts — they
 are handed to implementation and must render with no network.
 
-PNG thumbnails are optional and need Playwright:
+Snapshots need Playwright to be rendered; reviewing them needs nothing:
 
 ```bash
 npm i -D playwright && npx playwright install chromium
+modelroom render --all          # bring every room's index.png up to date
+modelroom render --all --check   # CI: is a snapshot out of date?
 ```
 
 ## Development

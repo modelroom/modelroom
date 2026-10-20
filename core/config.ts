@@ -14,6 +14,22 @@ export { isLang, LANGS } from '../i18n/lang.ts';
 
 export type AdapterName = 'opencode' | 'command';
 
+/**
+ * The device widths a snapshot can be rendered at. A room commits one snapshot
+ * at one width, so the image GitHub diffs against stays the same shape.
+ */
+export const DEVICES = { sp: 390, tablet: 1024, pc: 1280 } as const;
+export type Device = keyof typeof DEVICES;
+export const isDevice = (value: unknown): value is Device =>
+  typeof value === 'string' && Object.hasOwn(DEVICES, value);
+
+export interface ThumbnailConfig {
+  /** The device the committed snapshot is rendered at. */
+  device: Device;
+  /** Device pixel ratio; 1 keeps the committed png small and its diff stable. */
+  scale: number;
+}
+
 export interface AgentConfig {
   adapter: AdapterName;
   command: string;
@@ -38,6 +54,7 @@ export interface Config {
   /** The language of the tool UI, the CLI and the templates. */
   lang: Lang;
   agent: AgentConfig;
+  thumbnail: ThumbnailConfig;
   /** Resolved at load time, all relative to the config file's directory. */
   rootDir: string;
   roomsDir: string;
@@ -69,9 +86,13 @@ export const DEFAULTS = {
     standalone: true,
     args: [],
   },
+  thumbnail: { device: 'tablet', scale: 1 },
 } as const;
 
-type ConfigFile = Partial<Omit<Config, 'agent'>> & { agent?: Partial<AgentConfig> };
+type ConfigFile = Partial<Omit<Config, 'agent' | 'thumbnail'>> & {
+  agent?: Partial<AgentConfig>;
+  thumbnail?: Partial<ThumbnailConfig>;
+};
 
 async function exists(path: string): Promise<boolean> {
   try {
@@ -118,6 +139,13 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<Config> {
     // No `lang` in the config means auto: the environment and the OS decide.
     lang: isLang(file.lang) ? file.lang : detectLang().lang,
     agent: { ...DEFAULTS.agent, ...file.agent } as AgentConfig,
+    thumbnail: {
+      device: isDevice(file.thumbnail?.device) ? file.thumbnail.device : DEFAULTS.thumbnail.device,
+      scale:
+        typeof file.thumbnail?.scale === 'number' && file.thumbnail.scale > 0
+          ? file.thumbnail.scale
+          : DEFAULTS.thumbnail.scale,
+    },
     rootDir: '',
     roomsDir: '',
     configPath: path,

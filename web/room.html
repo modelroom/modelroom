@@ -1,13 +1,13 @@
 <!doctype html>
 <!-- modelroom — a room: chat · docs · artifact, one screen at a time.
      The shell is static; the app itself lives in client/ and is built to
-     /ui/assets/app.js (committed). -->
+     /web/assets/app.js (committed). -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Room — modelroom</title>
-<link rel="stylesheet" href="/ui/modelroom.css">
+<link rel="stylesheet" href="/web/modelroom.css">
 <script>
 // Theme before paint: Mantine reads `data-mantine-color-scheme`, so the first
 // frame is already the right colour and nothing flashes on load.
@@ -24,6 +24,6 @@ try {
 </head>
 <body>
 <div id="root" data-app="room" class="mr-app mr-app-fixed"></div>
-<script type="module" src="/ui/assets/app.js"></script>
+<script type="module" src="/web/assets/app.js"></script>
 </body>
 </html>

@@ -19,10 +19,23 @@ import {
   type Config,
   type State,
 } from '../core/config.ts';
-import { listRoomNames, roomInfo, publicRoom, isRoomName, type RoomInfo } from '../core/rooms.ts';
+import {
+  listRoomNames,
+  roomInfo,
+  publicRoom,
+  isRoomName,
+  snapshotName,
+  type RoomInfo,
+} from '../core/rooms.ts';
 import { buildFacets, searchRooms } from '../core/facets.ts';
 import { getAdapter, stripAnsi } from './agents/index.ts';
-import { renderArtifact, playwrightAvailable, type RenderResult } from './artifact.ts';
+import {
+  renderArtifact,
+  playwrightAvailable,
+  closeBrowser,
+  type RenderResult,
+} from './artifact.ts';
+import { createThumbnailer } from './thumbs.ts';
 import { sessionView, watchParts, type PartsWatcher } from './opencode.ts';
 import { t, type MessageKey } from '../i18n/catalog.ts';
 
@@ -31,7 +44,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 const pkgDir = findPackageRoot(dirname(fileURLToPath(import.meta.url)));
-const uiDir = join(pkgDir, 'ui');
+const webDir = join(pkgDir, 'web');
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -140,6 +153,33 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
     await Promise.race([work, new Promise((resolve) => setTimeout(resolve, ms).unref())]);
   };
 
+  // Every room's snapshot is kept current in the background: on `serve`, when
+  // the artifact changes, and whenever the dashboard asks for the list. It is
+  // idempotent — an unchanged render writes nothing — so the committed png only
+  // moves when the picture does.
+  const thumbnails = createThumbnailer(cfg, (room, result) => {
+    if (result.ok) {
+      setStatus(
+        'ok',
+        tr('server.rendered', { room, file: snapshotName(cfg.artifact) }) +
+          (result.changed ? '' : tr('server.renderUnchanged')),
+      );
+    } else {
+      setStatus('error', result.error);
+    }
+    broadcast('render-done', { room, ...result, at: Date.now() });
+  });
+  /** The room a root-relative path belongs to, if it is that room's artifact. */
+  const artifactRoom = (file: string): string | null => {
+    const prefix = `${cfg.rooms}/`;
+    if (!file.startsWith(prefix)) return null;
+    const rest = file.slice(prefix.length);
+    const cut = rest.indexOf('/');
+    if (cut <= 0) return null;
+    const room = rest.slice(0, cut);
+    return rest.slice(cut + 1) === cfg.artifact && isRoomName(room) ? room : null;
+  };
+
   // ── files ─────────────────────────────────────────────────────────────────
   const send = (res: ServerResponse, code: number, type: string, body: string | Buffer) => {
     res.writeHead(code, { 'content-type': type, 'cache-control': 'no-store' });
@@ -173,7 +213,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
 
   async function serveUi(res: ServerResponse, page: string) {
     try {
-      return send(res, 200, MIME['.html'] as string, await readFile(join(uiDir, page)));
+      return send(res, 200, MIME['.html'] as string, await readFile(join(webDir, page)));
     } catch (err) {
       // Log locally; the browser gets no path or stack information.
       process.stderr.write(
@@ -185,9 +225,9 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
 
   /** Static assets of the tool itself (the built stylesheet and friends). */
   async function serveUiAsset(res: ServerResponse, urlPath: string) {
-    const rel = decodeURIComponent(urlPath.replace(/^\/ui\/?/, ''));
-    const target = normalize(join(uiDir, rel));
-    if (target !== uiDir && !target.startsWith(uiDir + sep)) {
+    const rel = decodeURIComponent(urlPath.replace(/^\/web\/?/, ''));
+    const target = normalize(join(webDir, rel));
+    if (target !== webDir && !target.startsWith(webDir + sep)) {
       return send(res, 403, 'text/plain; charset=utf-8', 'forbidden');
     }
     try {
@@ -198,7 +238,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
       });
       res.end(body);
     } catch {
-      send(res, 404, 'text/plain; charset=utf-8', `not found: /ui/${rel}`);
+      send(res, 404, 'text/plain; charset=utf-8', `not found: /web/${rel}`);
     }
   }
 
@@ -220,6 +260,9 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
             status.since = at;
             broadcast('change', { file, at });
             broadcast('status', { phase: 'change', message: status.message, since: at });
+            // The artifact moved: its snapshot is now out of date.
+            const touched = artifactRoom(file);
+            if (touched) void thumbnails.ensure([touched]);
           }),
         );
       } catch (err) {
@@ -284,12 +327,12 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
   // ── artifact render (optional) ────────────────────────────────────────────
   async function render(room: string, device: string): Promise<RenderResult> {
     if (rendering) return { ok: false, error: tr('server.alreadyRendering') };
-    const png = cfg.artifact.replace(/\.html?$/i, '.png');
+    const png = snapshotName(cfg.artifact);
     rendering = true;
     setStatus('rendering', tr('server.rendering', { room, file: png }));
     broadcast('render-start', { room, device, at: Date.now() });
     try {
-      const result = await renderArtifact({ cfg, room, device });
+      const result = await renderArtifact({ cfg, room, device, scale: cfg.thumbnail.scale });
       if (result.ok) {
         setStatus('ok', tr('server.rendered', { room, file: png }));
       } else {
@@ -419,6 +462,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
 
       if (path === '/api/rooms') {
         const rooms = await Promise.all(names.map((n) => roomInfo(cfg, n)));
+        void thumbnails.ensure(names); // the browser is here: make sure it can see them
         return sendJson(res, 200, {
           count: rooms.length,
           // `running` is live state, not a record: it comes from the chat map.
@@ -589,7 +633,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
       }
 
       if (path.startsWith('/files/')) return await serveFile(res, path);
-      if (path.startsWith('/ui/')) return await serveUiAsset(res, path);
+      if (path.startsWith('/web/')) return await serveUiAsset(res, path);
 
       // The room address is `/rooms/<name>` — plural, like `/api/rooms` and the
       // `rooms/` directory it reads. `/room/<name>` was the old one; it still
@@ -657,15 +701,19 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
     listen: () =>
       new Promise((resolveListen, reject) => {
         server.once('error', reject);
-        server.listen(cfg.port, cfg.host, () =>
-          resolveListen({ url: `http://${cfg.host}:${cfg.port}`, cfg }),
-        );
+        server.listen(cfg.port, cfg.host, () => {
+          // After listening, so anything the caller prints first still prints first.
+          void (async () => thumbnails.ensure(await listRoomNames(cfg)))();
+          resolveListen({ url: `http://${cfg.host}:${cfg.port}`, cfg });
+        });
       }),
     close: () =>
       new Promise((r) => {
         clearInterval(heartbeat);
         for (const w of watchers) w.close();
         for (const chat of chats.values()) void chat?.stop();
+        void thumbnails.close();
+        void closeBrowser();
         server.close(() => r());
       }),
   };
@@ -678,6 +726,7 @@ export function publicConfig(cfg: Config) {
     artifact: cfg.artifact,
     docs: cfg.docs,
     lang: cfg.lang,
+    thumbnail: cfg.thumbnail,
     agent: {
       adapter: cfg.agent.adapter,
       command: cfg.agent.command,

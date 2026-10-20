@@ -30,6 +30,24 @@ test('defaults are used when modelroom.json is missing', async () => {
   }
 });
 
+test('the snapshot defaults to one device and scale, and a block overrides it', async () => {
+  const plain = await fixture();
+  const tuned = await fixture({
+    'modelroom.json': JSON.stringify({ thumbnail: { device: 'pc', scale: 2 } }),
+  });
+  const broken = await fixture({
+    'modelroom.json': JSON.stringify({ thumbnail: { device: 'tv', scale: -1 } }),
+  });
+  try {
+    assert.deepEqual((await loadConfig(plain)).thumbnail, { device: 'tablet', scale: 1 });
+    assert.deepEqual((await loadConfig(tuned)).thumbnail, { device: 'pc', scale: 2 });
+    // An unknown device or a nonsense scale falls back, one value at a time.
+    assert.deepEqual((await loadConfig(broken)).thumbnail, { device: 'tablet', scale: 1 });
+  } finally {
+    for (const dir of [plain, tuned, broken]) await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('the new layout is found inside modelroom/ and paths resolve from the config', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'mr-config-'));
   await mkdir(join(dir, 'modelroom'), { recursive: true });

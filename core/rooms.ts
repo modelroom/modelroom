@@ -21,6 +21,9 @@ const isRoomName = (s: unknown): s is string =>
 
 export { isRoomName };
 
+/** The png that belongs to an artifact: `index.html` → `index.png`. */
+export const snapshotName = (artifact: string): string => artifact.replace(/\.html?$/i, '.png');
+
 export interface FileInfo {
   name: string;
   exists: boolean;
@@ -54,6 +57,8 @@ export interface RoomInfo {
   updatedAt: number;
   hasArtifact: boolean;
   hasThumb: boolean;
+  /** The artifact changed after its snapshot: the committed png is out of date. */
+  thumbStale: boolean;
   artifactUrl: string;
   thumbUrl: string | null;
   behaviourIds: string[];
@@ -179,7 +184,7 @@ export async function roomInfo(cfg: RoomsConfig, name: string): Promise<RoomInfo
   const files: FileInfo[] = [];
   for (const d of cfg.docs) files.push(await fileInfo(join(dir, d), d));
   files.push(await fileInfo(join(dir, cfg.artifact), cfg.artifact));
-  const png = cfg.artifact.replace(/\.html?$/i, '.png');
+  const png = snapshotName(cfg.artifact);
   files.push(await fileInfo(join(dir, png), png));
 
   const docs: RoomDoc[] = [];
@@ -199,6 +204,8 @@ export async function roomInfo(cfg: RoomsConfig, name: string): Promise<RoomInfo
     typeof fields.title === 'string' && fields.title ? fields.title : parseTitle(brief, name);
   const artifact = files.find((f) => f.name === cfg.artifact);
   const thumb = files.find((f) => f.name === png);
+  const hasThumb = Boolean(thumb?.exists);
+  const hasArtifact = Boolean(artifact?.exists);
 
   return {
     name,
@@ -216,8 +223,10 @@ export async function roomInfo(cfg: RoomsConfig, name: string): Promise<RoomInfo
     fields,
     files,
     updatedAt: Math.max(0, ...files.map((f) => f.mtime)),
-    hasArtifact: Boolean(artifact?.exists),
-    hasThumb: Boolean(thumb?.exists),
+    hasArtifact,
+    hasThumb,
+    // The artifact is the source of the snapshot: when it moved, the png is old.
+    thumbStale: hasArtifact && (!hasThumb || (artifact?.mtime ?? 0) > (thumb?.mtime ?? 0)),
     artifactUrl: `/files/${cfg.rooms}/${name}/${cfg.artifact}`,
     thumbUrl: thumb?.exists ? `/files/${cfg.rooms}/${name}/${png}` : null,
     behaviourIds: [...new Set(ids)],

@@ -23,7 +23,7 @@ development; the published package ships compiled JavaScript in `dist/`).
 npm run verify   # lint, type-aware lint, format check, typecheck, tests, build
 ```
 
-`npm run verify` runs the same gates as CI. If you changed anything under `ui/`, rebuild the
+`npm run verify` runs the same gates as CI. If you changed anything under `web/`, rebuild the
 committed stylesheet and include it in the same commit:
 
 ```bash
@@ -47,9 +47,24 @@ npm run build:css
 - No new runtime dependencies without a reason. `dependencies` is empty and should stay that way;
   optional things (Playwright) are imported dynamically and degrade.
 - The design layer never reads application code. `withinRoot()` in `server/http.ts` is the guard.
-- Only `cfg.docs` is writable. Everything else answers 403.
+- The HTTP API writes only `cfg.docs`. Everything else answers 403. The one other file the
+  server writes is a room's snapshot (`index.png`), produced by the renderer, never by a request.
 - Artifacts and room docs stay framework-free: plain HTML and CSS, no network.
 - Docs are English; keep the tone plain.
+
+## Snapshots
+
+A room's `index.png` is a deliverable, committed under a fixed name and overwritten in place,
+so GitHub can diff it on a pull request. If you change a room's artifact, render its snapshot
+in the same commit:
+
+```bash
+npx modelroom render <room>        # or: npm run modelroom render <room>
+```
+
+Merge PRs that touch snapshots with **Squash and Merge**, so main keeps a single current image
+and git collects the revisions on the branch. The reasoning is in
+[`docs/05-preview-images.md`](docs/05-preview-images.md).
 
 ## Commit messages
 

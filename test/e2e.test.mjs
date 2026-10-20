@@ -97,7 +97,7 @@ test('the server keeps its promises', async () => {
     check(
       roomPage.status === 200 &&
         roomHtml.includes('id="root"') &&
-        roomHtml.includes('/ui/assets/app.js'),
+        roomHtml.includes('/web/assets/app.js'),
       'GET /rooms/<name> serves the workspace shell',
     );
 
@@ -107,7 +107,7 @@ test('the server keeps its promises', async () => {
       'GET /room/<name> redirects to /rooms/<name>',
     );
 
-    const bundle = await fetch(`${base}/ui/assets/app.js`);
+    const bundle = await fetch(`${base}/web/assets/app.js`);
     check(
       bundle.status === 200 && (bundle.headers.get('content-type') ?? '').includes('javascript'),
       'the room UI bundle is served as JavaScript',
