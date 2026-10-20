@@ -2,8 +2,9 @@
 //
 // The UI is React + CodeMirror + markdown-it, but the *published package* has no
 // build step and no runtime dependencies: this script bundles everything into one
-// committed file, `web/assets/app.js`. That is the same deal as `web/modelroom.css`
-// — source in `client/`, the built asset committed next to the shells.
+// file, `web/assets/app.js`. That is the same deal as `web/modelroom.css` — source
+// in `client/`, the built asset next to the shells. Neither is committed: `prepare`
+// builds both on `npm install`, and the published tarball ships them prebuilt.
 //
 //   node scripts/build-client.mjs            one production bundle (minified)
 //   node scripts/build-client.mjs --dev      readable, inline sourcemaps

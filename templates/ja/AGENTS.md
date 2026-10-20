@@ -15,6 +15,9 @@
 `rooms/<room>/index.png` は artifact を描画したものです。手で編集せず、
 `npx modelroom render <room>` で生成し、html と一緒にコミットします。
 
+room の追加・改名・削除は CLI（`npx modelroom new|rename|remove`）で行います。
+ディレクトリ名が room そのもので、その room への参照も一緒に動かす必要があります。
+
 それ以外は書き込まないでください。このディレクトリの外には出ないでください。
 デザインレイヤーはアプリケーションのコードを読みません。アプリケーションに渡すのは
 このレイヤーであり、その逆ではありません。
@@ -42,11 +45,12 @@
 一時ファイルに描画して比較します。逆に、見た目を変える変更は新しい `index.png` を
 残し、PR がそれを表示します。
 
-このレイヤーには2つのスキルが `.opencode/skills/` に付いてきます:
+このレイヤーには3つのスキルが `.opencode/skills/` に付いてきます:
 
 - `read-modelroom` — 変更の前に、docs **と画像**を読む。
 - `create-modelroom-pr` — まずスナップショットを取り、画像・コンテキスト・BEHAVIOUR を
   載せた PR を作る。
+- `manage-modelroom-rooms` — 参照を壊さずに room を作成・改名・削除する。
 
 スナップショットは固定名（`index.png`）で、その場で上書きします。そうすることで
 GitHub が PR で画像の差分を表示できます。マージは **Squash and Merge** で行います —

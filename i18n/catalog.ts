@@ -15,6 +15,10 @@ export const en = {
 usage
   modelroom [serve] [--port 4321] [--host 127.0.0.1] [--open] [--lang en|ja]
   modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force] [--skip-install] [--no-script]
+  modelroom new <room> [--title "Sign in"]
+  modelroom rename <old> <new> [--dry-run] [--force]
+  modelroom remove <room> [--yes] [--dry-run] [--force]
+  modelroom update [--dry-run]
   modelroom check [--json] [--strict]
   modelroom doctor
   modelroom render [<room>] [--all] [--check] [--force] [--device sp|tablet|pc]
@@ -33,6 +37,9 @@ Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
   'cli.serve.agent': '  agent    {line}',
   'cli.serve.artifacts': '  Artifacts are served unmodified. Writable files: {docs}',
   'cli.serve.ctrlC': '  Ctrl+C to stop',
+  'cli.serve.noUi': 'the built UI is missing — run npm install, or npm run build:client',
+  'cli.doctor.ui': 'built UI: web/assets/app.js',
+  'cli.doctor.uiMissing': 'built UI: missing (run: npm install, or npm run build:client)',
   'cli.serve.portInUse': 'port {port} is in use — pass --port <n>',
   'cli.init.skip': 'skip  {label} (exists)',
   'cli.init.created': 'created in {dir}:',
@@ -100,6 +107,32 @@ Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
   'cli.pr.snapshot':
     '**Snapshot:** `{path}` — review the picture under Files changed (the png diff).',
   'cli.pr.behaviour': '## Behaviour',
+
+  // ── rooms ──────────────────────────────────────────────────────────────────
+  'cli.room.noConfig': 'no modelroom config here — run: npx modelroom init',
+  'cli.room.needsName': 'name a room: npx modelroom {cmd} <room>',
+  'cli.room.needsRename': 'name two rooms: npx modelroom rename <old> <new>',
+  'cli.room.invalidName':
+    'invalid room name: {room} — use lowercase letters, digits, dot, dash or underscore',
+  'cli.room.exists': 'a room named {room} already exists',
+  'cli.room.caseExists': 'a room named {name} already exists (differs only by case)',
+  'cli.room.sameName': '{room} is already that name',
+  'cli.room.created': 'created room {room}:',
+  'cli.room.next': 'next: npx modelroom (or open http://127.0.0.1:{port}/rooms/{room})',
+  'cli.room.renamed': 'renamed {from} → {to}',
+  'cli.room.rewrite': 'rewrite  {file}  ({count} reference(s))',
+  'cli.room.sessionMoved': 'chat session moved: {from} → {to}',
+  'cli.room.dryRun': '(dry run — nothing was written)',
+  'cli.room.serveRunning': 'modelroom serve is running (pid {pid}) — stop it, or pass --force',
+  'cli.room.referenced': 'room {room} is referenced by {rooms} — pass --force to remove it anyway',
+  'cli.room.wouldRemove': 'would remove room {room}',
+  'cli.room.confirm': 'removing a room cannot be undone (git is the only way back) — pass --yes',
+  'cli.room.removed': 'removed room {room}',
+  'cli.room.forcedRefs': 'these rooms still reference it: {rooms} — fix them',
+  'cli.update.same': 'ok       {file}  (unchanged)',
+  'cli.update.changed': 'update   {file}',
+  'cli.update.dry': 'update?  {file}',
+  'cli.update.summary': '{changed} file(s) refreshed, {same} already current',
 
   // ── lint / frontmatter ─────────────────────────────────────────────────────
   'lint.reserved-type': '{key} must be {allowed}, got {got}',
@@ -408,6 +441,10 @@ export const ja: Messages = {
 使い方
   modelroom [serve] [--port 4321] [--host 127.0.0.1] [--open] [--lang en|ja]
   modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force] [--skip-install] [--no-script]
+  modelroom new <room> [--title "Sign in"]
+  modelroom rename <old> <new> [--dry-run] [--force]
+  modelroom remove <room> [--yes] [--dry-run] [--force]
+  modelroom update [--dry-run]
   modelroom check [--json] [--strict]
   modelroom doctor
   modelroom render [<room>] [--all] [--check] [--force] [--device sp|tablet|pc]
@@ -427,6 +464,10 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'cli.serve.agent': '  agent    {line}',
   'cli.serve.artifacts': '  artifact は無改変で配信されます。書き込み可能: {docs}',
   'cli.serve.ctrlC': '  停止するには Ctrl+C',
+  'cli.serve.noUi':
+    'ビルド済み UI がありません — npm install、または npm run build:client を実行してください',
+  'cli.doctor.ui': 'ビルド済み UI: web/assets/app.js',
+  'cli.doctor.uiMissing': 'ビルド済み UI: なし（npm install、または npm run build:client を実行）',
   'cli.serve.portInUse': 'ポート {port} は使用中です — --port <n> を指定してください',
   'cli.init.skip': 'skip  {label}（既存）',
   'cli.init.created': '{dir} に作成しました:',
@@ -496,6 +537,33 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'cli.pr.snapshot':
     '**スナップショット:** `{path}` — 画像の差分は Files changed（png の diff）で確認できます。',
   'cli.pr.behaviour': '## ふるまい',
+
+  // ── rooms ──────────────────────────────────────────────────────────────────
+  'cli.room.noConfig': 'modelroom の設定がありません — npx modelroom init を実行してください',
+  'cli.room.needsName': 'room 名を指定してください: npx modelroom {cmd} <room>',
+  'cli.room.needsRename': '2つの room 名を指定してください: npx modelroom rename <old> <new>',
+  'cli.room.invalidName':
+    'room 名が不正です: {room} — 小文字の英数字・ドット・ハイフン・アンダースコアを使ってください',
+  'cli.room.exists': '{room} という room はすでにあります',
+  'cli.room.caseExists': '{name} という room がすでにあります（大文字小文字だけの違い）',
+  'cli.room.sameName': '{room} はすでにその名前です',
+  'cli.room.created': 'room {room} を作成しました:',
+  'cli.room.next': '次: npx modelroom（または http://127.0.0.1:{port}/rooms/{room} を開く）',
+  'cli.room.renamed': '{from} → {to} に改名しました',
+  'cli.room.rewrite': 'rewrite  {file}（参照 {count} 件）',
+  'cli.room.sessionMoved': 'チャットセッションを移動: {from} → {to}',
+  'cli.room.dryRun': '（dry run — 何も書き込んでいません）',
+  'cli.room.serveRunning':
+    'modelroom serve が実行中です（pid {pid}） — 先に停止するか --force を付けてください',
+  'cli.room.referenced': 'room {room} は {rooms} から参照されています — 削除するには --force',
+  'cli.room.wouldRemove': 'room {room} を削除します',
+  'cli.room.confirm': 'room の削除は元に戻せません（戻せるのは git だけ） — --yes を付けてください',
+  'cli.room.removed': 'room {room} を削除しました',
+  'cli.room.forcedRefs': '次の room がまだ参照しています: {rooms} — 直してください',
+  'cli.update.same': 'ok       {file}（変更なし）',
+  'cli.update.changed': 'update   {file}',
+  'cli.update.dry': 'update?  {file}',
+  'cli.update.summary': '{changed} 件を更新、{same} 件は最新',
 
   // ── lint / frontmatter ─────────────────────────────────────────────────────
   'lint.reserved-type': '{key} は {allowed} である必要があります（実際は {got}）',
