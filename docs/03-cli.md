@@ -14,10 +14,10 @@ modelroom pr-body <room> [--image-url <url>]
 modelroom --version | --help
 ```
 
-`modelroom` with no command is `serve`. `serve` needs Node 20+ and nothing else. `init` only
-copies templates. `add`, `rename` and `remove` keep the rooms unique and their references in
-step. `update` refreshes the files modelroom generated. `check` reads the frontmatter of every
-room and reports convention problems.
+`modelroom` with no command is `serve`. `serve` needs Node 20+ and nothing else. `init`
+copies templates and asks which language to use. `add`, `rename` and `remove` keep the rooms
+unique and their references in step. `update` refreshes the files modelroom generated.
+`check` reads the frontmatter of every room and reports convention problems.
 
 The tool UI does the same three room operations with this same code: the dashboard's **Add
 room** button, and the pencil and ⋯ menu in a room's header. A room made in the browser is
@@ -62,9 +62,9 @@ The skills go to `.agents/skills/`, the portable location: OpenCode and Claude C
 both read it (OpenCode also reads its own `.opencode/skills/`).
 
 ```
-modelroom init checkout            # modelroom/rooms/checkout/
+modelroom init checkout            # asks which language, then modelroom/rooms/checkout/
 modelroom init checkout --dir screens
-modelroom init checkout --lang ja  # pin Japanese for the templates and the UI
+modelroom init checkout --lang ja  # answer the language question without being asked
 modelroom init checkout --force    # overwrite existing files
 ```
 
@@ -100,24 +100,34 @@ runs the pinned local version:
 
 ### Language
 
-Language is automatic by default. It is resolved in this order:
+`init` asks which language to use when you run it at a terminal — ↑/↓ to choose, Enter to
+confirm, starting on the one it detected. The question is shown in both languages,
+because it is asked *because* the detection may be wrong. Escape answers nothing and
+leaves the language automatic; Ctrl+C stops `init` with nothing written.
 
-1. `--lang en|ja` (only when you want to pin it)
-2. `lang` in `modelroom/modelroom.json`, when it is present
-3. `MODELROOM_LANG`
-4. `LC_ALL` / `LC_MESSAGES` / `LANG`
-5. the OS locale
-6. English
+An answer, like `--lang en|ja`, is written to the project's config as `lang` — the
+`modelroom/modelroom.json` of the current layout, or the root `modelroom.json` of a
+project that has one — and from then on the CLI, the web UI and new rooms all speak it.
+A config that already names a language is not asked about again.
 
-`init` never asks. It uses the detected language for the generated templates and writes
-`lang` only when you passed `--lang`; without it the config has no `lang` and every run
-keeps detecting. `--lang` on `init` (or a later one) pins the language for the CLI, the
-web UI and new rooms.
+When nobody is there to answer — no terminal, or `CI=1` — the language is resolved
+without asking, in this order:
 
-Existing room documents are never rewritten; `--lang` affects new rooms only. To translate
-a project that already has rooms, pin the language and ask the agent to translate the
-existing `BRIEF.md` / `SPEC.md` / `BEHAVIOUR.md` files — the frontmatter keys and promise
-ids stay as they are.
+1. `lang` in the config, when it is present
+2. `MODELROOM_LANG`
+3. `LC_ALL` / `LC_MESSAGES` / `LANG`
+4. the OS locale
+5. English
+
+Detection is a guess, and a poor one on macOS: the OS language is not visible to a Node
+process there, only the shell's `LANG`, so a Mac set to Japanese whose shell exports
+`LANG=en_US.UTF-8` detects English. That is why a terminal is asked rather than guessed
+at. `--lang` answers the question without asking, which is what a script or CI wants.
+
+Existing room documents are never rewritten; the language affects new rooms only. To
+translate a project that already has rooms, pin the language and ask the agent to translate
+the existing `BRIEF.md` / `SPEC.md` / `BEHAVIOUR.md` files — the frontmatter keys and
+promise ids stay as they are.
 
 ## add
 

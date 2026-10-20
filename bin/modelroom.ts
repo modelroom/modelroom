@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import {
   findConfigPath,
   isLang,
+  LANGS,
   loadConfig,
   loadState,
   saveState,
@@ -49,6 +50,8 @@ import { createModelroom } from '../server/http.ts';
 import { listRoomNames, roomInfo, snapshotName } from '../core/rooms.ts';
 import { collidingRoom, isNewRoomName } from '../core/roomrefs.ts';
 import { lintRooms } from './lint.ts';
+import { LANG_LABELS, configLanguage, resolveInitLang, shouldAskLang } from './langchoice.ts';
+import { keptLine, select } from './prompt.ts';
 import { findPackageRoot } from '../core/pkg.ts';
 
 const pkgDir = findPackageRoot(dirname(fileURLToPath(import.meta.url)));
@@ -192,25 +195,22 @@ else if (cmd === 'init') {
   const existingPath = await findConfigPath(cwd);
   const legacy = existingPath === resolve(cwd, 'modelroom.json');
   let cfg: Config;
-  let lang: Lang;
-  let langSource: string;
   let designDir: string;
   let configPath: string;
 
   const detected = detectLang();
-  const pinned = isLang(opts.lang);
+  // The config's own `lang` is a pin. Without one, a person at a terminal is
+  // asked and a script trusts the environment — see bin/langchoice.ts.
+  const configLang = existingPath
+    ? configLanguage(await readFile(existingPath, 'utf8').catch(() => ''))
+    : undefined;
+
   if (existingPath) {
     cfg = await loadConfig(cwd);
     configPath = cfg.configPath;
-    lang = isLang(opts.lang) ? opts.lang : cfg.lang;
-    const raw = await readFile(configPath, 'utf8').catch(() => '');
-    langSource = pinned ? 'flag' : /"lang"\s*:/.test(raw) ? 'config' : detected.source;
-    if (legacy) console.log(t(lang, 'cli.init.legacy', { path: relative(cwd, existingPath) }));
   } else {
     designDir = join(cwd, 'modelroom');
     configPath = join(designDir, 'modelroom.json');
-    lang = isLang(opts.lang) ? opts.lang : detected.lang;
-    langSource = pinned ? 'flag' : detected.source;
     cfg = {
       root: '.',
       rooms: str(opts.dir) ?? 'rooms',
@@ -219,7 +219,7 @@ else if (cmd === 'init') {
       docs: ['BRIEF.md', 'SPEC.md', 'BEHAVIOUR.md'],
       port: 4321,
       host: '127.0.0.1',
-      lang,
+      lang: detected.lang,
       thumbnail: { device: 'tablet', scale: 1 },
       agent: {
         adapter: 'opencode',
@@ -237,6 +237,24 @@ else if (cmd === 'init') {
       statePath: join(cwd, '.modelroom', 'state.json'),
     };
   }
+
+  const explicit = isLang(opts.lang) ? opts.lang : undefined;
+  const ask = shouldAskLang({ explicit, configLang, interactive: canPrompt() });
+  // `undefined` is the person pressing Escape: nothing is written, and the config
+  // is left to keep detecting — the same as a non-interactive run.
+  const answer = ask ? await askLanguage(detected.lang) : undefined;
+  const {
+    lang,
+    source: langSource,
+    write,
+  } = resolveInitLang({
+    explicit,
+    configLang,
+    detected,
+    answer,
+  });
+  cfg.lang = lang;
+  if (legacy) console.log(t(lang, 'cli.init.legacy', { path: relative(cwd, existingPath) }));
 
   if (str(opts.dir)) {
     cfg.rooms = str(opts.dir) as string;
@@ -259,17 +277,17 @@ else if (cmd === 'init') {
     await mkdir(dirname(configPath), { recursive: true });
     const template = await readFile(join(templatesDir, 'modelroom.json'), 'utf8');
     let text = template.replaceAll('{{rooms}}', cfg.rooms).replaceAll('{{state}}', stateRel);
-    // Auto is the default: no `lang` line unless the caller pinned one.
-    text = pinned
+    // Auto is the default: no `lang` line unless someone decided it.
+    text = write
       ? text.replaceAll('{{lang}}', lang)
       : text.replace(/^[ \t]*"lang": "\{\{lang\}\}",\r?\n/m, '');
     await writeFile(configPath, text);
     written.push(rel(configPath, cwd));
   } else {
-    // An existing project keeps its config; explicit flags update only what they name.
+    // An existing project keeps its config; an explicit choice updates only what it names.
     const raw = JSON.parse(await readFile(configPath, 'utf8')) as Record<string, unknown>;
     let changed = false;
-    if (isLang(opts.lang) && raw.lang !== lang) {
+    if (write && raw.lang !== lang) {
       raw.lang = lang;
       changed = true;
     }
@@ -946,6 +964,29 @@ function lastLine(output: string): string | undefined {
     if (trimmed) line = trimmed;
   }
   return line ? line.slice(0, 200) : undefined;
+}
+
+// ── the language question ───────────────────────────────────────────────────
+
+/** `init` asks only when a person is at the terminal to answer, and CI never is. */
+function canPrompt(): boolean {
+  return process.stdin.isTTY === true && process.stdout.isTTY === true && !process.env.CI;
+}
+
+/**
+ * The one question `init` asks. The cursor starts on the detected language, but
+ * the question itself is shown in both languages: it is asked *because* the
+ * detection may be wrong, so it cannot be the thing that words the question.
+ */
+function askLanguage(initial: Lang): Promise<Lang | undefined> {
+  const both = (key: MessageKey): string => `${t('en', key)} / ${t('ja', key)}`;
+  const choices = LANGS.map((value) => ({ value, label: LANG_LABELS[value] }));
+  const question = both('cli.init.promptLang');
+  return select(question, choices, {
+    initial: Math.max(0, LANGS.indexOf(initial)),
+    // Escape leaves the language auto, which is a real answer, not a mishap.
+    cancelLine: keptLine(question, both('cli.init.promptKeep')),
+  });
 }
 
 // ── room operations ─────────────────────────────────────────────────────────

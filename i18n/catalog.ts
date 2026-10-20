@@ -29,7 +29,9 @@ A room is one screen: modelroom/rooms/<name>/ with BRIEF.md, SPEC.md,
 BEHAVIOUR.md and an artifact. The artifact's png is the room's snapshot: it is
 rendered next to it and committed, so a reviewer reads the picture.
 Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
-(git-ignore it).`,
+(git-ignore it).
+\`init\` asks which language when it runs at a terminal; \`--lang en|ja\` answers it
+without asking.`,
   'cli.error.unknownCommand': 'unknown command: {cmd}',
   'cli.error.invalidLang': 'unsupported language: {lang} (use en or ja)',
   'cli.serve.rooms': '  rooms    {rooms}',
@@ -58,9 +60,12 @@ Config lives in modelroom/modelroom.json; local state in .modelroom/state.json
   'cli.init.language': 'language  {lang} ({source})',
   'cli.init.languageSource.flag': '--lang',
   'cli.init.languageSource.config': 'modelroom.json',
+  'cli.init.languageSource.prompt': 'chosen',
   'cli.init.languageSource.env': 'environment',
   'cli.init.languageSource.default': 'default',
   'cli.init.languageAuto': 'detected automatically — pass --lang en|ja to pin it',
+  'cli.init.promptLang': 'language',
+  'cli.init.promptKeep': 'keep automatic',
   'cli.init.legacy': 'existing config at {path}; keeping the old layout',
   'cli.check.issue': '{level}  {where}  {code}  {message}',
   'cli.check.summary': '{rooms} room(s), {errors} error(s), {warnings} warning(s)',
@@ -506,7 +511,8 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
 スナップショットです — artifact の隣に生成・コミットし、レビュアーは
 その画像を読みます。
 設定は modelroom/modelroom.json、ローカル状態は .modelroom/state.json
-（git-ignore してください）。`,
+（git-ignore してください）。
+\`init\` は端末で実行すると言語を尋ねます（\`--lang en|ja\` を渡せば尋ねません）。`,
   'cli.error.unknownCommand': '不明なコマンド: {cmd}',
   'cli.error.invalidLang': '未対応の言語です: {lang}（en または ja）',
   'cli.serve.rooms': '  rooms    {rooms}',
@@ -537,9 +543,12 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'cli.init.language': '言語      {lang}（{source}）',
   'cli.init.languageSource.flag': '--lang',
   'cli.init.languageSource.config': 'modelroom.json',
+  'cli.init.languageSource.prompt': '選択',
   'cli.init.languageSource.env': '環境変数',
   'cli.init.languageSource.default': '既定値',
   'cli.init.languageAuto': '自動判定しました — 固定するには --lang en|ja',
+  'cli.init.promptLang': '言語',
+  'cli.init.promptKeep': '自動のまま',
   'cli.init.legacy': '既存の設定 {path} があるため、旧レイアウトのままにします',
   'cli.check.issue': '{level}  {where}  {code}  {message}',
   'cli.check.summary': '{rooms} room、エラー {errors}、警告 {warnings}',
