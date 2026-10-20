@@ -416,7 +416,7 @@ export function Kit() {
 
         <Section title={t('kit.split')} hint={t('kit.splitHint')}>
           <Split
-            direction="horizontal"
+            orientation="horizontal"
             style={{
               height: 112,
               overflow: 'hidden',
@@ -424,7 +424,7 @@ export function Kit() {
               borderRadius: 'var(--mantine-radius-md)',
             }}
           >
-            <SplitPanel defaultSize={30} minSize={15}>
+            <SplitPanel defaultSize="30%" minSize="15%">
               <Box
                 h="100%"
                 style={{
@@ -439,7 +439,7 @@ export function Kit() {
               </Box>
             </SplitPanel>
             <SplitHandle withHandle />
-            <SplitPanel defaultSize={40} minSize={15}>
+            <SplitPanel defaultSize="40%" minSize="15%">
               <Box h="100%" style={{ display: 'grid', placeItems: 'center' }}>
                 <Text size="xs" c="dimmed">
                   docs
@@ -447,7 +447,7 @@ export function Kit() {
               </Box>
             </SplitPanel>
             <SplitHandle />
-            <SplitPanel defaultSize={30} minSize={15}>
+            <SplitPanel defaultSize="30%" minSize="15%">
               <Box
                 h="100%"
                 style={{

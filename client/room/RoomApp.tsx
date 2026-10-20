@@ -256,25 +256,25 @@ export function RoomApp() {
           </>
         ) : (
           <Split
-            direction="horizontal"
+            orientation="horizontal"
             autoSaveId="modelroom.room.layout"
             style={{ flex: 1, minHeight: 0 }}
           >
-            <SplitPanel defaultSize={24} minSize={16}>
+            <SplitPanel defaultSize="24%" minSize="16%">
               {chatPanel}
             </SplitPanel>
             <SplitHandle />
-            <SplitPanel defaultSize={28} minSize={18}>
+            <SplitPanel defaultSize="28%" minSize="18%">
               {docsPanel}
             </SplitPanel>
             <SplitHandle />
-            <SplitPanel defaultSize={30} minSize={20}>
+            <SplitPanel defaultSize="30%" minSize="20%">
               {artifactPanel}
             </SplitPanel>
             {sessionOpen && (
               <>
                 <SplitHandle />
-                <SplitPanel defaultSize={18} minSize={14}>
+                <SplitPanel defaultSize="18%" minSize="14%">
                   {sessionPanel}
                 </SplitPanel>
               </>

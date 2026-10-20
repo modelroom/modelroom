@@ -130,7 +130,8 @@ the UI silently loses classes or ships stale code. `npm run build` does all of i
   component library and no utility-class layer.
 - **Panels are panels.** The four columns and the docs' edit/preview split use
   `react-resizable-panels` (`client/components/Split.tsx`). Mantine ships no split pane;
-  the library is pinned to the 3.x line — 4.x renamed the components.
+  the library is on the 4.x line — the components are `Group`, `Panel` and `Separator`,
+  the orientation prop is `orientation`, and panel sizes with no unit are percentages.
 - **The filter earns its two paths.** `client/dashboard/FacetFilter.tsx` renders Mantine's
   `MultiSelect`/`Select` up to 500 candidates, and a `Combobox` +
   `useVirtualizedCombobox` + `@tanstack/react-virtual` past that. The count gate lives in

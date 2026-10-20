@@ -118,10 +118,10 @@
   background-color: var(--mantine-color-default-border);
   transition: background-color 120ms ease;
 }
-.mr-split-handle[data-panel-group-direction='horizontal'] {
+.mr-split-handle[aria-orientation='vertical'] {
   width: 1px;
 }
-.mr-split-handle[data-panel-group-direction='vertical'] {
+.mr-split-handle[aria-orientation='horizontal'] {
   width: 100%;
   height: 1px;
 }
@@ -130,11 +130,11 @@
   position: absolute;
   inset: 0 -4px;
 }
-.mr-split-handle[data-panel-group-direction='vertical']::after {
+.mr-split-handle[aria-orientation='horizontal']::after {
   inset: -4px 0;
 }
 .mr-split-handle:hover,
-.mr-split-handle[data-resize-handle-state='drag'] {
+.mr-split-handle[data-separator='active'] {
   background-color: var(--mr-primary);
 }
 .mr-split-grip {
@@ -144,12 +144,12 @@
   border-radius: 999px;
   background-color: var(--mantine-color-default-border);
 }
-.mr-split-handle[data-panel-group-direction='vertical'] .mr-split-grip {
+.mr-split-handle[aria-orientation='horizontal'] .mr-split-grip {
   width: 12px;
   height: 4px;
 }
 .mr-split-handle:hover .mr-split-grip,
-.mr-split-handle[data-resize-handle-state='drag'] .mr-split-grip {
+.mr-split-handle[data-separator='active'] .mr-split-grip {
   background-color: var(--mantine-color-body);
 }
 
