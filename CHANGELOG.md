@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/modelroom/modelroom/compare/modelroom-v0.2.0...modelroom-v0.3.0) (2026-10-20)
+
+
+### Features
+
+* **ui:** add, rename and delete a room from the tool ([#25](https://github.com/modelroom/modelroom/issues/25)) ([0035125](https://github.com/modelroom/modelroom/commit/0035125a978c705d7c93fc70bd7d14c37ebbab5b))
+
 ## [0.2.0](https://github.com/modelroom/modelroom/compare/modelroom-v0.1.0...modelroom-v0.2.0) (2026-10-20)
 
 
