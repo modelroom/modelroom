@@ -115,6 +115,18 @@ if (cmd === 'serve') {
   });
   const lang = app.cfg.lang;
   app.startWatching();
+  // Ctrl+C stops the tool, and the opencode server it owns goes with it. The
+  // timeout is a backstop: `close` waits for open connections, and the chat's SSE
+  // stream is one of them.
+  let closing = false;
+  const shutdown = () => {
+    if (closing) process.exit(0);
+    closing = true;
+    setTimeout(() => process.exit(0), 1000).unref();
+    void app.close().finally(() => process.exit(0));
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
   try {
     const { url } = await app.listen();
     const rooms = await listRoomNames(app.cfg);

@@ -1,7 +1,7 @@
 // modelroom — agent adapters
 //
 // An adapter runs a coding agent for one prompt in one room. Two ship today:
-//   - `opencode`  OpenCode CLI (sessions, model, agent selection)
+//   - `opencode`  OpenCode CLI, driven through its server API (`opencode-turn.ts`)
 //   - `command`   any CLI, configured with args that contain {prompt} and {session}
 //
 // Adapter interface (see docs/04-agents.md):
@@ -9,6 +9,11 @@
 //   newSessionId()             string        one id per room, reused across prompts
 //   structured                 boolean       the turn is readable while it runs
 //   run(options)               child handle  streams stdout/stderr
+//
+// `run` is optional: an adapter without one is driven by modelroom itself. The
+// opencode adapter is that case — a one-shot `opencode run` cannot answer the
+// agent's question, so modelroom owns an `opencode serve` and drives the turn
+// through it instead (server/opencode-turn.ts).
 
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -35,7 +40,8 @@ export interface Adapter {
    * chat follows the turn instead of just parsing the output.
    */
   structured: boolean;
-  run: (options: RunOptions) => ChildProcess;
+  /** Spawn the CLI. Absent when modelroom drives the agent through its own API. */
+  run?: (options: RunOptions) => ChildProcess;
 }
 
 // eslint-disable-next-line no-control-regex -- the escape byte is the point
@@ -89,22 +95,8 @@ export const opencode: Adapter = {
   name: 'opencode',
   structured: true, // its session keeps the parts, so the chat can follow the turn
   newSessionId: () => `ses_${Date.now().toString(36)}${random()}`,
-  run({ cfg, cwd, prompt, sessionId, onChunk, onExit }) {
-    const a = cfg.agent;
-    const args = ['run'];
-    if (a.standalone) args.push('--standalone');
-    if (a.agent) args.push('--agent', a.agent);
-    if (a.model) args.push('--model', a.model);
-    args.push('--session', sessionId, '--auto', prompt);
-    return spawnStreaming({
-      command: a.command || 'opencode',
-      args,
-      cwd,
-      lang: cfg.lang,
-      onChunk,
-      onExit,
-    });
-  },
+  // No `run`: modelroom owns an `opencode serve` and drives the turn through its
+  // API, so the agent's question can be answered. See server/opencode-turn.ts.
 };
 
 export const command: Adapter = {

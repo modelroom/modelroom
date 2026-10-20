@@ -24,30 +24,47 @@ configure, one session per room, and shows you what changed.
 }
 ```
 
-modelroom runs, roughly:
+modelroom runs a private OpenCode server of its own and drives the turn through its API:
 
 ```
-opencode run --standalone --agent <agent> --model <model> --session <id> --auto "<prompt>"
+opencode serve --hostname 127.0.0.1 --port <free>   # one per modelroom process
 ```
+
+It creates the room's session (`POST /api/session`), sends the prompt
+(`POST /api/session/<id>/prompt`), and follows the turn until the session goes idle. That is
+the same private server `--standalone` starts, only kept alive across turns — and it is the
+point of the whole thing: a one-shot `opencode run` has nobody to answer the agent's question,
+so it cancels the question and the tool errors instead.
 
 Two things are worth knowing, both learned the hard way:
 
 - **Set `model`.** Many agents resolve to a free tier by default, and the CLI then refuses to
   run outside its own app (`OpenCode's free tier can only be used from within OpenCode`).
-- **`standalone: true`** runs the agent against a private server that inherits this process's
-  environment, which is what makes provider keys visible to it. If your shared service already
-  has keys, either setting works.
+- **The private server inherits this process's environment**, which is what makes provider keys
+  visible to it. `standalone` no longer changes how opencode is run — modelroom always owns its
+  own server — and stays in the config for compatibility.
 
 ### What the chat shows
 
-modelroom runs the agent, but it does not read the *turn* out of the CLI's prose. While the
-process is alive, opencode's session already describes that turn — the text, the reasoning, one
-entry per tool call, and the patch an edit wrote — and modelroom follows that instead. So a tool
-call is a row you can open, an edit shows its diff, reasoning folds away, and the CLI's own
-output stays in the run log. It is the same session the panel reads, asked about once a second.
+modelroom runs the agent, but it does not read the *turn* out of the CLI's prose. It reads the
+session the server is writing: the text, the reasoning, one entry per tool call, and the patch an
+edit wrote. So a tool call is a row you can open, an edit shows its diff, and reasoning folds
+away. The turn ends when the session goes idle, not when a process exits.
 
 If the session cannot be reached, or the adapter has no such place to look, the chat is exactly
 what the process printed. That is the `command` adapter, and it is why `structured` exists.
+
+### Questions
+
+An agent that needs a decision asks a question and blocks on it. modelroom answers the
+permission requests the way `opencode run --auto` would — a request that *asks* is approved, a
+configured `deny` is respected — and it does **not** answer questions on the person's behalf. It
+shows the question above the composer, with the agent's options and a free-form field; the answer
+goes back to the same turn, and the agent carries on from where it stopped.
+
+The question is opencode's `form`; modelroom projects it onto the driver-agnostic `Ask`
+(`api/chat.ts`) so the chat never learns opencode's shape. A second driver (Claude Code, say)
+would produce the same `Ask` and reuse the same card.
 
 The agent runs with its working directory set to `cfg.rootDir` — for a new
 install, `modelroom/`. That is where it reads `AGENTS.md`, and it is the whole
@@ -138,6 +155,11 @@ Add it to `server/agents/index.ts`. Three rules keep adapters honest:
 2. **Do not parse the output into meaning.** modelroom shows the agent's words as they are.
    Interpretation belongs to the person reading the room.
 3. **`structured: true` is a claim that the turn can be read while the run is in progress** —
-   that the agent keeps it somewhere modelroom can ask for it. Only one adapter makes that
-   claim today, and the reading lives in `server/opencode.ts` (`sessionParts`). If the claim is
-   wrong, the agent's *prose* lands in the chat and nothing else breaks.
+   that the agent keeps it somewhere modelroom can ask for it. The reading lives in
+   `server/opencode.ts` (`sessionParts`). If the claim is wrong, the agent's *prose* lands in the
+   chat and nothing else breaks.
+
+`run` is optional: an adapter without one is driven by modelroom itself rather than by a spawned
+process. The `opencode` adapter is that case — modelroom owns an `opencode serve` and follows the
+turn through its API (`server/opencode-turn.ts`), which is what lets a question stay open long
+enough for the person to answer it.

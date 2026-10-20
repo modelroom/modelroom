@@ -30,10 +30,10 @@ test('session ids are unique and prefixed', () => {
 test('a failed spawn reports the exit exactly once', async () => {
   const calls = [];
   await new Promise((resolve) => {
-    opencode.run({
+    command.run({
       cfg: {
         agent: {
-          adapter: 'opencode',
+          adapter: 'command',
           command: 'modelroom-no-such-binary-xyz',
           model: null,
           agent: 'build',

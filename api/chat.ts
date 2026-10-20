@@ -38,3 +38,39 @@ export interface Turn {
   role: 'user' | 'assistant';
   parts: Part[];
 }
+
+// ── the agent asking the person ──────────────────────────────────────────────
+//
+// An agent that needs a decision asks a question and blocks until it is
+// answered. That is not opencode's `form`, nor Claude Code's `AskUserQuestion`:
+// it is the one thing both do, said once here so the chat can render it without
+// knowing which agent produced it. A driver maps its own shape onto `Ask`.
+
+/** One choice the agent offers. */
+export interface AskOption {
+  label: string;
+  description?: string;
+}
+
+/** One question the agent asks. */
+export interface AskQuestion {
+  /** Stable key the answer comes back under (opencode: the field key). */
+  key: string;
+  header: string;
+  question: string;
+  options: AskOption[];
+  /** true when the person may pick more than one. */
+  multiple?: boolean;
+}
+
+/** The agent is blocked on the person. `id` is driver-local (opencode: form id). */
+export interface Ask {
+  id: string;
+  title?: string;
+  questions: AskQuestion[];
+  /** The tool call it belongs to, when there is one. */
+  source?: { messageID?: string; callID?: string };
+}
+
+/** key -> chosen labels / typed text. A single choice is a one-element array. */
+export type AskAnswer = Record<string, string[]>;
