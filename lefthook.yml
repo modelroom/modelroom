@@ -6,7 +6,7 @@ pre-commit:
   jobs:
     - name: oxlint
       glob: '*.{ts,mts,cts,js,mjs,cjs}'
-      run: npx oxlint --fix {staged_files}
+      run: npx oxlint --fix --no-error-on-unmatched-pattern {staged_files}
     - name: oxfmt
       glob: '*.{ts,mts,cts,js,mjs,cjs,json,jsonc,html,css}'
       exclude:
