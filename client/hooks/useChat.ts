@@ -9,7 +9,17 @@
 // which is the difference between "wait and lose your thought" and a chat.
 
 import { useCallback, useEffect, useReducer, useState } from 'react';
-import { getSession, partsText, postChat, type Part, type Turn } from '../lib/api.ts';
+import {
+  getSession,
+  partsText,
+  postAnswer,
+  postChat,
+  postDismiss,
+  type Ask,
+  type AskAnswer,
+  type Part,
+  type Turn,
+} from '../lib/api.ts';
 import { useI18n } from '../lib/i18n.tsx';
 import { useServerEvent } from './useServerEvents.tsx';
 
@@ -21,6 +31,8 @@ export type ChatMessage =
 
 interface State {
   messages: ChatMessage[];
+  /** Questions the agent is blocked on, oldest first. */
+  asks: Ask[];
   running: boolean;
   sessionId: string | null;
   assistantId: string | null;
@@ -35,11 +47,14 @@ type Action =
   | { type: 'start'; sessionId: string | null }
   | { type: 'session'; sessionId: string | null }
   | { type: 'parts'; parts: Part[] }
+  | { type: 'ask'; ask: Ask }
+  | { type: 'ask-done'; askId: string }
   | { type: 'chunk'; stream: string; chunk: string }
   | { type: 'done'; code: number; error: string | null };
 
 const initialState: State = {
   messages: [],
+  asks: [],
   running: false,
   sessionId: null,
   assistantId: null,
@@ -133,9 +148,16 @@ function reducer(state: State, action: Action): State {
         sessionId: action.sessionId ?? state.sessionId,
         assistantId: null,
         logId: null,
+        asks: [], // a new turn cannot be blocked on the last turn's question
       };
     case 'session':
       return { ...state, sessionId: action.sessionId };
+    case 'ask': {
+      if (state.asks.some((ask) => ask.id === action.ask.id)) return state;
+      return { ...state, asks: [...state.asks, action.ask] };
+    }
+    case 'ask-done':
+      return { ...state, asks: state.asks.filter((ask) => ask.id !== action.askId) };
     case 'parts': {
       // The turn as its own parts, live off the agent's server. This replaces the
       // streamed prose: the same words, plus the tool calls and patches around them.
@@ -185,6 +207,7 @@ function reducer(state: State, action: Action): State {
         messages: state.messages.map(finish),
         assistantId: null,
         logId: null,
+        asks: [], // the turn is over; an unanswered question is moot
       };
     }
     default:
@@ -194,10 +217,14 @@ function reducer(state: State, action: Action): State {
 
 export interface ChatApi {
   messages: ChatMessage[];
+  /** Questions the agent is blocked on, oldest first. */
+  asks: Ask[];
   running: boolean;
   sessionId: string | null;
   queue: string[];
   submit: (text: string) => Promise<void>;
+  answerAsk: (askId: string, answer: AskAnswer) => Promise<void>;
+  dismissAsk: (askId: string) => Promise<void>;
   removeQueued: (index: number) => void;
   setSessionId: (id: string | null) => void;
   notice: (text: string) => void;
@@ -216,6 +243,12 @@ export function useChat(room: string): ChatApi {
   });
   useServerEvent<{ room: string; parts: Part[] }>('chat-parts', (data) => {
     if (data.room === room) dispatch({ type: 'parts', parts: data.parts });
+  });
+  useServerEvent<{ room: string; ask: Ask }>('chat-ask', (data) => {
+    if (data.room === room) dispatch({ type: 'ask', ask: data.ask });
+  });
+  useServerEvent<{ room: string; askId: string }>('chat-ask-done', (data) => {
+    if (data.room === room) dispatch({ type: 'ask-done', askId: data.askId });
   });
   useServerEvent<{ room: string; code: number; error: string | null }>('chat-done', (data) => {
     if (data.room === room) dispatch({ type: 'done', code: data.code, error: data.error });
@@ -237,6 +270,8 @@ export function useChat(room: string): ChatApi {
             turns: turns.length,
           }),
         });
+        // A question the agent is still blocked on: the card comes back too.
+        for (const ask of data.asks ?? []) dispatch({ type: 'ask', ask });
       } catch {
         /* the panel just starts empty */
       }
@@ -281,6 +316,33 @@ export function useChat(room: string): ChatApi {
     [state.running, send],
   );
 
+  // The answer goes back to the turn that is blocked on it; the agent carries on
+  // from where it stopped. The card closes when the server confirms.
+  const answerAsk = useCallback(
+    async (askId: string, answer: AskAnswer) => {
+      try {
+        const result = await postAnswer(room, askId, answer);
+        if (result.error) throw new Error(result.error);
+        dispatch({ type: 'ask-done', askId });
+      } catch {
+        dispatch({ type: 'notice', text: t('ask.couldNotSend'), tone: 'error' });
+      }
+    },
+    [room, t],
+  );
+
+  const dismissAsk = useCallback(
+    async (askId: string) => {
+      try {
+        await postDismiss(room, askId);
+      } catch {
+        /* the turn moves on either way */
+      }
+      dispatch({ type: 'ask-done', askId });
+    },
+    [room],
+  );
+
   // The moment the agent stops, the next queued prompt goes out.
   useEffect(() => {
     if (state.running || queue.length === 0) return;
@@ -291,10 +353,13 @@ export function useChat(room: string): ChatApi {
 
   return {
     messages: state.messages,
+    asks: state.asks,
     running: state.running,
     sessionId: state.sessionId,
     queue,
     submit,
+    answerAsk,
+    dismissAsk,
     removeQueued: (index) => setQueue((current) => current.filter((_, i) => i !== index)),
     setSessionId: (id) => dispatch({ type: 'session', sessionId: id }),
     notice: (text) => dispatch({ type: 'notice', text, tone: 'info' }),

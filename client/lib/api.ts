@@ -3,9 +3,17 @@
 // The chat turn is the exception: it is defined once in `api/chat.ts` and shared
 // with the server, so the two sides cannot drift.
 
-import type { DiffFile, Part, Turn } from '../../api/chat.ts';
+import type {
+  Ask,
+  AskAnswer,
+  AskOption,
+  AskQuestion,
+  DiffFile,
+  Part,
+  Turn,
+} from '../../api/chat.ts';
 
-export type { DiffFile, Part, Turn };
+export type { Ask, AskAnswer, AskOption, AskQuestion, DiffFile, Part, Turn };
 
 export interface AgentConfig {
   adapter: string;
@@ -100,6 +108,8 @@ export interface SessionView {
   };
   context?: { used: number; limit: number; pct: number } | null;
   turns?: Turn[];
+  /** Questions the agent is blocked on right now. */
+  asks?: Ask[];
   mcp?: Array<{ name: string; status: string; error: string | null }>;
   skills?: string[];
   workspace?: string | null;
@@ -154,6 +164,20 @@ export const postChat = (room: string, prompt: string): Promise<ChatResponse> =>
 
 export const postSession = (room: string): Promise<{ sessionId?: string; error?: string }> =>
   json('/api/session', jsonPost({ room }));
+
+/** Answer the question the agent is blocked on, or dismiss it. */
+export const postAnswer = (
+  room: string,
+  askId: string,
+  answer: AskAnswer,
+): Promise<{ ok?: boolean; error?: string }> =>
+  json('/api/chat/answer', jsonPost({ room, askId, answer }));
+
+export const postDismiss = (
+  room: string,
+  askId: string,
+): Promise<{ ok?: boolean; error?: string }> =>
+  json('/api/chat/dismiss', jsonPost({ room, askId }));
 
 export const postRender = (
   room: string,

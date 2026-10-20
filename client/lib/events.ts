@@ -12,6 +12,8 @@ export const SERVER_EVENTS = [
   'chat-start',
   'chat',
   'chat-parts',
+  'chat-ask',
+  'chat-ask-done',
   'chat-done',
   'render-start',
   'render-done',

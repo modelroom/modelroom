@@ -92,46 +92,75 @@ const ask = (url, prompt) => () =>
   });
 
 /**
- * A fake opencode that behaves like the real one where it matters: `run` prints
- * prose and takes its time, and the session API describes the turn in parts —
- * including the patch an edit wrote — while that is still happening.
+ * A fake opencode that behaves like the real one where it matters: `serve`
+ * starts a server modelroom can drive, and the session API describes the turn in
+ * parts — including the patch an edit wrote — while that is still happening. The
+ * session goes idle on the second poll, which is how the turn ends.
  */
 async function fakeOpencode(dir) {
   const file = join(dir, 'fake-opencode.mjs');
   const src = `#!/usr/bin/env node
+import { createServer } from 'node:http';
+
 const argv = process.argv.slice(2);
-if (argv[0] === 'run') {
-  process.stdout.write('the same words, as prose\\n');
-  setTimeout(() => process.exit(0), 900);
-} else {
-  const answer = {
-    data: [
-      { id: 'm1', type: 'user', text: 'hi', time: { created: 1 } },
+const at = argv.indexOf('--port');
+const port = at >= 0 ? Number(argv[at + 1]) : 0;
+let polls = 0;
+
+const messages = [
+  { id: 'm1', type: 'user', text: 'hi', time: { created: 1 } },
+  {
+    id: 'm2',
+    type: 'assistant',
+    time: { created: Date.now() },
+    content: [
+      { type: 'reasoning', text: 'let me look at the room' },
+      { type: 'text', text: 'I changed the badge.' },
       {
-        id: 'm2',
-        type: 'assistant',
-        time: { created: Date.now() },
-        content: [
-          { type: 'reasoning', text: 'let me look at the room' },
-          { type: 'text', text: 'I changed the badge.' },
-          {
-            type: 'tool',
-            id: 'call_1',
-            name: 'edit',
-            state: {
-              status: 'completed',
-              input: { path: 'rooms/sign-in/BRIEF.md' },
-              metadata: {
-                files: [{ file: 'rooms/sign-in/BRIEF.md', patch: '@@ -1 +1 @@\\n-old\\n+new' }],
-              },
-            },
+        type: 'tool',
+        id: 'call_1',
+        name: 'edit',
+        state: {
+          status: 'completed',
+          input: { path: 'rooms/sign-in/BRIEF.md' },
+          metadata: {
+            files: [{ file: 'rooms/sign-in/BRIEF.md', patch: '@@ -1 +1 @@\\n-old\\n+new' }],
           },
-        ],
+        },
       },
     ],
+  },
+];
+
+const server = createServer((req, res) => {
+  const url = req.url ?? '';
+  const send = (body, code = 200) => {
+    res.writeHead(code, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(body));
   };
-  process.stdout.write(JSON.stringify(answer) + '\\n');
-}
+  if (req.method === 'GET' && url.endsWith('/message')) {
+    polls += 1;
+    const data = [...messages];
+    if (polls >= 2) {
+      data.push({ id: 'idle1', type: 'idle', outcome: 'succeeded', time: { created: Date.now() } });
+    }
+    return send({ data });
+  }
+  if (req.method === 'GET' && url.endsWith('/form')) return send({ data: [] });
+  if (req.method === 'GET' && url.endsWith('/permission')) return send({ data: [] });
+  if (req.method === 'POST' && url.endsWith('/prompt')) return send({ data: {} });
+  if (req.method === 'POST' && url.endsWith('/interrupt')) {
+    res.writeHead(204);
+    return res.end();
+  }
+  if (req.method === 'GET' && /\\/api\\/session\\/[^/]+$/.test(url)) return send({ data: { id: 'ses_fake' } });
+  return send({ data: {} });
+});
+
+server.listen(port, '127.0.0.1', () => {
+  const address = server.address();
+  process.stdout.write('server listening on http://127.0.0.1:' + address.port + '\\n');
+});
 `;
   await writeFile(file, src);
   await chmod(file, 0o755);
@@ -175,8 +204,8 @@ test('a structured turn reaches the chat while the agent is still working', asyn
       patch: expect.stringContaining('+new'),
     });
 
-    // The CLI's own words still stream — as raw output, not as a second answer.
-    expect(events.some((e) => e.event === 'chat' && e.data.stream === 'stdout')).toBe(true);
+    // The turn is driven over the API; the meta line still says what is running.
+    expect(events.some((e) => e.event === 'chat' && e.data.stream === 'meta')).toBe(true);
   } finally {
     await app.close();
     await rm(dir, { recursive: true, force: true });
