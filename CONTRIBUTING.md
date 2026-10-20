@@ -23,7 +23,7 @@ development; the published package ships compiled JavaScript in `dist/`).
 npm run verify   # lint, type-aware lint, format check, typecheck, tests, build
 ```
 
-`npm run verify` runs the same gates as CI. If you changed anything under `ui/`, rebuild the
+`npm run verify` runs the same gates as CI. If you changed anything under `web/`, rebuild the
 committed stylesheet and include it in the same commit:
 
 ```bash

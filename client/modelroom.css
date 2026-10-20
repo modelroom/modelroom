@@ -10,8 +10,8 @@
  *   · the CodeMirror shell (the editor is CodeMirror's, not ours)
  *   · the highlight.js palette, keyed off the theme's own colours
  *
- * The built file (ui/modelroom.css) is committed, so `npx modelroom` needs no
- * build. Rebuild after changing ui/*.html, web/** or this file:
+ * The built file (web/modelroom.css) is committed, so `npx modelroom` needs no
+ * build. Rebuild after changing web/*.html or this file:
  *   npm run build:css
  *
  * Only the tool's own UI is scanned here. Room artifacts (the HTML you hand to

@@ -1,12 +1,11 @@
 <!doctype html>
-<!-- modelroom — dashboard: every room, narrowed by what the records say.
-     The shell is static; the app lives in client/ and is built to /ui/assets/app.js. -->
+<!-- modelroom — settings: how modelroom talks to your agent. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>modelroom</title>
-<link rel="stylesheet" href="/ui/modelroom.css">
+<title>Settings — modelroom</title>
+<link rel="stylesheet" href="/web/modelroom.css">
 <script>
 // Theme before paint: Mantine reads `data-mantine-color-scheme`, so the first
 // frame is already the right colour and nothing flashes on load.
@@ -22,7 +21,7 @@ try {
 </script>
 </head>
 <body>
-<div id="root" data-app="dashboard" class="mr-app"></div>
-<script type="module" src="/ui/assets/app.js"></script>
+<div id="root" data-app="settings" class="mr-app"></div>
+<script type="module" src="/web/assets/app.js"></script>
 </body>
 </html>

@@ -9,7 +9,7 @@
     "coverage/**",
     "node_modules/**",
     "package-lock.json",
-    "ui/**",
+    "web/**",
     "templates/**",
     "docs/**",
     "**/*.md"

@@ -44,7 +44,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 const pkgDir = findPackageRoot(dirname(fileURLToPath(import.meta.url)));
-const uiDir = join(pkgDir, 'ui');
+const webDir = join(pkgDir, 'web');
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -213,7 +213,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
 
   async function serveUi(res: ServerResponse, page: string) {
     try {
-      return send(res, 200, MIME['.html'] as string, await readFile(join(uiDir, page)));
+      return send(res, 200, MIME['.html'] as string, await readFile(join(webDir, page)));
     } catch (err) {
       // Log locally; the browser gets no path or stack information.
       process.stderr.write(
@@ -225,9 +225,9 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
 
   /** Static assets of the tool itself (the built stylesheet and friends). */
   async function serveUiAsset(res: ServerResponse, urlPath: string) {
-    const rel = decodeURIComponent(urlPath.replace(/^\/ui\/?/, ''));
-    const target = normalize(join(uiDir, rel));
-    if (target !== uiDir && !target.startsWith(uiDir + sep)) {
+    const rel = decodeURIComponent(urlPath.replace(/^\/web\/?/, ''));
+    const target = normalize(join(webDir, rel));
+    if (target !== webDir && !target.startsWith(webDir + sep)) {
       return send(res, 403, 'text/plain; charset=utf-8', 'forbidden');
     }
     try {
@@ -238,7 +238,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
       });
       res.end(body);
     } catch {
-      send(res, 404, 'text/plain; charset=utf-8', `not found: /ui/${rel}`);
+      send(res, 404, 'text/plain; charset=utf-8', `not found: /web/${rel}`);
     }
   }
 
@@ -633,7 +633,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
       }
 
       if (path.startsWith('/files/')) return await serveFile(res, path);
-      if (path.startsWith('/ui/')) return await serveUiAsset(res, path);
+      if (path.startsWith('/web/')) return await serveUiAsset(res, path);
 
       // The room address is `/rooms/<name>` — plural, like `/api/rooms` and the
       // `rooms/` directory it reads. `/room/<name>` was the old one; it still

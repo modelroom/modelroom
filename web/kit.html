@@ -1,11 +1,13 @@
 <!doctype html>
-<!-- modelroom — settings: how modelroom talks to your agent. -->
+<!-- modelroom — the component workshop. Every Mantine component the tool wires
+     up, rendered in isolation, so a change can be seen before it is used. It is
+     the tool's own UI only; it never touches the convention or the artifacts. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Settings — modelroom</title>
-<link rel="stylesheet" href="/ui/modelroom.css">
+<title>Workshop — modelroom</title>
+<link rel="stylesheet" href="/web/modelroom.css">
 <script>
 // Theme before paint: Mantine reads `data-mantine-color-scheme`, so the first
 // frame is already the right colour and nothing flashes on load.
@@ -21,7 +23,7 @@ try {
 </script>
 </head>
 <body>
-<div id="root" data-app="settings" class="mr-app"></div>
-<script type="module" src="/ui/assets/app.js"></script>
+<div id="root" data-app="kit" class="mr-app"></div>
+<script type="module" src="/web/assets/app.js"></script>
 </body>
 </html>
