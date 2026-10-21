@@ -1076,7 +1076,10 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
         opencodeServer.stop();
         void thumbnails.close();
         void closeBrowser();
+        // A local tool must not hang on the way out: an SSE stream or a kept-alive
+        // socket would otherwise keep `server.close` waiting for the callback.
         server.close(() => r());
+        server.closeAllConnections?.();
       }),
   };
 }

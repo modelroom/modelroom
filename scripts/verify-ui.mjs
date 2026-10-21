@@ -41,6 +41,18 @@ const check = (ok, label, extra = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}${extra ? ` — ${extra}` : ''}`);
 };
 
+// A browser action that never returns, or a socket that will not close, must
+// fail the pass rather than hang CI. The timer fires only if the process is
+// still alive at the deadline; a normal run reaches `process.exit` first.
+const watchdog = setTimeout(
+  () => {
+    console.error('verify-ui: timed out after 8 minutes');
+    process.exit(1);
+  },
+  8 * 60 * 1000,
+);
+watchdog.unref();
+
 const port = await freePort();
 // The update check is off: this pass is about the pixels and the console, and it
 // must not depend on the registry being reachable.
@@ -526,4 +538,5 @@ console.log(
   `\n${results.filter((r) => r.ok).length}/${results.length} checks passed` +
     (report.failures.length ? `\nfailed: ${report.failures.join(', ')}` : ''),
 );
+clearTimeout(watchdog);
 process.exit(report.failures.length ? 1 : 0);

@@ -16,6 +16,8 @@ jobs:
   verify:
     name: verify (node ${{ matrix.node }})
     runs-on: ubuntu-latest
+    # A hung browser or a socket that will not close should fail, not linger.
+    timeout-minutes: 15
     permissions:
       contents: read
       id-token: write # Codecov OIDC
