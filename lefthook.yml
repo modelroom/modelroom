@@ -7,6 +7,7 @@ pre-commit:
     - name: oxlint
       glob: '*.{ts,mts,cts,js,mjs,cjs}'
       run: npx oxlint --fix --no-error-on-unmatched-pattern {staged_files}
+      stage_fixed: true
     - name: oxfmt
       glob: '*.{ts,mts,cts,js,mjs,cjs,json,jsonc,html,css}'
       exclude:
@@ -14,6 +15,7 @@ pre-commit:
         - 'templates/**'
         - 'package-lock.json'
       run: npx oxfmt --no-error-on-unmatched-pattern {staged_files}
+      stage_fixed: true
 
 pre-push:
   jobs:
