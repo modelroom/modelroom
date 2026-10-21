@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/modelroom/modelroom/compare/modelroom-v0.5.0...modelroom-v0.6.0) (2026-10-21)
+
+
+### Features
+
+* **render:** a device per room, not per project ([#37](https://github.com/modelroom/modelroom/issues/37)) ([843ce93](https://github.com/modelroom/modelroom/commit/843ce93116907550401f562f65353972f85cb3e3))
+
+
+### Bug Fixes
+
+* **cli:** name the project's package manager in the generated files ([#36](https://github.com/modelroom/modelroom/issues/36)) ([5f8beb3](https://github.com/modelroom/modelroom/commit/5f8beb32f0c667467989d95a4a347199e842ef7c))
+* **session:** read the MCP list from the server the agent runs on ([#39](https://github.com/modelroom/modelroom/issues/39)) ([1fbde73](https://github.com/modelroom/modelroom/commit/1fbde734808ff4fe9979e3ebb43f60d588a57337))
+
 ## [0.5.0](https://github.com/modelroom/modelroom/compare/modelroom-v0.4.0...modelroom-v0.5.0) (2026-10-20)
 
 
