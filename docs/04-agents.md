@@ -170,6 +170,10 @@ layer keeps the two halves apart:
   OpenCode V2 nests these under `mcp.servers` instead. Keep secrets in the environment —
   OpenCode substitutes `{env:NAME}` — and out of the committed file.
 
+  The room's MCP panel reads its list from that same server, the one the turn runs on —
+  not from the shared `opencode` service, whose servers belong to another directory — so
+  what the panel lists is what the agent can actually call.
+
 There is no portable MCP file across agents: `.mcp.json` is Claude Code's,
 `.cursor/mcp.json` is Cursor's, `.vscode/mcp.json` is VS Code's, and OpenCode reads none
 of them. If the layer is driven by more than one agent, each gets its own file; OpenCode's

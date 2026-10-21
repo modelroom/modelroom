@@ -29,6 +29,12 @@ export interface Api {
 export interface OpenCodeServer extends Api {
   url: string;
   pid: number | null;
+  /**
+   * When this server started. A fresh server answers before it has connected the
+   * MCP servers its config names, so an empty list this soon after a start is
+   * "not yet" — the reader tells the two apart by this.
+   */
+  startedAt: number;
 }
 
 /** A port the OS hands us and we immediately give back, so `serve` can take it. */
@@ -78,11 +84,17 @@ export function createOpenCodeServer(cfg: Config): OpenCodeServerHandle {
     }
   }
 
-  function connect(url: string, auth: string, pid: number | null): OpenCodeServer {
+  function connect(
+    url: string,
+    auth: string,
+    pid: number | null,
+    startedAt: number,
+  ): OpenCodeServer {
     const headers = { authorization: `Basic ${auth}` };
     return {
       url,
       pid,
+      startedAt,
       get: (path) => request(url, headers, 'GET', path),
       post: (path, body) => request(url, headers, 'POST', path, body ?? {}),
       del: (path) => request(url, headers, 'DELETE', path),
@@ -147,7 +159,7 @@ export function createOpenCodeServer(cfg: Config): OpenCodeServerHandle {
       return null;
     }
     const auth = Buffer.from(`opencode:${password}`).toString('base64');
-    const created = connect(`http://127.0.0.1:${port}`, auth, proc.pid ?? null);
+    const created = connect(`http://127.0.0.1:${port}`, auth, proc.pid ?? null, Date.now());
     // A crashed server is gone: the next `ensure` starts a fresh one.
     proc.on('close', () => {
       if (child === proc) child = null;
