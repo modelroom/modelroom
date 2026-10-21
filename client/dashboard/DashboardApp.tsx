@@ -90,11 +90,13 @@ function toQuery(state: ViewState): string {
 
 function readUrl(): ViewState {
   const params = new URLSearchParams(location.search);
-  const filters: Record<string, string[]> = {};
-  for (const [key, value] of params) {
-    if (!key.startsWith('f.') || !value) continue;
-    filters[key.slice(2)] = value.split('|').filter(Boolean);
-  }
+  // `Object.fromEntries`, not `filters[key] = …`: the key is the URL's, and a
+  // dynamic assignment would let `?f.__proto__=…` reach the prototype.
+  const filters = Object.fromEntries(
+    [...params]
+      .filter(([key, value]) => key.startsWith('f.') && value)
+      .map(([key, value]) => [key.slice(2), value.split('|').filter(Boolean)]),
+  ) as Record<string, string[]>;
   return {
     q: params.get('q') ?? '',
     filters,
