@@ -134,6 +134,11 @@ Reserved keys — shape only, never a fixed vocabulary:
 | `updated_at` | date string | sort order (falls back to file mtime) |
 | `deprecated` | boolean | hidden unless archived is on |
 | `superseded_by` | string | a pointer to the room that replaced this one |
+| `device` | string | the device the snapshot renders at (`sp`, `tablet`, `pc`, or a name from `modelroom.json`) |
+
+`device` is the one reserved key with a fixed vocabulary: it must name a device the
+project knows, because the renderer needs its width and height. `modelroom check` reports
+a name that does not resolve.
 
 **Everything else is a facet.** Add `category: kiosk`, `platform: tablet`, or anything
 that helps you narrow the list; a string becomes a radio group or a select (built from

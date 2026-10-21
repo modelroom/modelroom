@@ -8,24 +8,16 @@ import { constants } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { isLang, type Lang } from '../i18n/lang.ts';
 import { detectLang } from './locale.ts';
+import { DEFAULT_DEVICE, isDeviceName, normalizeDevices, type DeviceRegistry } from './device.ts';
 
 export type { Lang } from '../i18n/lang.ts';
 export { isLang, LANGS } from '../i18n/lang.ts';
 
 export type AdapterName = 'opencode' | 'command';
 
-/**
- * The device widths a snapshot can be rendered at. A room commits one snapshot
- * at one width, so the image GitHub diffs against stays the same shape.
- */
-export const DEVICES = { sp: 390, tablet: 1024, pc: 1280 } as const;
-export type Device = keyof typeof DEVICES;
-export const isDevice = (value: unknown): value is Device =>
-  typeof value === 'string' && Object.hasOwn(DEVICES, value);
-
 export interface ThumbnailConfig {
-  /** The device the committed snapshot is rendered at. */
-  device: Device;
+  /** The device a snapshot is rendered at unless its room names another. */
+  device: string;
   /** Device pixel ratio; 1 keeps the committed png small and its diff stable. */
   scale: number;
 }
@@ -54,6 +46,8 @@ export interface Config {
   /** The language of the tool UI, the CLI and the templates. */
   lang: Lang;
   agent: AgentConfig;
+  /** The built-in devices plus the project's own; see `core/device.ts`. */
+  devices: DeviceRegistry;
   thumbnail: ThumbnailConfig;
   /** Resolved at load time, all relative to the config file's directory. */
   rootDir: string;
@@ -86,11 +80,12 @@ export const DEFAULTS = {
     standalone: true,
     args: [],
   },
-  thumbnail: { device: 'tablet', scale: 1 },
+  thumbnail: { device: DEFAULT_DEVICE, scale: 1 },
 } as const;
 
-type ConfigFile = Partial<Omit<Config, 'agent' | 'thumbnail'>> & {
+type ConfigFile = Partial<Omit<Config, 'agent' | 'devices' | 'thumbnail'>> & {
   agent?: Partial<AgentConfig>;
+  devices?: unknown;
   thumbnail?: Partial<ThumbnailConfig>;
 };
 
@@ -128,6 +123,7 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<Config> {
   } catch {
     /* no config: defaults */
   }
+  const devices = normalizeDevices(file.devices);
   const cfg = {
     root: file.root ?? DEFAULTS.root,
     rooms: file.rooms ?? DEFAULTS.rooms,
@@ -139,8 +135,11 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<Config> {
     // No `lang` in the config means auto: the environment and the OS decide.
     lang: isLang(file.lang) ? file.lang : detectLang().lang,
     agent: { ...DEFAULTS.agent, ...file.agent } as AgentConfig,
+    devices,
     thumbnail: {
-      device: isDevice(file.thumbnail?.device) ? file.thumbnail.device : DEFAULTS.thumbnail.device,
+      device: isDeviceName(devices, file.thumbnail?.device)
+        ? (file.thumbnail?.device as string)
+        : DEFAULT_DEVICE,
       scale:
         typeof file.thumbnail?.scale === 'number' && file.thumbnail.scale > 0
           ? file.thumbnail.scale

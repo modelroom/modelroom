@@ -11,22 +11,13 @@ import {
   SegmentedControl,
   Text,
 } from '@mantine/core';
-import { postRender, type Device, type RoomInfo } from '../lib/api.ts';
+import { postRender, type DeviceInfo, type RoomInfo } from '../lib/api.ts';
 import { useI18n } from '../lib/i18n.tsx';
 import { useServerEvent } from '../hooks/useServerEvents.tsx';
 import { Icon } from './Icon.tsx';
 import { Panel } from './Status.tsx';
 
-const DEVICES = [
-  { value: 'sp', label: 'sp 390', width: 390 },
-  { value: 'tablet', label: 'tablet 1024', width: 1024 },
-  { value: 'pc', label: 'pc 1280', width: 1280 },
-] as const satisfies ReadonlyArray<{ value: Device; label: string; width: number }>;
-
 type View = 'artifact' | 'png';
-
-const widthOf = (device: Device): number =>
-  DEVICES.find((entry) => entry.value === device)?.width ?? 1024;
 
 export function ArtifactPanel({
   room,
@@ -34,16 +25,19 @@ export function ArtifactPanel({
   artifact,
   info,
   snapshotDevice,
+  devices,
 }: {
   room: string;
   roomsPath: string;
   artifact: string;
   info: RoomInfo;
-  /** The width the committed snapshot uses; "make png" starts here. */
-  snapshotDevice: Device;
+  /** The device this room's snapshot uses; "make png" starts here. */
+  snapshotDevice: string;
+  /** Every device the project knows, built-ins first. */
+  devices: DeviceInfo[];
 }) {
   const { t } = useI18n();
-  const [device, setDevice] = useState<Device>(snapshotDevice);
+  const [device, setDevice] = useState<string>(snapshotDevice);
   const [fit, setFit] = useState(true);
   const [view, setView] = useState<View>('artifact');
   const [nonce, setNonce] = useState(() => Date.now());
@@ -55,6 +49,16 @@ export function ArtifactPanel({
   const frame = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   const iframe = useRef<HTMLIFrameElement>(null);
+
+  const widthOf = useCallback(
+    (name: string): number => devices.find((entry) => entry.name === name)?.width ?? 1024,
+    [devices],
+  );
+
+  // The room can change the device it renders at; follow it.
+  useEffect(() => {
+    setDevice(snapshotDevice);
+  }, [snapshotDevice, room]);
 
   const fitFrame = useCallback(() => {
     const stageEl = stage.current;
@@ -75,7 +79,7 @@ export function ArtifactPanel({
     frameEl.style.transform = `scale(${scale})`;
     innerEl.style.width = `${Math.round(width * scale)}px`;
     innerEl.style.height = `${Math.round(height * scale)}px`;
-  }, [device, fit]);
+  }, [device, fit, widthOf]);
 
   useEffect(() => {
     fitFrame();
@@ -143,8 +147,11 @@ export function ArtifactPanel({
           <SegmentedControl
             size="xs"
             value={device}
-            onChange={(value) => setDevice(value as Device)}
-            data={DEVICES.map((entry) => ({ value: entry.value, label: entry.label }))}
+            onChange={(value) => setDevice(value)}
+            data={devices.map((entry) => ({
+              value: entry.name,
+              label: `${entry.name} ${entry.width}×${entry.height}`,
+            }))}
             aria-label={t('artifact.deviceWidth')}
           />
           <Checkbox

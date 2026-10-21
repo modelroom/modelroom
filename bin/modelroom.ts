@@ -5,7 +5,7 @@
 //   modelroom init [<room>] [--dir rooms] [--lang en|ja] [--force] [--skip-install] [--no-script]
 //   modelroom check [--json] [--strict]
 //   modelroom doctor
-//   modelroom render [<room>] [--all] [--check] [--force] [--device sp|tablet|pc]
+//   modelroom render [<room>] [--all] [--check] [--force] [--device <name>]
 //
 // `modelroom` with no command serves. See docs/03-cli.md.
 
@@ -25,6 +25,7 @@ import {
   type Lang,
 } from '../core/config.ts';
 import { detectLang } from '../core/locale.ts';
+import { BUILTIN_DEVICES, isDeviceName, listDevices } from '../core/device.ts';
 import { t, type MessageKey } from '../i18n/catalog.ts';
 import { readTemplate, ROOM_FILES, SKILLS } from '../core/templates.ts';
 import {
@@ -225,6 +226,7 @@ else if (cmd === 'init') {
       port: 4321,
       host: '127.0.0.1',
       lang: detected.lang,
+      devices: { ...BUILTIN_DEVICES },
       thumbnail: { device: 'tablet', scale: 1 },
       agent: {
         adapter: 'opencode',
@@ -449,7 +451,19 @@ else if (cmd === 'check') {
 else if (cmd === 'render') {
   const cfg = await loadConfig(cwd);
   const lang = isLang(opts.lang) ? opts.lang : cfg.lang;
-  const device = str(opts.device) ?? cfg.thumbnail.device;
+  // No `--device`: each room uses its own (frontmatter), else the project's.
+  const device = str(opts.device);
+  if (device && !isDeviceName(cfg.devices, device)) {
+    console.error(
+      t(lang, 'cli.render.unknownDevice', {
+        device,
+        devices: listDevices(cfg.devices)
+          .map((d) => d.name)
+          .join(', '),
+      }),
+    );
+    process.exit(1);
+  }
   const scale = str(opts.scale) ? Number(opts.scale) : cfg.thumbnail.scale;
   const check = Boolean(opts.check);
   const force = Boolean(opts.force);
@@ -478,10 +492,10 @@ else if (cmd === 'render') {
         console.log(t(lang, 'cli.render.error', { room, message: result.error }));
       } else if (result.same) {
         same++;
-        console.log(t(lang, 'cli.render.same', { room }));
+        console.log(t(lang, 'cli.render.same', { room, device: result.device }));
       } else {
         failed++;
-        console.log(t(lang, 'cli.render.differs', { room }));
+        console.log(t(lang, 'cli.render.differs', { room, device: result.device }));
       }
       continue;
     }
@@ -491,10 +505,16 @@ else if (cmd === 'render') {
       console.log(t(lang, 'cli.render.error', { room, message: result.error }));
     } else if (result.changed) {
       written++;
-      console.log(t(lang, 'cli.render.updated', { room, file: rel(result.png, cwd) }));
+      console.log(
+        t(lang, 'cli.render.updated', {
+          room,
+          file: rel(result.png, cwd),
+          device: result.device,
+        }),
+      );
     } else {
       same++;
-      console.log(t(lang, 'cli.render.unchanged', { room }));
+      console.log(t(lang, 'cli.render.unchanged', { room, device: result.device }));
     }
   }
   if (check) {

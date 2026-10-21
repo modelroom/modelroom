@@ -30,6 +30,7 @@ server/opencode-turn.ts  one turn, driven through that server's API
 server/artifact.ts      HTML → PNG (Playwright, dynamically imported)
 server/thumbs.ts        keeps every room's snapshot current (serial, idempotent)
 core/config.ts          config and state: modelroom.json + .modelroom/state.json
+core/device.ts          devices: the built-ins, the project's names, per-room resolution
 core/rooms.ts           room discovery, status parsing
 core/facets.ts          facets, filters, search built from the records
 core/frontmatter.ts     frontmatter read/write, reserved keys

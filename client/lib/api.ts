@@ -23,7 +23,13 @@ export interface AgentConfig {
   standalone: boolean;
 }
 
-export type Device = 'sp' | 'tablet' | 'pc';
+/** One device the server can render at, resolved (rotation applied). */
+export interface DeviceInfo {
+  name: string;
+  width: number;
+  height: number;
+  rotated: boolean;
+}
 
 export interface RoomConfig {
   root: string;
@@ -31,8 +37,10 @@ export interface RoomConfig {
   artifact: string;
   docs: string[];
   lang: 'en' | 'ja';
-  /** The width a room's committed snapshot is rendered at. */
-  thumbnail: { device: Device; scale: number };
+  /** The project's default device and the png scale. */
+  thumbnail: { device: string; scale: number };
+  /** Every device the project knows: the built-ins plus its own. */
+  devices: DeviceInfo[];
   agent: AgentConfig;
 }
 
@@ -47,6 +55,8 @@ export interface RoomInfo {
   deprecated: boolean;
   updatedAt: number;
   createdAt: number;
+  /** The device this room's snapshot renders at: its own, else the project's. */
+  device: string;
   hasArtifact: boolean;
   hasThumb: boolean;
   /** The artifact changed after its snapshot: the committed png is out of date. */

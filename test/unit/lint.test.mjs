@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { lintRooms } from '../../bin/lint.ts';
 import { clearDocCache } from '../../core/rooms.ts';
+import { normalizeDevices } from '../../core/device.ts';
 
 const docs = ['BRIEF.md', 'SPEC.md', 'BEHAVIOUR.md'];
 
@@ -118,6 +119,31 @@ test('missing docs are left to doctor', async () => {
   try {
     const { issues } = await lintRooms(cfg);
     assert.deepEqual(issues, []);
+  } finally {
+    await rm(cfg.roomsDir, { recursive: true, force: true });
+  }
+});
+
+test('a device must name one the project knows', async () => {
+  const cfg = await fixture({
+    known: { 'BRIEF.md': `---\ntitle: K\ndevice: pc\n---\n# K\n` },
+    custom: { 'BRIEF.md': `---\ntitle: C\ndevice: kiosk\n---\n# C\n` },
+    unknown: { 'BRIEF.md': `---\ntitle: U\ndevice: tv\n---\n# U\n` },
+  });
+  const devices = normalizeDevices({ kiosk: { width: 1024, height: 768 } });
+  try {
+    const { issues } = await lintRooms({ ...cfg, devices });
+    assert.deepEqual(codes(issues), ['unknown-device']);
+    assert.equal(issues[0].room, 'unknown');
+    assert.equal(issues[0].level, 'error');
+    assert.match(issues[0].message, /tv/);
+
+    const { issues: without } = await lintRooms(cfg);
+    // The same value is unknown without the project defining it.
+    assert.deepEqual(
+      without.filter((i) => i.code === 'unknown-device').map((i) => i.room),
+      ['custom', 'unknown'],
+    );
   } finally {
     await rm(cfg.roomsDir, { recursive: true, force: true });
   }

@@ -35,6 +35,12 @@ test('the snapshot defaults to one device and scale, and a block overrides it', 
   const tuned = await fixture({
     'modelroom.json': JSON.stringify({ thumbnail: { device: 'pc', scale: 2 } }),
   });
+  const named = await fixture({
+    'modelroom.json': JSON.stringify({
+      devices: { kiosk: { width: 1024, height: 768, rotated: true } },
+      thumbnail: { device: 'kiosk' },
+    }),
+  });
   const broken = await fixture({
     'modelroom.json': JSON.stringify({ thumbnail: { device: 'tv', scale: -1 } }),
   });
@@ -43,8 +49,14 @@ test('the snapshot defaults to one device and scale, and a block overrides it', 
     assert.deepEqual((await loadConfig(tuned)).thumbnail, { device: 'pc', scale: 2 });
     // An unknown device or a nonsense scale falls back, one value at a time.
     assert.deepEqual((await loadConfig(broken)).thumbnail, { device: 'tablet', scale: 1 });
+    // A project may make its own name the default.
+    const cfg = await loadConfig(named);
+    assert.equal(cfg.thumbnail.device, 'kiosk');
+    assert.deepEqual(cfg.devices.kiosk, { width: 1024, height: 768, rotated: true });
   } finally {
-    for (const dir of [plain, tuned, broken]) await rm(dir, { recursive: true, force: true });
+    for (const dir of [plain, tuned, named, broken]) {
+      await rm(dir, { recursive: true, force: true });
+    }
   }
 });
 
