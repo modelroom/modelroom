@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/modelroom/modelroom/compare/modelroom-v0.6.0...modelroom-v0.7.0) (2026-10-21)
+
+
+### Features
+
+* **update:** say when a newer modelroom exists ([#40](https://github.com/modelroom/modelroom/issues/40)) ([b41565d](https://github.com/modelroom/modelroom/commit/b41565dc3370b46cb916a6756889851320be666a))
+
 ## [0.6.0](https://github.com/modelroom/modelroom/compare/modelroom-v0.5.0...modelroom-v0.6.0) (2026-10-21)
 
 
