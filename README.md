@@ -130,7 +130,8 @@ must never set it.
 Rooms are made, renamed and removed with the CLI — `npx modelroom add`, `rename`, `remove`
 — so the unique directory name and the references to it move together. `modelroom update`
 refreshes the generated skills and `AGENTS.md` when you upgrade; `DESIGN.md` is yours and is
-left alone.
+left alone. `serve`, the dashboard and `doctor` say when a newer modelroom exists, with the
+command that fits this project — and modelroom never installs it for you.
 
 What every room shares is shared **once**. `DESIGN.md` records the decisions, `design.css`
 holds the layer's own tokens and components, and a vendored design system lives under
@@ -212,6 +213,8 @@ emits `dist/` with declarations; that is what npm publishes. See
 - Not an app builder (v0, Lovable, bolt.new). Those put chat first; this puts the room first.
 - Not a fork of anything. It is a convention plus a small local server.
 - Not a replacement for your agent. It drives the one you already use.
+- Not an installer. It tells you when a newer modelroom exists and prints the command that
+  fits your project; it never writes your `package.json` or lockfile.
 
 ## Status
 

@@ -18,11 +18,13 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { getRooms, postSettings, type RoomConfig } from '../lib/api.ts';
+import { getRooms, postSettings, type RoomConfig, type UpdateInfo } from '../lib/api.ts';
 import { clock } from '../lib/format.ts';
 import { useI18n } from '../lib/i18n.tsx';
+import { useUpdate } from '../hooks/useUpdate.ts';
 import { Icon } from '../components/Icon.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
+import { UpdateCard } from '../components/UpdateNotice.tsx';
 
 export function SettingsApp() {
   const { lang, t } = useI18n();
@@ -31,6 +33,7 @@ export function SettingsApp() {
     { value: 'command', label: t('settings.adapter.command') },
   ];
   const [config, setConfig] = useState<RoomConfig | null>(null);
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [adapter, setAdapter] = useState('opencode');
   const [command, setCommand] = useState('');
   const [agent, setAgent] = useState('');
@@ -46,6 +49,7 @@ export function SettingsApp() {
       if (!data?.config) return;
       const cfg = data.config;
       setConfig(cfg);
+      setUpdate(data.update ?? null);
       setAdapter(cfg.agent.adapter);
       setCommand(cfg.agent.command ?? '');
       setAgent(cfg.agent.agent ?? '');
@@ -78,6 +82,9 @@ export function SettingsApp() {
       setSaving(false);
     }
   };
+
+  // The check lands after this page loaded; the event carries the answer.
+  const notice = useUpdate(update);
 
   return (
     <AppShell header={{ height: 48 }} padding={0}>
@@ -237,6 +244,8 @@ export function SettingsApp() {
               </Alert>
             </Stack>
           </Card>
+
+          <UpdateCard update={notice} />
         </Stack>
       </AppShell.Main>
     </AppShell>

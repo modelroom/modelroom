@@ -126,7 +126,10 @@ unique and the references to it in step: `modelroom add`, `rename` and `remove`.
 rewrites what is a reference (`superseded_by`, `/rooms/<name>`, relative links) and lists the
 prose it leaves alone; the skill carries the reasoning and the approval a removal needs.
 When the layer is upgraded, `modelroom update` refreshes the skills and `AGENTS.md` — the
-files modelroom generated — and never `DESIGN.md`, a room or `modelroom.json`.
+files modelroom generated — and never `DESIGN.md`, a room or `modelroom.json`. Upgrading is
+a person's decision: when `serve`, the dashboard or `doctor` says a newer modelroom exists,
+name the command and leave it there — modelroom does not install anything, and neither
+should an agent.
 
 Skills are plain `SKILL.md` files. They are written to `.agents/skills/`, which OpenCode
 and Claude Code both read; OpenCode also reads its own `.opencode/skills/`. To use the

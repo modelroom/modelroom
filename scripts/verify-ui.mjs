@@ -41,7 +41,14 @@ const check = (ok, label, extra = '') => {
 };
 
 const port = await freePort();
-const app = await createModelroom({ cwd: pkgDir, port, host: '127.0.0.1' });
+// The update check is off: this pass is about the pixels and the console, and it
+// must not depend on the registry being reachable.
+const app = await createModelroom({
+  cwd: pkgDir,
+  port,
+  host: '127.0.0.1',
+  checkForUpdates: false,
+});
 app.startWatching();
 const { url } = await app.listen();
 await mkdir(outDir, { recursive: true });

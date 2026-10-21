@@ -30,14 +30,17 @@ import {
   type Facet,
   type RoomConfig,
   type SearchHit,
+  type UpdateInfo,
 } from '../lib/api.ts';
 import { stamp } from '../lib/format.ts';
 import { useI18n } from '../lib/i18n.tsx';
 import { useServerEvent, useServerEvents } from '../hooks/useServerEvents.tsx';
+import { useUpdate } from '../hooks/useUpdate.ts';
 import { AgentStatus, ToneBadge, toneForStatus } from '../components/Status.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import { AddRoomDialog } from '../components/AddRoomDialog.tsx';
+import { UpdateBadge } from '../components/UpdateNotice.tsx';
 import { FacetFilter } from './FacetFilter.tsx';
 
 const ESCAPES: Record<string, string> = {
@@ -182,6 +185,7 @@ export function DashboardApp() {
   const [rooms, setRooms] = useState<DashboardRoom[]>([]);
   const [facets, setFacets] = useState<Facet[]>([]);
   const [config, setConfig] = useState<RoomConfig | null>(null);
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [archived, setArchived] = useState(false);
@@ -229,6 +233,7 @@ export function DashboardApp() {
     setRooms(data.rooms ?? []);
     setFacets(data.facets ?? []);
     setConfig(data.config ?? null);
+    setUpdate(data.update ?? null);
     setLoading(false);
   }, []);
 
@@ -351,6 +356,8 @@ export function DashboardApp() {
   }, []);
 
   const busy = status?.phase === 'chat' || status?.phase === 'rendering';
+  // What the page loaded is only the first word: the check lands after it, over SSE.
+  const notice = useUpdate(update);
 
   return (
     <AppShell header={{ height: 48 }} padding={0}>
@@ -382,6 +389,7 @@ export function DashboardApp() {
           </Box>
 
           <Group gap="xs" ml="auto" wrap="nowrap">
+            <UpdateBadge update={notice} />
             <Button
               size="compact-sm"
               onClick={() => setAdding(true)}

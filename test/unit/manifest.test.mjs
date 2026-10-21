@@ -13,7 +13,7 @@ import {
   scriptCommand,
   scriptFallback,
   scriptOf,
-} from '../../bin/manifest.ts';
+} from '../../core/manifest.ts';
 
 const SHOP = '{\n  "name": "shop",\n  "scripts": {\n    "dev": "vite"\n  }\n}\n';
 

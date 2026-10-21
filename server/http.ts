@@ -37,6 +37,8 @@ import {
   removeRoom,
 } from '../core/roomops.ts';
 import { collidingRoom, isNewRoomName } from '../core/roomrefs.ts';
+import { projectCommands, type ProjectCommands } from '../core/project.ts';
+import { checkForUpdate, updateCheckDisabled, type UpdateCheck } from '../core/update.ts';
 import { getAdapter, stripAnsi } from './agents/index.ts';
 import {
   renderArtifact,
@@ -58,6 +60,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 const pkgDir = findPackageRoot(dirname(fileURLToPath(import.meta.url)));
 const webDir = join(pkgDir, 'web');
 const templatesDir = join(pkgDir, 'templates');
+
+/** modelroom's own version — what a newer one would replace. */
+async function packageVersion(): Promise<string> {
+  try {
+    const text = await readFile(join(pkgDir, 'package.json'), 'utf8');
+    const json = JSON.parse(text) as { version?: unknown };
+    return typeof json.version === 'string' ? json.version : '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -83,6 +96,18 @@ export interface ModelroomStatus {
   log: string[];
 }
 
+/**
+ * What the UI and the CLI hear about a newer modelroom. It is a notice and
+ * nothing more — modelroom never installs anything for you — so the most this
+ * carries is the command that would, in the project's own package manager.
+ */
+export interface UpdateInfo extends UpdateCheck {
+  /** The check is on. When it is off, nothing is asked and nothing is claimed. */
+  enabled: boolean;
+  /** `npm install --save-dev modelroom@latest && npm run modelroom update`, or the like. */
+  command: string;
+}
+
 export interface ChatResult {
   started: boolean;
   reason?: string;
@@ -103,6 +128,11 @@ export interface App {
   cfg: Config;
   server: ReturnType<typeof createServer>;
   status: ModelroomStatus;
+  /**
+   * The update check: the answer as soon as it is known (`get`), and how to wait
+   * for it (`ready`). It never rejects — a check that fails says nothing.
+   */
+  update: { get: () => UpdateInfo; ready: Promise<UpdateInfo> };
   startWatching: () => void;
   listen: () => Promise<{ url: string; cfg: Config }>;
   close: () => Promise<void>;
@@ -114,6 +144,11 @@ export interface CreateOptions {
   host?: string;
   /** Override the committed language for this run (e.g. `serve --lang ja`). */
   lang?: string;
+  /**
+   * Ask the registry whether a newer modelroom exists — on by default, and off
+   * in the tests and the browser pass, so nothing there reaches the network.
+   */
+  checkForUpdates?: boolean;
 }
 
 export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
@@ -129,6 +164,28 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
   // Settings saved from the UI are local state: re-apply them over modelroom.json
   // so a saved model survives the next start.
   applySettings(cfg, state.settings);
+  const version = await packageVersion();
+  // How this project runs modelroom — the same commands the CLI's `next:` lines
+  // and the layer's AGENTS.md name. Read once, so the notice and the routes
+  // never disagree about what to tell someone to type.
+  const commands: ProjectCommands = await projectCommands(cfg);
+  const checkEnabled = opts.checkForUpdates ?? !updateCheckDisabled();
+  /** The last answer. `null` means "not known" — off, or not asked yet. */
+  let updateCheck: UpdateCheck | null = null;
+  const updateInfo = (): UpdateInfo => ({
+    current: version,
+    latest: updateCheck?.latest ?? null,
+    available: updateCheck?.available ?? false,
+    checkedAt: updateCheck?.checkedAt ?? 0,
+    enabled: checkEnabled,
+    command: commands.update,
+  });
+  // `serve` prints the notice when this settles rather than waiting for it. It
+  // settles once, whether or not the registry was ever asked.
+  let announce: (info: UpdateInfo) => void = () => {};
+  const updateReady = new Promise<UpdateInfo>((resolve) => {
+    announce = resolve;
+  });
   const clients = new Set<ServerResponse>();
   // A room runs at most one turn. `command` keeps its watcher here; `opencode`
   // keeps the turn itself, so the chat can answer the agent's question.
@@ -168,6 +225,34 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
     status.message = message;
     status.since = Date.now();
     broadcast('status', { phase, message, since: status.since });
+  };
+  /**
+   * The one request to the outside world, made once per day at most — and only
+   * once `serve` is actually listening. Nothing waits for it: the answer is a
+   * note, and a note that cannot be fetched changes nothing. An answer that
+   * arrived is kept in local state so the next start does not ask again.
+   */
+  const startUpdateCheck = (): void => {
+    if (!checkEnabled) return announce(updateInfo());
+    void (async () => {
+      try {
+        const { check, fetched } = await checkForUpdate({
+          current: version,
+          cached: state.update,
+          disabled: false,
+        });
+        updateCheck = check;
+        if (fetched && check.latest) {
+          state.update = { latest: check.latest, checkedAt: check.checkedAt };
+          void persist();
+        }
+        broadcast('update', updateInfo());
+      } finally {
+        // Whatever happened, `serve` hears once — and `checkForUpdate` already
+        // answers `null` rather than throwing, so this is only belt and braces.
+        announce(updateInfo());
+      }
+    })();
   };
   /**
    * Wait for best-effort work, but never longer than the budget: a snapshot that
@@ -574,7 +659,11 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
       if (path === '/health') return send(res, 200, 'text/plain; charset=utf-8', 'ok');
       // The UI asks this once before its first paint: which language to speak.
       if (path === '/api/meta') {
-        return sendJson(res, 200, { lang: cfg.lang, config: publicConfig(cfg) });
+        return sendJson(res, 200, {
+          lang: cfg.lang,
+          config: publicConfig(cfg),
+          update: updateInfo(),
+        });
       }
       if (path === '/favicon.ico') {
         res.writeHead(204);
@@ -606,6 +695,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
           rooms: rooms.map((info) => ({ ...publicRoom(info), running: chats.has(info.name) })),
           facets: buildFacets(rooms),
           config: publicConfig(cfg),
+          update: updateInfo(),
         });
       }
 
@@ -966,6 +1056,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
     cfg,
     server,
     status,
+    update: { get: updateInfo, ready: updateReady },
     startWatching,
     listen: () =>
       new Promise((resolveListen, reject) => {
@@ -973,6 +1064,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
         server.listen(cfg.port, cfg.host, () => {
           // After listening, so anything the caller prints first still prints first.
           void (async () => thumbnails.ensure(await listRoomNames(cfg)))();
+          startUpdateCheck();
           resolveListen({ url: `http://${cfg.host}:${cfg.port}`, cfg });
         });
       }),

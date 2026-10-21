@@ -48,7 +48,8 @@ import { QuestionCard } from './components/QuestionCard.tsx';
 import { AddRoomDialog } from './components/AddRoomDialog.tsx';
 import { RenameRoomDialog } from './components/RenameRoomDialog.tsx';
 import { DeleteRoomDialog } from './components/DeleteRoomDialog.tsx';
-import type { Ask, Facet, RoomInfo } from './lib/api.ts';
+import { UpdateBadge, UpdateCard } from './components/UpdateNotice.tsx';
+import type { Ask, Facet, RoomInfo, UpdateInfo } from './lib/api.ts';
 import { useI18n } from './lib/i18n.tsx';
 import { renderDoc } from './lib/markdown.ts';
 
@@ -152,6 +153,46 @@ const SAMPLE_ROOM: RoomInfo = {
 };
 
 const SAMPLE_NAMES = ['checkout', 'sign-in', 'cart'];
+
+/** The update notice, in each state it can be in. */
+const SAMPLE_UPDATE: UpdateInfo = {
+  current: '0.5.0',
+  latest: '0.6.0',
+  available: true,
+  checkedAt: Date.now(),
+  enabled: true,
+  command: 'npm install --save-dev modelroom@latest && npm run modelroom update',
+};
+
+const SAMPLE_CURRENT: UpdateInfo = {
+  ...SAMPLE_UPDATE,
+  current: '0.6.0',
+  latest: '0.6.0',
+  available: false,
+};
+
+const SAMPLE_OFF: UpdateInfo = { ...SAMPLE_CURRENT, latest: null, enabled: false };
+
+function UpdateDemo() {
+  return (
+    <Stack gap="md">
+      <Group gap="xs" align="center">
+        <UpdateBadge update={SAMPLE_UPDATE} />
+        <UpdateBadge update={SAMPLE_CURRENT} />
+        <Text size="xs" c="dimmed">
+          only the first one exists — the second says nothing
+        </Text>
+      </Group>
+      <SimpleGrid cols={{ base: 1, md: 2 }}>
+        <UpdateCard update={SAMPLE_UPDATE} />
+        <Stack gap="md">
+          <UpdateCard update={SAMPLE_CURRENT} />
+          <UpdateCard update={SAMPLE_OFF} />
+        </Stack>
+      </SimpleGrid>
+    </Stack>
+  );
+}
 
 function DialogsDemo() {
   const { t } = useI18n();
@@ -489,6 +530,10 @@ export function Kit() {
 
         <Section title={t('kit.dialogs')} hint={t('kit.dialogsHint')}>
           <DialogsDemo />
+        </Section>
+
+        <Section title={t('kit.update')} hint={t('kit.updateHint')}>
+          <UpdateDemo />
         </Section>
 
         <Section title={t('kit.split')} hint={t('kit.splitHint')}>
