@@ -13,10 +13,10 @@ You are working inside the design layer (`modelroom/`). Write the room's prose i
 - `rooms/<room>/index.html` — the artifact itself
 
 `rooms/<room>/index.png` is the artifact's rendering: do not hand-edit it, produce
-it with `npx modelroom render <room>` and commit it with the html.
+it with `{{cli}} render <room>` and commit it with the html.
 
 A new room, a rename and a removal go through the CLI
-(`npx modelroom add|rename|remove`), or the tool UI's add button and room menu —
+(`{{cli}} add|rename|remove`), or the tool UI's add button and room menu —
 the same code; the directory name is the room, and the references to it have to
 move with it.
 
@@ -53,14 +53,14 @@ look components and tokens up before writing markup.
    two files; reference it by id (`@verb-1`) instead.
 5. Promises that need the real system (records, timestamps, permissions) do not belong in
    this layer.
-6. After changing `index.html`, run `npx modelroom render <room>` so `index.png` matches.
+6. After changing `index.html`, run `{{cli}} render <room>` so `index.png` matches.
    The picture is what gets reviewed; a stale snapshot is worse than no commit.
 
 ## The picture is the deliverable
 
 The room's reviewable output is the docs and the snapshot, not the markup. When a change
 is meant to be invisible — an accessibility fix, a refactor that must not move a pixel —
-`npx modelroom render <room> --check` proves the pixels are unchanged: it renders to a
+`{{cli}} render <room> --check` proves the pixels are unchanged: it renders to a
 temporary file and compares. A change that *is* meant to move the picture leaves a new
 `index.png`, and the pull request shows it.
 

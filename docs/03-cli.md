@@ -82,18 +82,27 @@ runs the pinned local version:
 ```
 
 - The script is added **only when the key is missing**, and only to a `package.json`
-  that already exists — `init` never creates one. `npx modelroom` stays the default
-  and stays documented; this is a convenience for projects that already live in npm
-  scripts.
+  that already exists — `init` never creates one. A project with no package manager
+  keeps `npx modelroom` as its default; this is a convenience for projects that
+  already live in npm scripts.
 - The dependency is installed with the project's own package manager, detected from
   the lockfile (`bun.lock*`, `pnpm-lock.yaml`, `yarn.lock`, otherwise npm). Writing a
   dependency entry by hand would leave the lockfile behind and break `npm ci`, so the
   manager is the only thing that ever touches it.
-- `--skip-install` leaves dependencies alone and writes `"modelroom": "npx --yes modelroom"`
-  instead, which needs no install at all.
-- If the install fails (offline, no manager on `PATH`), `init` says so, keeps the `npx`
-  script and continues — `npm run modelroom` works either way, and running the printed
+- `--skip-install` leaves dependencies alone and writes that manager's runner instead
+  of the local bin — `"modelroom": "npx --yes modelroom"` for npm, `pnpm dlx modelroom`,
+  `yarn dlx modelroom`, `bunx modelroom` — so no install is needed.
+- If the install fails (offline, no manager on `PATH`), `init` says so, keeps the
+  runner script and continues — the script works either way, and running the printed
   command later upgrades it to the local version.
+- The layer modelroom generates follows the same manager: `AGENTS.md`, the three
+  skills and the CLI's `next:` line name the command that actually runs here — `npm
+  run modelroom`, `pnpm modelroom`, `yarn modelroom`, `bun run modelroom` — not a
+  hardcoded `npx`. That matters for a project that pins its manager through
+  `devEngines`: npm then refuses **every** command, `npx modelroom` included, so a
+  `npx` in the agent's instructions is a command that cannot run. Where no script was
+  added, the manager's remote runner stands in (`pnpm dlx modelroom`, `bunx modelroom`,
+  otherwise `npx modelroom`).
 - `--force` replaces an existing `modelroom` script; `--no-script` keeps `init` out of
   the `package.json` entirely.
 - A project whose `package.json` cannot be read as JSON is left untouched, with a note.
@@ -150,8 +159,12 @@ $ modelroom add sign-in
 created room sign-in:
   modelroom/rooms/sign-in/BRIEF.md
   ...
-next: npx modelroom (or open http://127.0.0.1:4321/rooms/sign-in)
+next: npm run modelroom (or open http://127.0.0.1:4321/rooms/sign-in)
 ```
+
+The `next:` line names the project's own command — `npm run modelroom` when `init`
+added the script, `pnpm modelroom`, `yarn modelroom`, `bun run modelroom` in a pnpm,
+yarn or bun project, and the manager's remote runner when there is no script.
 
 ## rename
 
@@ -196,7 +209,9 @@ undo beyond git: commit the removal on its own so it can be reverted.
 
 Refreshes the files modelroom generated — the skills in `.agents/skills/` and `AGENTS.md`
 — from the installed version. Those change with the version, so this is how an existing
-project picks them up:
+project picks them up. `@latest` fetches the new version first, so use the manager's
+remote runner when the project pins one (`pnpm dlx modelroom@latest`, `yarn dlx`,
+`bunx`):
 
 ```
 npx modelroom@latest update

@@ -20,14 +20,14 @@ room ディレクトリを手で `mkdir`、`mv`、`rm` しないでください�
 ## room を追加する
 
 ```sh
-npx modelroom add <room> --title "Sign in"
+{{cli}} add <room> --title "Sign in"
 ```
 
 あとは room を書きます。`BRIEF.md` から始め、最後に次を実行します:
 
 ```sh
-npx modelroom render <room>
-npx modelroom check
+{{cli}} render <room>
+{{cli}} check
 ```
 
 ## room を改名する
@@ -35,7 +35,7 @@ npx modelroom check
 動かす前に確認します:
 
 ```sh
-npx modelroom rename <old> <new> --dry-run
+{{cli}} rename <old> <new> --dry-run
 ```
 
 dry run はディレクトリの移動と、書き換える参照をすべて表示します。問題なければ
@@ -48,10 +48,10 @@ frontmatter、`/rooms/<name>` と `/files/<rooms>/<name>` のパス、相対リ�
 1. 一覧の各行を読み、変えるべきか判断します。
 2. `title` と H1 はパスではなく文章です。ディレクトリ名と画面の名前は違ってかまい
    ません。画面が本当に改名するときだけ変えます。
-3. `npx modelroom check`、`npx modelroom render <room>` の順に実行し、スクリプトが
+3. `{{cli}} check`、`{{cli}} render <room>` の順に実行し、スクリプトが
    見られなかった差分を `git diff` で確認します。
 
-先に `npx modelroom` を止めてください。実行中のサーバは room のチャットセッションを
+先に `{{cli}}` を止めてください。実行中のサーバは room のチャットセッションを
 メモリに持っており、その下で改名すると失われます。サーバが動いている間、コマンドは
 実行を拒否します。
 
@@ -67,8 +67,8 @@ superseded_by: <置き換えた room>
 人間が明確に削除を求めたときだけ、次を実行します:
 
 ```sh
-npx modelroom remove <room> --dry-run   # 誰がまだ参照しているか
-npx modelroom remove <room> --yes
+{{cli}} remove <room> --dry-run   # 誰がまだ参照しているか
+{{cli}} remove <room> --yes
 ```
 
 `remove` は他の room が参照している間は拒否します（`--force` で続行）。強制削除は
@@ -81,8 +81,8 @@ npx modelroom remove <room> --yes
 バージョンで内容が変わります:
 
 ```sh
-npx modelroom@latest update            # 生成物を更新
-npx modelroom@latest update --dry-run  # 変更内容の確認
+{{cliLatest}} update            # 生成物を更新
+{{cliLatest}} update --dry-run  # 変更内容の確認
 ```
 
 room と `modelroom.json` には一切触れません。

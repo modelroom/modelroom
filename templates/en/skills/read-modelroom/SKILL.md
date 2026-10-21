@@ -20,7 +20,7 @@ just the markup.
    png already matches the artifact:
 
    ```sh
-   npx modelroom render <room>
+   {{cli}} render <room>
    ```
 
 3. Read `DESIGN.md` at the layer root. It names the design system the rooms draw
