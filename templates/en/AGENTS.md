@@ -82,5 +82,8 @@ and git collects the intermediate ones.
   in English, whatever language the prose uses.
 - Add `status: draft|review|adopted` to `BRIEF.md` when you want the dashboard to show a
   state. Changing it to `adopted` is a human decision, not yours.
+- If this room is not the project's default screen, say so with `device: <name>` in
+  `BRIEF.md`. The names are `sp`, `tablet`, `pc`, plus whatever `modelroom.json` defines;
+  the snapshot is rendered at that device.
 
 See `docs/02-convention.md` in the modelroom package for the reasoning.

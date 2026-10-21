@@ -11,8 +11,9 @@
 import { basename, dirname, join } from 'node:path';
 import { stat, readFile, rename, unlink } from 'node:fs/promises';
 import type { Config } from '../core/config.ts';
-import { DEVICES } from '../core/config.ts';
-import { snapshotName } from '../core/rooms.ts';
+import { resolveDevice, type ResolvedDevice } from '../core/device.ts';
+import type { Frontmatter } from '../core/frontmatter.ts';
+import { roomFields, snapshotName } from '../core/rooms.ts';
 import { t } from '../i18n/catalog.ts';
 
 export async function playwrightAvailable(): Promise<boolean> {
@@ -27,16 +28,35 @@ export async function playwrightAvailable(): Promise<boolean> {
 export const INSTALL_HINT = t('en', 'server.installHint');
 
 export type RenderResult =
-  | { ok: true; png: string; width: number; height: number; changed: boolean }
+  | {
+      ok: true;
+      png: string;
+      /** The device the snapshot was rendered at. */
+      device: string;
+      width: number;
+      height: number;
+      changed: boolean;
+    }
   | { ok: false; error: string };
 
-export type RenderConfig = Pick<Config, 'roomsDir' | 'artifact' | 'lang'> &
-  Partial<Pick<Config, 'thumbnail'>>;
+export type RenderConfig = Pick<Config, 'roomsDir' | 'artifact' | 'lang' | 'docs'> &
+  Partial<Pick<Config, 'thumbnail' | 'devices'>>;
 
-const WIDTHS: Record<string, number> = { ...DEVICES };
-
-const widthOf = (device: string | undefined): number =>
-  WIDTHS[device ?? ''] ?? WIDTHS.tablet ?? 1024;
+/**
+ * Which device a room's snapshot uses, first match wins: the caller's choice
+ * (`--device`, the render button), the room's own frontmatter, the project's
+ * default. Every rendering path goes through this, so `--check` and `serve`
+ * compare like with like.
+ */
+export async function deviceFor(
+  cfg: RenderConfig,
+  room: string,
+  requested?: string | null,
+): Promise<ResolvedDevice> {
+  const fields: Frontmatter = await roomFields(cfg, room).catch(() => ({}));
+  const roomDevice = typeof fields.device === 'string' ? fields.device : undefined;
+  return resolveDevice(cfg.devices, requested, roomDevice, cfg.thumbnail?.device);
+}
 
 // A temp name per run: two renders of the same room (the background pass and the
 // button) must not fight over one path.
@@ -98,7 +118,7 @@ async function renderToFile({
 }: {
   cfg: RenderConfig;
   room: string;
-  device?: string;
+  device: ResolvedDevice;
   scale?: number;
   out: string;
 }): Promise<{ ok: true; width: number; height: number } | { ok: false; error: string }> {
@@ -113,7 +133,7 @@ async function renderToFile({
       }),
     };
   }
-  const width = widthOf(device);
+  const { width } = device;
   let instance: Browser;
   try {
     instance = await browser();
@@ -124,7 +144,9 @@ async function renderToFile({
   let page: import('playwright').Page | null = null;
   try {
     page = await instance.newPage({
-      viewport: { width, height: 800 },
+      // The height is the device's, not a fixed 800: a screen that fills the
+      // viewport (`100vh`) has to be laid out on the device it is for.
+      viewport: { width, height: device.height },
       deviceScaleFactor: scale ?? 1,
     });
     await page.goto('file://' + src, { waitUntil: 'load' });
@@ -161,13 +183,15 @@ export async function renderArtifact({
 }: {
   cfg: RenderConfig;
   room: string;
-  device?: string;
+  /** The device the caller asked for; `undefined` lets the room decide. */
+  device?: string | null;
   scale?: number;
   force?: boolean;
 }): Promise<RenderResult> {
   const out = snapshotPath(cfg, room);
   const tmp = scratch(out, 'tmp');
-  const done = await renderToFile({ cfg, room, device, scale, out: tmp });
+  const resolved = await deviceFor(cfg, room, device);
+  const done = await renderToFile({ cfg, room, device: resolved, scale, out: tmp });
   if (!done.ok) {
     await unlink(tmp).catch(() => {});
     return done;
@@ -176,7 +200,14 @@ export async function renderArtifact({
   const after = await readFile(tmp).catch(() => null);
   if (!force && before && after && before.equals(after)) {
     await unlink(tmp).catch(() => {});
-    return { ok: true, png: out, width: done.width, height: done.height, changed: false };
+    return {
+      ok: true,
+      png: out,
+      device: resolved.name,
+      width: done.width,
+      height: done.height,
+      changed: false,
+    };
   }
   try {
     await rename(tmp, out);
@@ -184,7 +215,14 @@ export async function renderArtifact({
     await unlink(tmp).catch(() => {});
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
-  return { ok: true, png: out, width: done.width, height: done.height, changed: true };
+  return {
+    ok: true,
+    png: out,
+    device: resolved.name,
+    width: done.width,
+    height: done.height,
+    changed: true,
+  };
 }
 
 /**
@@ -200,12 +238,14 @@ export async function checkArtifact({
 }: {
   cfg: RenderConfig;
   room: string;
-  device?: string;
+  /** The device the caller asked for; `undefined` lets the room decide. */
+  device?: string | null;
   scale?: number;
-}): Promise<{ ok: true; same: boolean } | { ok: false; error: string }> {
+}): Promise<{ ok: true; same: boolean; device: string } | { ok: false; error: string }> {
   const out = snapshotPath(cfg, room);
   const tmp = scratch(out, 'check');
-  const done = await renderToFile({ cfg, room, device, scale, out: tmp });
+  const resolved = await deviceFor(cfg, room, device);
+  const done = await renderToFile({ cfg, room, device: resolved, scale, out: tmp });
   if (!done.ok) {
     await unlink(tmp).catch(() => {});
     return done;
@@ -214,5 +254,5 @@ export async function checkArtifact({
   const after = await readFile(tmp).catch(() => null);
   await unlink(tmp).catch(() => {});
   if (!after) return { ok: false, error: t(cfg.lang, 'server.renderFailed') };
-  return { ok: true, same: Boolean(before && before.equals(after)) };
+  return { ok: true, same: Boolean(before && before.equals(after)), device: resolved.name };
 }

@@ -15,6 +15,7 @@ import {
   type FrontmatterIssue,
   type FrontmatterValue,
 } from './frontmatter.ts';
+import { resolveDeviceName, type DeviceRegistry } from './device.ts';
 
 const isRoomName = (s: unknown): s is string =>
   typeof s === 'string' && /^[a-z0-9][a-z0-9._-]*$/i.test(s) && !s.startsWith('.');
@@ -57,6 +58,8 @@ export interface RoomInfo {
   updatedAt: number;
   /** The oldest file's mtime: when the room was first written. */
   createdAt: number;
+  /** The device this room's snapshot renders at: its own, else the project's. */
+  device: string;
   hasArtifact: boolean;
   hasThumb: boolean;
   /** The artifact changed after its snapshot: the committed png is out of date. */
@@ -72,6 +75,9 @@ export interface RoomsConfig {
   docs: string[];
   artifact: string;
   rooms: string;
+  /** Devices and the default a room falls back to; `core/device.ts` owns them. */
+  devices?: DeviceRegistry;
+  thumbnail?: { device: string };
 }
 
 // Parsed docs, keyed by path and invalidated by mtime+size. A change to one file
@@ -209,6 +215,11 @@ export async function roomInfo(cfg: RoomsConfig, name: string): Promise<RoomInfo
   const hasThumb = Boolean(thumb?.exists);
   const hasArtifact = Boolean(artifact?.exists);
   const born = files.filter((f) => f.exists && f.mtime > 0).map((f) => f.mtime);
+  // A doc that names the device dates the snapshot: changing it means re-rendering.
+  const deviceAt = docs.reduce(
+    (newest, doc) => (doc.frontmatter.device !== undefined ? Math.max(newest, doc.mtime) : newest),
+    0,
+  );
 
   return {
     name,
@@ -227,15 +238,53 @@ export async function roomInfo(cfg: RoomsConfig, name: string): Promise<RoomInfo
     files,
     updatedAt: Math.max(0, ...files.map((f) => f.mtime)),
     createdAt: born.length ? Math.min(...born) : 0,
+    device: resolveDeviceName(
+      cfg.devices,
+      typeof fields.device === 'string' ? fields.device : null,
+      cfg.thumbnail?.device,
+    ),
     hasArtifact,
     hasThumb,
     // The artifact is the source of the snapshot: when it moved, the png is old.
-    thumbStale: hasArtifact && (!hasThumb || (artifact?.mtime ?? 0) > (thumb?.mtime ?? 0)),
+    thumbStale:
+      hasArtifact && (!hasThumb || Math.max(artifact?.mtime ?? 0, deviceAt) > (thumb?.mtime ?? 0)),
     artifactUrl: `/files/${cfg.rooms}/${name}/${cfg.artifact}`,
     thumbUrl: thumb?.exists ? `/files/${cfg.rooms}/${name}/${png}` : null,
     behaviourIds: [...new Set(ids)],
     bodyText: docs.map((d) => d.body).join('\n\n'),
   };
+}
+
+/** A room's merged frontmatter, without deriving the rest of its record. */
+export async function roomFields(
+  cfg: Pick<RoomsConfig, 'roomsDir' | 'docs'>,
+  name: string,
+): Promise<Frontmatter> {
+  const dir = join(cfg.roomsDir, name);
+  const docs: RoomDoc[] = [];
+  for (const d of cfg.docs) {
+    const doc = await readDoc(join(dir, d));
+    if (doc) docs.push(doc);
+  }
+  return mergeFrontmatter(docs);
+}
+
+/**
+ * When the room last said which device it uses. The background pass compares it
+ * with the png, so a frontmatter edit re-renders even when `index.html` did not
+ * move. `0` when no doc names a device.
+ */
+export async function deviceStamp(
+  cfg: Pick<RoomsConfig, 'roomsDir' | 'docs'>,
+  name: string,
+): Promise<number> {
+  const dir = join(cfg.roomsDir, name);
+  let newest = 0;
+  for (const d of cfg.docs) {
+    const doc = await readDoc(join(dir, d));
+    if (doc?.frontmatter.device !== undefined) newest = Math.max(newest, doc.mtime);
+  }
+  return newest;
 }
 
 /** The room as the browser sees it: no body, no internal cache fields. */

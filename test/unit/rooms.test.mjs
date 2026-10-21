@@ -11,8 +11,10 @@ import {
   roomInfo,
   publicRoom,
   docInfo,
+  deviceStamp,
   clearDocCache,
 } from '../../core/rooms.ts';
+import { normalizeDevices } from '../../core/device.ts';
 
 const docs = ['BRIEF.md', 'SPEC.md', 'BEHAVIOUR.md'];
 
@@ -146,6 +148,59 @@ test('thumbStale follows the artifact against its snapshot', async () => {
     await utimes(png, old, old);
     room = await roomInfo(cfg, 'sign-in');
     assert.equal(room.thumbStale, true);
+  } finally {
+    await rm(cfg.roomsDir, { recursive: true, force: true });
+  }
+});
+
+test('a room names its own device, else the project default', async () => {
+  const cfg = await fixture();
+  const devices = normalizeDevices({ kiosk: { width: 1024, height: 768 } });
+  const tuned = { ...cfg, devices, thumbnail: { device: 'pc' } };
+  const brief = join(cfg.roomsDir, 'sign-in', 'BRIEF.md');
+  try {
+    assert.equal((await roomInfo(tuned, 'sign-in')).device, 'pc', 'the project default');
+
+    await writeFile(brief, '---\ntitle: Sign in\ndevice: kiosk\n---\n# Sign in\n');
+    clearDocCache();
+    assert.equal((await roomInfo(tuned, 'sign-in')).device, 'kiosk', 'the room’s own name');
+
+    // An unknown name is not a device: the project default still applies.
+    await writeFile(brief, '---\ntitle: Sign in\ndevice: tv\n---\n# Sign in\n');
+    clearDocCache();
+    assert.equal((await roomInfo(tuned, 'sign-in')).device, 'pc');
+  } finally {
+    await rm(cfg.roomsDir, { recursive: true, force: true });
+  }
+});
+
+test('changing the device marks the snapshot stale even when the artifact did not move', async () => {
+  const cfg = await fixture();
+  const dir = join(cfg.roomsDir, 'sign-in');
+  const brief = join(dir, 'BRIEF.md');
+  try {
+    const png = join(dir, 'index.png');
+    const old = new Date(Date.now() - 60_000);
+    const now = new Date();
+    await writeFile(png, 'png');
+    await utimes(join(dir, 'index.html'), old, old);
+    await utimes(png, now, now);
+    clearDocCache();
+
+    assert.equal((await roomInfo(cfg, 'sign-in')).thumbStale, false);
+    assert.equal(await deviceStamp(cfg, 'sign-in'), 0);
+
+    // The brief now names a device, after the png was made.
+    const later = new Date(now.getTime() + 5_000);
+    await writeFile(brief, '---\ntitle: Sign in\ndevice: pc\n---\n# Sign in\n');
+    await utimes(brief, later, later);
+    clearDocCache();
+
+    assert.ok(
+      (await deviceStamp(cfg, 'sign-in')) >= now.getTime() + 4_000,
+      'the device doc dates the snapshot',
+    );
+    assert.equal((await roomInfo(cfg, 'sign-in')).thumbStale, true);
   } finally {
     await rm(cfg.roomsDir, { recursive: true, force: true });
   }

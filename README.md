@@ -106,10 +106,11 @@ Two rules do the work: **the artifact owns what is visible** (specs never restat
 statement lives in one file** (others reference it by id). See [`docs/02-convention.md`](docs/02-convention.md).
 
 Each room's frontmatter is its record. A few keys are reserved (`title`, `summary`,
-`key_points`, `tags`, `status`, `version`, `deprecated`, `superseded_by`); **everything else
-becomes a facet on the dashboard automatically** — a string turns into a select, a list into
-checkboxes, built from the values that actually exist. Search covers the docs, not just the
-titles.
+`key_points`, `tags`, `status`, `version`, `deprecated`, `superseded_by`, `device`);
+**everything else becomes a facet on the dashboard automatically** — a string turns into
+a select, a list into checkboxes, built from the values that actually exist. Search covers
+the docs, not just the titles. `device` is also how a room picks the screen its snapshot
+is rendered at; `docs/03-cli.md` has the details.
 
 ```yaml
 ---

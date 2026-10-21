@@ -84,5 +84,8 @@ main には最終の1枚だけが残り、中間の画像は git が回収しま
   文章がどの言語でも英語のままにします。
 - ダッシュボードに状態を出したいときは、`BRIEF.md` に `status: draft|review|adopted` を
   足します。`adopted` に変えるのは人間の判断で、あなたの判断ではありません。
+- この room がプロジェクトの既定の画面でない場合は、`BRIEF.md` に `device: <name>` を
+  書きます。名前は `sp`、`tablet`、`pc` と、`modelroom.json` が定義したものです。
+  スナップショットはそのデバイスで描画されます。
 
 理由は modelroom パッケージの `docs/02-convention.md` にあります。

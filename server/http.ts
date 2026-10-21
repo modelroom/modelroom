@@ -28,6 +28,7 @@ import {
   type RoomInfo,
 } from '../core/rooms.ts';
 import { buildFacets, searchRooms } from '../core/facets.ts';
+import { isDeviceName, listDevices } from '../core/device.ts';
 import {
   applyRename,
   createRoom,
@@ -203,6 +204,16 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
     const room = rest.slice(0, cut);
     return rest.slice(cut + 1) === cfg.artifact && isRoomName(room) ? room : null;
   };
+  /** The room a root-relative path belongs to, if it is one of its docs. */
+  const docRoom = (file: string): string | null => {
+    const prefix = `${cfg.rooms}/`;
+    if (!file.startsWith(prefix)) return null;
+    const rest = file.slice(prefix.length);
+    const cut = rest.indexOf('/');
+    if (cut <= 0) return null;
+    const room = rest.slice(0, cut);
+    return cfg.docs.includes(rest.slice(cut + 1)) && isRoomName(room) ? room : null;
+  };
 
   // ── files ─────────────────────────────────────────────────────────────────
   const send = (res: ServerResponse, code: number, type: string, body: string | Buffer) => {
@@ -284,8 +295,9 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
             status.since = at;
             broadcast('change', { file, at });
             broadcast('status', { phase: 'change', message: status.message, since: at });
-            // The artifact moved: its snapshot is now out of date.
-            const touched = artifactRoom(file);
+            // The artifact moved: its snapshot is now out of date. A doc may name
+            // the device, so a doc edit can move the picture too.
+            const touched = artifactRoom(file) ?? docRoom(file);
             if (touched) void thumbnails.ensure([touched]);
           }),
         );
@@ -426,13 +438,14 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
   }
 
   // ── artifact render (optional) ────────────────────────────────────────────
-  async function render(room: string, device: string): Promise<RenderResult> {
+  async function render(room: string, device?: string): Promise<RenderResult> {
     if (rendering) return { ok: false, error: tr('server.alreadyRendering') };
     const png = snapshotName(cfg.artifact);
     rendering = true;
     setStatus('rendering', tr('server.rendering', { room, file: png }));
-    broadcast('render-start', { room, device, at: Date.now() });
+    broadcast('render-start', { room, device: device ?? null, at: Date.now() });
     try {
+      // A requested device wins; otherwise the room's own, then the project's.
       const result = await renderArtifact({ cfg, room, device, scale: cfg.thumbnail.scale });
       if (result.ok) {
         setStatus('ok', tr('server.rendered', { room, file: png }));
@@ -871,8 +884,20 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
         if (!body) return; // malformed JSON: jsonBody already answered 400
         const target = isRoomName(body.room) && names.includes(body.room) ? body.room : room;
         if (!target) return sendJson(res, 404, { error: tr('server.noRooms') });
-        const device = typeof body.device === 'string' ? body.device : 'tablet';
-        const result = await render(target, device);
+        // No device means "the room's own" — the same resolution `render --check`
+        // and the background pass use.
+        const requested = typeof body.device === 'string' && body.device ? body.device : undefined;
+        if (requested && !isDeviceName(cfg.devices, requested)) {
+          return sendJson(res, 400, {
+            error: tr('server.unknownDevice', {
+              device: requested,
+              devices: listDevices(cfg.devices)
+                .map((d) => d.name)
+                .join(', '),
+            }),
+          });
+        }
+        const result = await render(target, requested);
         return sendJson(res, result.ok ? 200 : 501, result);
       }
 
@@ -972,6 +997,7 @@ export function publicConfig(cfg: Config) {
     docs: cfg.docs,
     lang: cfg.lang,
     thumbnail: cfg.thumbnail,
+    devices: listDevices(cfg.devices),
     agent: {
       adapter: cfg.agent.adapter,
       command: cfg.agent.command,

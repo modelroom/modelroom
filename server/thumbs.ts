@@ -9,7 +9,7 @@
 import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Config } from '../core/config.ts';
-import { snapshotName } from '../core/rooms.ts';
+import { deviceStamp, snapshotName } from '../core/rooms.ts';
 import { renderArtifact, type RenderResult } from './artifact.ts';
 
 export interface Thumbnailer {
@@ -34,7 +34,10 @@ export function createThumbnailer(
     const artifact = await stat(join(dir, cfg.artifact)).catch(() => null);
     if (!artifact) return false; // no artifact: nothing to render
     const png = await stat(join(dir, snapshotName(cfg.artifact))).catch(() => null);
-    return !png || artifact.mtimeMs > png.mtimeMs;
+    if (!png) return true;
+    // A doc that names the device dates the snapshot too: the room moved, so the
+    // picture has to follow, even though `index.html` did not change.
+    return Math.max(artifact.mtimeMs, await deviceStamp(cfg, room)) > png.mtimeMs;
   }
 
   async function work(): Promise<void> {
@@ -45,10 +48,11 @@ export function createThumbnailer(
         if (stopped) return;
         const room = queue.shift() as string;
         queued.delete(room);
+        // The device is the room's own (else the project's); `renderArtifact`
+        // resolves it, so the background pass cannot overwrite a per-room choice.
         const result = await renderArtifact({
           cfg,
           room,
-          device: cfg.thumbnail.device,
           scale: cfg.thumbnail.scale,
         });
         onRendered(room, result);

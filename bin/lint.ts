@@ -13,6 +13,7 @@ import {
   type FrontmatterValue,
 } from '../core/frontmatter.ts';
 import { listRoomNames } from '../core/rooms.ts';
+import { isDeviceName, listDevices, type DeviceRegistry } from '../core/device.ts';
 import { normalize } from '../core/facets.ts';
 import { t, type MessageKey } from '../i18n/catalog.ts';
 import type { Lang } from '../i18n/lang.ts';
@@ -29,6 +30,7 @@ const RESERVED_TYPES: Record<string, string[]> = {
   updated_at: ['string', 'number'],
   deprecated: ['boolean'],
   superseded_by: ['string'],
+  device: ['string'],
 };
 
 /** Keys that mean the same thing. Two of them in one file is a drift signal. */
@@ -60,6 +62,8 @@ export interface LintConfig {
   roomsDir: string;
   docs: string[];
   lang?: Lang;
+  /** The project's devices; a `device` in frontmatter must name one of them. */
+  devices?: DeviceRegistry;
 }
 
 const typeOf = (v: FrontmatterValue): string => {
@@ -107,7 +111,7 @@ export async function lintRooms(
     code: string,
     params?: Record<string, string | number>,
   ) => {
-    const message = t(lang, code as MessageKey, params);
+    const message = t(lang, `lint.${code}` as MessageKey, params);
     issues.push({ level, room, file: file || null, code, params, message });
   };
 
@@ -141,6 +145,14 @@ export async function lintRooms(
             value.some((v) => typeof v === 'object' || Array.isArray(v))
           ) {
             add('error', room, file, 'tags-shape');
+          }
+          if (key === 'device' && typeof value === 'string' && !isDeviceName(cfg.devices, value)) {
+            add('error', room, file, 'unknown-device', {
+              device: value,
+              devices: listDevices(cfg.devices)
+                .map((d) => d.name)
+                .join(', '),
+            });
           }
         }
 

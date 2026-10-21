@@ -21,7 +21,7 @@ usage
   modelroom update [--dry-run]
   modelroom check [--json] [--strict]
   modelroom doctor
-  modelroom render [<room>] [--all] [--check] [--force] [--device sp|tablet|pc]
+  modelroom render [<room>] [--all] [--check] [--force] [--device <name>]
   modelroom pr-body <room> [--image-url <url>]
   modelroom --version | --help
 
@@ -99,13 +99,14 @@ without asking.`,
   'cli.doctor.snapshot': 'room {room}: snapshot {png}',
   'cli.doctor.snapshotStale':
     'room {room}: snapshot {png} is older than the artifact (run: {cli} render)',
-  'cli.render.updated': 'render  {room}  {file}',
-  'cli.render.unchanged': 'ok      {room}  (unchanged)',
-  'cli.render.same': 'ok      {room}  (snapshot matches)',
+  'cli.render.updated': 'render  {room}  {file}  ({device})',
+  'cli.render.unchanged': 'ok      {room}  (unchanged, {device})',
+  'cli.render.same': 'ok      {room}  (snapshot matches, {device})',
   'cli.render.stale': 'stale   {room}  ({artifact} is newer than {png})',
-  'cli.render.differs': 'stale   {room}  (snapshot no longer matches {artifact})',
+  'cli.render.differs': 'stale   {room}  (snapshot no longer matches {artifact}, {device})',
   'cli.render.error': 'error   {room}  {message}',
   'cli.render.noRoom': 'no such room: {room}',
+  'cli.render.unknownDevice': 'unknown device: {device} — use one of {devices}',
   'cli.render.summary': '{rooms} room(s): {written} written, {same} unchanged',
   'cli.render.checkSummary': '{count} snapshot(s) out of date',
   'cli.render.upToDate': 'snapshots are up to date',
@@ -153,6 +154,7 @@ without asking.`,
   'lint.syntax': 'not a key: value line — {line}',
   'lint.duplicate-key': 'duplicate key: {key}',
   'lint.unterminated': 'unterminated frontmatter',
+  'lint.unknown-device': 'device "{device}" is not defined — use one of {devices}',
 
   // ── server ─────────────────────────────────────────────────────────────────
   'server.noRooms': 'no rooms',
@@ -169,6 +171,7 @@ without asking.`,
   'server.room.sameName': 'the new name is the same as the old',
   'server.room.referenced': 'referenced by {rooms}',
   'server.alreadyRendering': 'already rendering',
+  'server.unknownDevice': 'unknown device: {device} — use one of {devices}',
   'server.badBodyRead': 'request body could not be read',
   'server.bodyObject': 'body must be a JSON object',
   'server.bodyJson': 'body must be valid JSON',
@@ -351,7 +354,7 @@ without asking.`,
   // ── artifact ───────────────────────────────────────────────────────────────
   'artifact.title': 'Artifact',
   'artifact.fit': 'fit',
-  'artifact.deviceWidth': 'Device width',
+  'artifact.deviceWidth': 'Device',
   'artifact.view': 'Artifact view',
   'artifact.makePng': 'make png',
   'artifact.openRaw': 'open raw',
@@ -359,7 +362,8 @@ without asking.`,
   'artifact.noArtifact': 'No artifact yet — {artifact}. Ask the agent to create it.',
   'artifact.thumbnail': 'artifact thumbnail',
   'artifact.noPng': 'No PNG yet. Use “make png” — it needs Playwright.',
-  'artifact.stale': 'The snapshot is older than the artifact. Use “make png”.',
+  'artifact.stale':
+    'The snapshot no longer matches this room — the artifact or its device changed. Use “make png”.',
   'artifact.reload': 'Reload the artifact',
   'artifact.empty': 'No artifact yet.',
   'artifact.error': 'Could not render the artifact.',
@@ -433,7 +437,7 @@ without asking.`,
   'settings.default': 'default',
   'settings.thumbnails': 'Snapshots',
   'settings.thumbnailsHint':
-    'A room keeps a png next to its artifact: the picture is what a reviewer reads, and GitHub diffs it on a pull request. modelroom renders it when the artifact changes; rendering needs Playwright.',
+    'A room keeps a png next to its artifact: the picture is what a reviewer reads, and GitHub diffs it on a pull request. A room renders at its own device (frontmatter `device`), otherwise at the project’s. modelroom renders it when the artifact changes; rendering needs Playwright.',
   'settings.thumbnailsAlert':
     'Rendering the snapshot needs Playwright and a browser: {command}. Until it is installed, a room keeps whatever snapshot is already committed.',
   'settings.saved': 'saved {time}',
@@ -501,7 +505,7 @@ export const ja: Messages = {
   modelroom update [--dry-run]
   modelroom check [--json] [--strict]
   modelroom doctor
-  modelroom render [<room>] [--all] [--check] [--force] [--device sp|tablet|pc]
+  modelroom render [<room>] [--all] [--check] [--force] [--device <name>]
   modelroom pr-body <room> [--image-url <url>]
   modelroom --version | --help
 
@@ -582,13 +586,16 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'cli.doctor.snapshot': 'room {room}: スナップショット {png}',
   'cli.doctor.snapshotStale':
     'room {room}: スナップショット {png} が artifact より古い（{cli} render を実行）',
-  'cli.render.updated': 'render  {room}  {file}',
-  'cli.render.unchanged': 'ok      {room}  （変更なし）',
-  'cli.render.same': 'ok      {room}  （スナップショット一致）',
+  'cli.render.updated': 'render  {room}  {file}  ({device})',
+  'cli.render.unchanged': 'ok      {room}  （変更なし、{device}）',
+  'cli.render.same': 'ok      {room}  （スナップショット一致、{device}）',
   'cli.render.stale': 'stale   {room}  （{artifact} が {png} より新しい）',
-  'cli.render.differs': 'stale   {room}  （スナップショットが {artifact} と一致しません）',
+  'cli.render.differs':
+    'stale   {room}  （スナップショットが {artifact} と一致しません、{device}）',
   'cli.render.error': 'error   {room}  {message}',
   'cli.render.noRoom': 'room がありません: {room}',
+  'cli.render.unknownDevice':
+    '不明なデバイスです: {device} — {devices} のいずれかを指定してください',
   'cli.render.summary': '{rooms} room: {written} 件を書き込み、{same} 件は変更なし',
   'cli.render.checkSummary': '{count} 件のスナップショットが古い',
   'cli.render.upToDate': 'スナップショットは最新です',
@@ -637,6 +644,8 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'lint.syntax': 'key: value の行ではありません — {line}',
   'lint.duplicate-key': 'キーが重複しています: {key}',
   'lint.unterminated': 'frontmatter が閉じられていません',
+  'lint.unknown-device':
+    'device「{device}」は定義されていません — {devices} のいずれかを指定してください',
 
   // ── server ─────────────────────────────────────────────────────────────────
   'server.noRooms': 'room がありません',
@@ -653,6 +662,7 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'server.room.sameName': '新しい名前が元と同じです',
   'server.room.referenced': '{rooms} から参照されています',
   'server.alreadyRendering': 'すでにレンダリング中です',
+  'server.unknownDevice': '不明なデバイスです: {device} — {devices} のいずれかを指定してください',
   'server.badBodyRead': 'リクエスト本文を読み取れませんでした',
   'server.bodyObject': '本文は JSON オブジェクトである必要があります',
   'server.bodyJson': '本文は有効な JSON である必要があります',
@@ -835,7 +845,7 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   // ── artifact ───────────────────────────────────────────────────────────────
   'artifact.title': 'Artifact',
   'artifact.fit': 'フィット',
-  'artifact.deviceWidth': 'デバイス幅',
+  'artifact.deviceWidth': 'デバイス',
   'artifact.view': 'Artifact 表示',
   'artifact.makePng': 'PNG 生成',
   'artifact.openRaw': '元ファイルを開く',
@@ -843,7 +853,8 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'artifact.noArtifact':
     'artifact はまだありません — {artifact}。エージェントに作成を依頼してください。',
   'artifact.thumbnail': 'artifact のサムネイル',
-  'artifact.stale': 'スナップショットが artifact より古いです。「make png」を使ってください。',
+  'artifact.stale':
+    'スナップショットがこの room と一致していません（artifact かデバイスが変わりました）。「make png」を使ってください。',
   'artifact.noPng': 'PNG はまだありません。「PNG 生成」を使います（Playwright が必要）。',
   'artifact.reload': 'Artifact を再読み込み',
   'artifact.empty': 'Artifact はまだありません。',
@@ -918,7 +929,7 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'settings.default': '既定',
   'settings.thumbnails': 'スナップショット',
   'settings.thumbnailsHint':
-    'room は artifact の隣に png を持ちます。レビュアーが読むのはこの画像で、PR では GitHub が画像の差分を表示します。artifact が変わると modelroom が描画します（Playwright が必要）。',
+    'room は artifact の隣に png を持ちます。レビュアーが読むのはこの画像で、PR では GitHub が画像の差分を表示します。room は自分のデバイス（frontmatter の `device`）、なければプロジェクトのデバイスで描画されます。artifact が変わると modelroom が描画します（Playwright が必要）。',
   'settings.thumbnailsAlert':
     'スナップショットの描画には Playwright とブラウザが必要です: {command}。インストールするまでは、コミット済みのスナップショットをそのまま使います。',
   'settings.saved': '保存しました {time}',

@@ -6,9 +6,16 @@ it is made, and why it is done this way rather than with object storage or an at
 ## What the picture is
 
 Every room keeps a png next to its artifact — `rooms/<room>/index.html` and
-`rooms/<room>/index.png`. The png is the artifact rendered at one device width. It is not
-a cache: it is a deliverable, committed with the room, and it is what a reviewer reads.
-`index.html` is the source the picture was drawn from.
+`rooms/<room>/index.png`. The png is the artifact rendered at the room's device (a width
+and a height, sometimes rotated). It is not a cache: it is a deliverable, committed with
+the room, and it is what a reviewer reads. `index.html` is the source the picture was
+drawn from.
+
+The device is the room's, not the project's: a kiosk, an admin PC and a phone in one
+project each keep a snapshot that looks like the screen they are for. A room says which
+in its frontmatter (`device: kiosk`); without one it uses `thumbnail.device`. The names,
+widths, heights and rotation live in `modelroom.json` (or the built-ins `sp`, `tablet`,
+`pc`). `docs/03-cli.md#snapshots` is the reference.
 
 The room's outputs are therefore the docs (`BRIEF`, `SPEC`, `BEHAVIOUR`) and the snapshot.
 The html sits between them: it produces the picture, but it is not what a review turns on.

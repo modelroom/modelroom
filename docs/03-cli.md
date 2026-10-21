@@ -9,7 +9,7 @@ modelroom remove <room> [--yes] [--dry-run] [--force]
 modelroom update [--dry-run]
 modelroom check [--json] [--strict]
 modelroom doctor
-modelroom render [<room>] [--all] [--check] [--force] [--device sp|tablet|pc]
+modelroom render [<room>] [--all] [--check] [--force] [--device <name>]
 modelroom pr-body <room> [--image-url <url>]
 modelroom --version | --help
 ```
@@ -254,6 +254,11 @@ modelroom render checkout --force  # render even when it looks current
 modelroom render checkout --device pc
 ```
 
+By default each room renders at the device it names in its frontmatter (`device:`),
+falling back to `thumbnail.device`. `--device` overrides both for that run — useful for
+looking at one room on another screen, but not what you commit: `--check` and `serve`
+use the room's own device, so a one-off override would show up as a stale snapshot.
+
 `serve` runs the same pass in the background: on start, when an artifact changes, and
 whenever the dashboard asks for the room list. You do not have to call `render` to make
 the tool work; you call it to be sure a commit carries the current picture.
@@ -262,8 +267,8 @@ the tool work; you call it to be sure a commit carries the current picture.
 
 ```
 modelroom render --all --check
-ok      checkout  (snapshot matches)
-stale   sign-in   (snapshot no longer matches index.html)
+ok      checkout  (snapshot matches, pc)
+stale   sign-in   (snapshot no longer matches index.html, sp)
 
 1 snapshot(s) out of date
 ```
@@ -325,8 +330,13 @@ ok   room checkout: docs ok
   "artifact": "index.html",                     // the file that is the screen
   "docs": ["BRIEF.md", "SPEC.md", "BEHAVIOUR.md"], // the only files the UI may write
   "port": 4321,
+  "devices": {
+    "kiosk":  { "width": 1024, "height": 768, "rotated": false },
+    "admin":  { "width": 1280, "height": 800 },
+    "mobile": { "width": 390,  "height": 844 }
+  },
   "thumbnail": {
-    "device": "tablet",                         // "sp" | "tablet" | "pc" — one per room
+    "device": "tablet",                         // a room may name its own; see below
     "scale": 1                                  // 1 keeps the committed png small and stable
   },
   "agent": {
@@ -350,11 +360,34 @@ Anything you change from `/settings` is kept locally in `.modelroom/state.json`
 
 ## Snapshots
 
-Each room keeps a png next to its artifact, rendered at one device (`thumbnail.device`)
-and one scale. It is a deliverable, not a cache: it is committed with the room, a reviewer
-reads it, and a pull request diffs it. `thumbnail.device` and `thumbnail.scale` are
-committed configuration; keep them steady, since changing the device re-renders every
-snapshot in the project.
+Each room keeps a png next to its artifact, rendered at one device and one scale. It is a
+deliverable, not a cache: it is committed with the room, a reviewer reads it, and a pull
+request diffs it.
+
+The device is resolved per room: an explicit `--device`, then the room's frontmatter
+`device:`, then `thumbnail.device`. Three devices are built in — `sp` (390×844),
+`tablet` (1024×768) and `pc` (1280×800) — and `devices` in `modelroom.json` adds or
+redefines them by name:
+
+```jsonc
+"devices": {
+  "kiosk": { "width": 1024, "height": 768, "rotated": false },
+  "admin": { "width": 1280, "height": 800 },
+}
+```
+
+A room names its surface in its frontmatter:
+
+```yaml
+---
+title: Shift board
+device: kiosk
+---
+```
+
+A project whose rooms are all one surface sets `thumbnail.device` once and never thinks
+about it. `thumbnail.device` and `thumbnail.scale` are committed configuration; changing
+the default re-renders the rooms that do not name their own device, so keep it steady.
 
 Rendering needs Playwright:
 
