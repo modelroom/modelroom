@@ -124,6 +124,11 @@ Rooms are made, renamed and removed with the CLI — `npx modelroom add`, `renam
 refreshes the generated skills and `AGENTS.md` when you upgrade; `DESIGN.md` is yours and is
 left alone.
 
+What every room shares is shared **once**. `DESIGN.md` records the decisions, `design.css`
+holds the layer's own tokens and components, and a vendored design system lives under
+`vendor/`; a room links both by relative path, so the artifact still renders offline. No CDN,
+no per-room copy of the framework, no build step.
+
 ## Agents
 
 ```jsonc
@@ -160,9 +165,11 @@ npm run build:client        # after changing client/**
 
 `npm install` builds the stylesheet and the JS bundle in `web/` (via `prepare`), and the
 published package ships them already built, so users never run a build step; neither file is
-committed. The tool's UI is React + [Mantine](https://mantine.dev); artifacts (in `templates/`)
-are deliberately framework-free: plain HTML and CSS, no CDN, no web fonts — they
-are handed to implementation and must render with no network.
+committed. The tool's UI is React + [Mantine](https://mantine.dev); the artifacts (in
+`templates/`) are deliberately plain HTML and CSS — no CDN, no web fonts, no build step —
+because they are handed to implementation and must render with no network. A project that
+adopts a design system can keep one copy for the whole layer and link it from its rooms: see
+[`docs/02-convention.md`](docs/02-convention.md).
 
 Snapshots need Playwright to be rendered; reviewing them needs nothing:
 

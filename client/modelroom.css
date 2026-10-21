@@ -16,7 +16,7 @@
  *   npm run build:css
  *
  * Only the tool's own UI is scanned here. Room artifacts (the HTML you hand to
- * implementation) are deliberately framework-free.
+ * implementation) are plain HTML and CSS, and this build never touches them.
  */
 
 @import '@mantine/core/styles.css';
