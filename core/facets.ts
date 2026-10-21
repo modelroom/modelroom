@@ -16,6 +16,8 @@ export const NOT_FACETS = new Set([
   'updated_at',
   'superseded_by',
   'deprecated',
+  // A pointer to the next room in the flow, not a value to narrow by.
+  'next',
 ]);
 
 /** How many values before a control stops being useful. */

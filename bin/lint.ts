@@ -31,6 +31,10 @@ const RESERVED_TYPES: Record<string, string[]> = {
   deprecated: ['boolean'],
   superseded_by: ['string'],
   device: ['string'],
+  /** The main transition: the next room in the flow. See `docs/02-convention.md`. */
+  next: ['string'],
+  /** Which application a room belongs to; the flow view groups by it. */
+  app: ['string'],
 };
 
 /** Keys that mean the same thing. Two of them in one file is a drift signal. */
@@ -163,7 +167,7 @@ export async function lintRooms(
         }
 
         if (
-          ['status', 'category', 'type'].includes(key) &&
+          ['status', 'category', 'type', 'app'].includes(key) &&
           !Array.isArray(value) &&
           typeof value !== 'object'
         ) {
@@ -206,6 +210,38 @@ export async function lintRooms(
       if (typeof target === 'string' && target && !seen.has(target)) {
         add('warn', room, file, 'superseded-missing', { target });
       }
+    }
+  }
+
+  // `next` is the flow's one edge: it must land somewhere, and stay inside the
+  // room's own app — a transition that changes app is a different flow.
+  const apps = new Map<string, string>();
+  const nexts = new Map<string, { target: string; file: string }>();
+  for (const room of names) {
+    for (const file of cfg.docs) {
+      let doc;
+      try {
+        doc = await readFrontmatterFile(join(cfg.roomsDir, room, file));
+      } catch {
+        continue;
+      }
+      const app = doc.data?.app;
+      if (typeof app === 'string' && app && !apps.has(room)) apps.set(room, app);
+      const next = doc.data?.next;
+      if (typeof next === 'string' && next && !nexts.has(room)) {
+        nexts.set(room, { target: next, file });
+      }
+    }
+  }
+  for (const [room, { target, file }] of nexts) {
+    if (!seen.has(target)) {
+      add('warn', room, file, 'next-missing', { target });
+      continue;
+    }
+    const app = apps.get(room);
+    const targetApp = apps.get(target);
+    if (app && targetApp && app !== targetApp) {
+      add('warn', room, file, 'next-cross-app', { target, app, targetApp });
     }
   }
 

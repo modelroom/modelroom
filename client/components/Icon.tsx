@@ -4,6 +4,7 @@
 
 import {
   ArrowLeft,
+  ArrowRight,
   Check,
   ChevronDown,
   Clock,
@@ -15,6 +16,8 @@ import {
   Image,
   LayoutGrid,
   LoaderCircle,
+  Maximize2,
+  Minimize2,
   Moon,
   MoreVertical,
   PanelRight,
@@ -36,6 +39,7 @@ import {
 
 export type IconName =
   | 'arrow-left'
+  | 'arrow-right'
   | 'send'
   | 'stop'
   | 'copy'
@@ -62,10 +66,13 @@ export type IconName =
   | 'loader'
   | 'search'
   | 'more'
-  | 'trash';
+  | 'trash'
+  | 'maximize'
+  | 'minimize';
 
 export const ICON_NAMES: IconName[] = [
   'arrow-left',
+  'arrow-right',
   'send',
   'stop',
   'copy',
@@ -93,10 +100,13 @@ export const ICON_NAMES: IconName[] = [
   'search',
   'more',
   'trash',
+  'maximize',
+  'minimize',
 ];
 
 const ICONS = {
   'arrow-left': ArrowLeft,
+  'arrow-right': ArrowRight,
   send: Send,
   stop: Square,
   copy: Copy,
@@ -124,6 +134,8 @@ const ICONS = {
   search: Search,
   more: MoreVertical,
   trash: Trash2,
+  maximize: Maximize2,
+  minimize: Minimize2,
 } satisfies Record<IconName, LucideIcon>;
 
 export function Icon({

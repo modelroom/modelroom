@@ -56,6 +56,13 @@ export interface RoomInfo {
   fields: Frontmatter;
   files: FileInfo[];
   updatedAt: number;
+  /**
+   * What "updated" sorting reads: the frontmatter `updated_at`, when it parses,
+   * else the file mtime. It is deliberately separate from `updatedAt` — that one
+   * stays the file's own mtime, so the card's cache-buster and shown time still
+   * describe the file rather than a declared date.
+   */
+  sortAt: number;
   /** The oldest file's mtime: when the room was first written. */
   createdAt: number;
   /** The device this room's snapshot renders at: its own, else the project's. */
@@ -158,6 +165,20 @@ function parseTitle(text: string | null, fallback: string): string {
   return m ? (m[1] as string).trim() : fallback;
 }
 
+/**
+ * The frontmatter `updated_at` as a timestamp, or `null` when it is absent or
+ * unreadable. A number is taken as epoch milliseconds; a string goes through
+ * `Date.parse`, so `2026-10-22` and an ISO stamp both work.
+ */
+export function parseUpdatedAt(value: FrontmatterValue | undefined): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const ms = Date.parse(value.trim());
+    if (!Number.isNaN(ms)) return ms;
+  }
+  return null;
+}
+
 const asStrings = (value: FrontmatterValue | undefined): string[] => {
   if (Array.isArray(value)) {
     return value.filter((v) => v !== null && typeof v !== 'object').map(String);
@@ -215,6 +236,7 @@ export async function roomInfo(cfg: RoomsConfig, name: string): Promise<RoomInfo
   const hasThumb = Boolean(thumb?.exists);
   const hasArtifact = Boolean(artifact?.exists);
   const born = files.filter((f) => f.exists && f.mtime > 0).map((f) => f.mtime);
+  const updatedAt = Math.max(0, ...files.map((f) => f.mtime));
   // A doc that names the device dates the snapshot: changing it means re-rendering.
   const deviceAt = docs.reduce(
     (newest, doc) => (doc.frontmatter.device !== undefined ? Math.max(newest, doc.mtime) : newest),
@@ -236,7 +258,8 @@ export async function roomInfo(cfg: RoomsConfig, name: string): Promise<RoomInfo
     supersededBy: typeof fields.superseded_by === 'string' ? fields.superseded_by : null,
     fields,
     files,
-    updatedAt: Math.max(0, ...files.map((f) => f.mtime)),
+    updatedAt,
+    sortAt: parseUpdatedAt(fields.updated_at) ?? updatedAt,
     createdAt: born.length ? Math.min(...born) : 0,
     device: resolveDeviceName(
       cfg.devices,

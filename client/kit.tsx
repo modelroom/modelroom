@@ -142,6 +142,7 @@ const SAMPLE_ROOM: RoomInfo = {
   version: 2,
   deprecated: false,
   updatedAt: Date.now() - 1000 * 60 * 60 * 5,
+  sortAt: Date.now() - 1000 * 60 * 60 * 5,
   createdAt: Date.now() - 1000 * 60 * 60 * 24 * 12,
   device: 'tablet',
   hasArtifact: true,

@@ -160,6 +160,8 @@ without asking.`,
   'lint.duplicate-key': 'duplicate key: {key}',
   'lint.unterminated': 'unterminated frontmatter',
   'lint.unknown-device': 'device "{device}" is not defined — use one of {devices}',
+  'lint.next-missing': 'next points to a room that does not exist: {target}',
+  'lint.next-cross-app': 'next crosses apps: {target} is in "{targetApp}", not "{app}"',
 
   // ── server ─────────────────────────────────────────────────────────────────
   'server.noRooms': 'no rooms',
@@ -253,6 +255,16 @@ without asking.`,
   'dashboard.clearAll': 'clear all',
   'dashboard.clearSearch': 'Clear search and filters',
   'dashboard.loosen': 'Loosen a filter, or search for something else.',
+  'dashboard.sort': 'Sort',
+  'dashboard.sortUpdated': 'Updated',
+  'dashboard.sortName': 'Name',
+  'dashboard.view': 'View',
+  'dashboard.viewGrid': 'Grid',
+  'dashboard.viewFlow': 'Flow',
+  'dashboard.appAll': 'All',
+  'dashboard.appNone': 'unassigned',
+  'dashboard.flowEmpty': 'No transitions yet — add next: <room> to a room’s frontmatter.',
+  'dashboard.flowHint': 'The main flow — each arrow is a room’s next.',
 
   // ── room operations — add, rename, remove ──────────────────────────────────
   'dashboard.addRoom': 'Add room',
@@ -375,6 +387,9 @@ without asking.`,
   'artifact.device.sp': 'phone',
   'artifact.device.tablet': 'tablet',
   'artifact.device.pc': 'desktop',
+  'artifact.backToArtifact': 'Back to this room',
+  'artifact.maximize': 'Maximize',
+  'artifact.minimize': 'Minimize',
 
   // ── session ────────────────────────────────────────────────────────────────
   'session.title': 'Session',
@@ -673,6 +688,9 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'lint.unterminated': 'frontmatter が閉じられていません',
   'lint.unknown-device':
     'device「{device}」は定義されていません — {devices} のいずれかを指定してください',
+  'lint.next-missing': 'next が存在しない room を指しています: {target}',
+  'lint.next-cross-app':
+    'next が app を跨いでいます: {target} は「{targetApp}」にあり「{app}」ではありません',
 
   // ── server ─────────────────────────────────────────────────────────────────
   'server.noRooms': 'room がありません',
@@ -766,6 +784,17 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'dashboard.clearAll': 'すべてクリア',
   'dashboard.clearSearch': '検索とフィルターをクリア',
   'dashboard.loosen': 'フィルターを緩めるか、別の言葉で検索してください。',
+  'dashboard.sort': '並び替え',
+  'dashboard.sortUpdated': '更新日',
+  'dashboard.sortName': '名前',
+  'dashboard.view': '表示',
+  'dashboard.viewGrid': 'グリッド',
+  'dashboard.viewFlow': 'フロー',
+  'dashboard.appAll': 'すべて',
+  'dashboard.appNone': '未設定',
+  'dashboard.flowEmpty':
+    '遷移はまだありません — room の frontmatter に next: <room> を追加してください。',
+  'dashboard.flowHint': '主要なフロー — 各矢印は room の next です。',
 
   // ── room 操作 — 追加・改名・削除 ──────────────────────────────────────────
   'dashboard.addRoom': 'room を追加',
@@ -889,6 +918,9 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'artifact.device.sp': 'スマートフォン',
   'artifact.device.tablet': 'タブレット',
   'artifact.device.pc': 'デスクトップ',
+  'artifact.backToArtifact': 'この room に戻る',
+  'artifact.maximize': '最大化',
+  'artifact.minimize': '元に戻す',
 
   // ── session ────────────────────────────────────────────────────────────────
   'session.title': 'セッション',
