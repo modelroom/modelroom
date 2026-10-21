@@ -15,6 +15,8 @@ const MAX_OUTPUT = 8 * 1024 * 1024; // a runaway response must not grow without 
 const TIMEOUT_MS = 15_000;
 const MODEL_TTL = 10 * 60_000;
 const EXTRAS_TTL = 60_000;
+const MCP_STARTUP_MS = 10_000; // a server this young may still be connecting its MCP servers
+const MCP_RETRY_MS = 1_500; // ...so an empty list gets one more look before we believe it
 const POLL_MS = 700; // how often to look at an answer that is being written
 const MAX_FAILURES = 3; // then stop asking: the CLI's own text is the answer
 
@@ -43,6 +45,18 @@ export interface McpServer {
   name: string;
   status: string;
   error: string | null;
+}
+
+/**
+ * The opencode API, as reading a session needs it. `server/opencode-server.ts`
+ * produces modelroom's own server, which satisfies this; a plain fake is enough
+ * in a test, and passing nothing falls back to the CLI.
+ */
+export interface SessionApi {
+  get: (path: string) => Promise<unknown>;
+  /** When the server started — see `OpenCodeServer.startedAt`. Absent when the
+   *  caller has no server of its own. */
+  startedAt?: number;
 }
 
 export interface SessionView {
@@ -116,12 +130,29 @@ function runApi(cfg: Config, path: string, standalone: boolean): Promise<unknown
 }
 
 /**
- * Ask opencode's API. The background service knows the model catalogue, MCP
- * servers and skills; a private (`--standalone`) server shares the data
- * directory but not those. Try the service first, then a private server.
+ * Ask opencode's API.
+ *
+ * `api` is modelroom's own server, the one the agent runs on: it answers for
+ * this layer, and everything here is read from it when it is there.
+ *
+ * Without it we fall back to the CLI, and the order depends on the path. The
+ * shared background service answers for its own location, not for the layer the
+ * CLI was spawned in, so what this layer's config decides — its model
+ * catalogue, its MCP servers, its skills — asks a private `--standalone` server
+ * first and the shared service last. Sessions are the other way round: they live
+ * in the data directory both services share, so the shared service is asked
+ * first and no server of ours has to start to answer.
  */
-async function apiGet(cfg: Config, path: string): Promise<unknown> {
-  return (await runApi(cfg, path, false)) ?? (await runApi(cfg, path, true));
+async function apiGet(
+  cfg: Config,
+  path: string,
+  api?: SessionApi | null,
+  layerScoped = false,
+): Promise<unknown> {
+  if (api) return api.get(path);
+  return layerScoped
+    ? ((await runApi(cfg, path, true)) ?? (await runApi(cfg, path, false)))
+    : ((await runApi(cfg, path, false)) ?? (await runApi(cfg, path, true)));
 }
 
 function toTokens(raw: unknown): TokenUsage | null {
@@ -162,10 +193,10 @@ function contextUsed(messages: unknown[]): number | null {
 }
 
 let modelLimitsCache: { at: number; map: Map<string, number> } | null = null;
-async function modelLimits(cfg: Config): Promise<Map<string, number>> {
+async function modelLimits(cfg: Config, api?: SessionApi | null): Promise<Map<string, number>> {
   if (modelLimitsCache && Date.now() - modelLimitsCache.at < MODEL_TTL) return modelLimitsCache.map;
   const map = new Map<string, number>();
-  for (const raw of listOf(await apiGet(cfg, '/api/model'))) {
+  for (const raw of listOf(await apiGet(cfg, '/api/model', api, true))) {
     if (!isRecord(raw)) continue;
     const id = str(raw.id);
     const limit = isRecord(raw.limit) ? num(raw.limit.context) : null;
@@ -175,12 +206,19 @@ async function modelLimits(cfg: Config): Promise<Map<string, number>> {
   return map;
 }
 
-let extrasCache: { at: number; mcp: McpServer[]; skills: string[] } | null = null;
-async function extras(cfg: Config): Promise<{ mcp: McpServer[]; skills: string[] }> {
-  if (extrasCache && Date.now() - extrasCache.at < EXTRAS_TTL) return extrasCache;
+interface Extras {
+  mcp: McpServer[];
+  skills: string[];
+}
+
+let extrasCache: ({ at: number } & Extras) | null = null;
+let extrasReading: Promise<Extras> | null = null;
+
+/** The layer's MCP servers and skills, as its own server reports them. */
+async function readExtras(cfg: Config, api?: SessionApi | null): Promise<Extras> {
   const [mcpRes, skillRes] = await Promise.all([
-    apiGet(cfg, '/api/mcp'),
-    apiGet(cfg, '/api/skill'),
+    apiGet(cfg, '/api/mcp', api, true),
+    apiGet(cfg, '/api/skill', api, true),
   ]);
   const mcp: McpServer[] = [];
   for (const raw of listOf(mcpRes)) {
@@ -198,22 +236,62 @@ async function extras(cfg: Config): Promise<{ mcp: McpServer[]; skills: string[]
     const name = str(raw.name) ?? str(raw.id);
     if (name) skills.push(name);
   }
-  extrasCache = { at: Date.now(), mcp, skills };
-  return extrasCache;
+  return { mcp, skills };
 }
 
 /**
- * Everything the session panel needs for one room session.
- * Returns null when opencode is unreachable, so the caller can say so plainly.
+ * The layer's MCP servers and skills, cached for a minute. Callers that arrive
+ * together share the one read.
+ *
+ * An empty MCP list is never cached. opencode connects the servers its config
+ * names a moment after it starts answering, and a slow one (a remote server, an
+ * `npx` fetch) takes longer than that — so empty usually means "not yet", and
+ * believing it would leave a configured layer looking unconfigured until the
+ * cache expired.
+ */
+async function extras(cfg: Config, api?: SessionApi | null): Promise<Extras> {
+  if (extrasCache && Date.now() - extrasCache.at < EXTRAS_TTL) return extrasCache;
+  if (!extrasReading) {
+    extrasReading = settleExtras(cfg, api).finally(() => {
+      extrasReading = null;
+    });
+  }
+  return extrasReading;
+}
+
+/**
+ * Read the lists, giving a server that has just started the one look it needs:
+ * an empty answer inside its startup window is asked again rather than returned
+ * as the answer.
+ */
+async function settleExtras(cfg: Config, api?: SessionApi | null): Promise<Extras> {
+  let lists = await readExtras(cfg, api);
+  const age = api?.startedAt === undefined ? null : Date.now() - api.startedAt;
+  if (!lists.mcp.length && age !== null && age < MCP_STARTUP_MS) {
+    await new Promise((resolve) => setTimeout(resolve, MCP_RETRY_MS));
+    lists = await readExtras(cfg, api);
+  }
+  // Only a non-empty list is worth remembering — see `extras`.
+  if (lists.mcp.length) extrasCache = { at: Date.now(), ...lists };
+  return lists;
+}
+
+/**
+ * Everything the session panel needs for one room session. `api` is modelroom's
+ * own opencode server — the one the turn runs on, and the only one whose MCP
+ * servers and skills are this layer's; the CLI is the fallback when there is
+ * none. Returns null when opencode is unreachable, so the caller can say so
+ * plainly.
  */
 export async function sessionView(
   cfg: Config,
   sessionId: string | null,
+  api?: SessionApi | null,
 ): Promise<SessionView | null> {
   if (!sessionId) return null;
   const [infoRes, msgRes] = await Promise.all([
-    apiGet(cfg, `/api/session/${sessionId}`),
-    apiGet(cfg, `/api/session/${sessionId}/message`),
+    apiGet(cfg, `/api/session/${sessionId}`, api),
+    apiGet(cfg, `/api/session/${sessionId}/message`, api),
   ]);
   if (!infoRes && !msgRes) return null;
 
@@ -232,12 +310,12 @@ export async function sessionView(
   let context: ContextUsage | null = null;
   const used = contextUsed(messages);
   if (used !== null && model) {
-    const limit = (await modelLimits(cfg)).get(model) ?? null;
+    const limit = (await modelLimits(cfg, api)).get(model) ?? null;
     if (limit)
       context = { used, limit, pct: Math.min(100, Math.round((used / limit) * 1000) / 10) };
   }
 
-  const { mcp, skills } = await extras(cfg);
+  const { mcp, skills } = await extras(cfg, api);
   const workspace = isRecord(info) && isRecord(info.location) ? str(info.location.directory) : null;
 
   return { stats, context, turns: toTurns(messages), mcp, skills, workspace };

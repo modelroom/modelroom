@@ -844,7 +844,11 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
           return sendJson(res, 200, { available: false, room, session: null });
         }
         const sessionId = state.sessions[room] ?? null;
-        const view = await sessionView(cfg, sessionId);
+        // The session, its MCP servers and its skills are read from the server
+        // the agent runs on. The shared opencode service would answer for its own
+        // directory instead — another project's servers, which is not this layer.
+        const api = sessionId ? await opencodeServer.ensure() : null;
+        const view = await sessionView(cfg, sessionId, api);
         // A question the agent is blocked on travels with the session, so a page
         // that reloads while the turn waits still shows the card.
         const asks = chats.get(room)?.asks?.() ?? [];

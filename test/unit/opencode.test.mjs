@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, chmod, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, chmod, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { sessionParts, sessionView, watchParts } from '../../server/opencode.ts';
@@ -36,7 +36,7 @@ const RESPONSES = {
   '/api/model': {
     data: [{ id: 'openrouter/deepseek/deepseek-v4.1-flash', limit: { context: 10000 } }],
   },
-  '/api/mcp': { data: [{ name: 'notion', status: { status: 'failed', error: 'timeout' } }] },
+  '/api/mcp': { data: [{ name: 'bootstrap', status: { status: 'failed', error: 'timeout' } }] },
   '/api/skill': {
     data: [
       { id: 'opencode', name: 'OpenCode' },
@@ -45,22 +45,37 @@ const RESPONSES = {
   },
 };
 
+// What the shared background service answers. It shares the data directory, so
+// it has the session — but the servers it knows are its own directory's, which
+// is what a session view must not mistake for this layer's.
+const SHARED = {
+  ...RESPONSES,
+  '/api/mcp': { data: [{ name: 'notion', status: { status: 'connected' } }] },
+};
+
+/** A fake `opencode` CLI: `--standalone` is the layer's own server, a plain run
+ * is the shared service. Every call is logged, so a test can see who was asked. */
 async function fakeOpencode(dir) {
   const file = join(dir, 'fake-opencode.mjs');
+  const log = join(dir, 'calls.log');
   const src =
     '#!/usr/bin/env node\n' +
-    `const path = process.argv.slice(2).pop();\n` +
-    `const r = ${JSON.stringify(RESPONSES)};\n` +
-    `process.stdout.write(JSON.stringify(r[path] ?? null) + "\\n");\n`;
+    "import { appendFileSync } from 'node:fs';\n" +
+    'const args = process.argv.slice(2);\n' +
+    'const path = args.pop();\n' +
+    'const standalone = args.includes("--standalone");\n' +
+    `appendFileSync(${JSON.stringify(log)}, (standalone ? "private " : "shared ") + path + "\\n");\n` +
+    `const r = standalone ? ${JSON.stringify(RESPONSES)} : ${JSON.stringify(SHARED)};\n` +
+    'process.stdout.write(JSON.stringify(r[path] ?? null) + "\\n");\n';
   await writeFile(file, src);
   await chmod(file, 0o755);
-  return file;
+  return { command: file, log };
 }
 
 test('sessionView normalizes an opencode session', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'mr-oc-'));
   try {
-    const command = await fakeOpencode(dir);
+    const { command, log } = await fakeOpencode(dir);
     const view = await sessionView({ agent: { command }, rootDir: dir }, 'ses_test');
     assert.equal(view.stats.cost, 0.5);
     assert.equal(view.stats.outcome, 'succeeded');
@@ -89,10 +104,19 @@ test('sessionView normalizes an opencode session', async () => {
         ],
       },
     ]);
-    assert.equal(view.mcp[0].name, 'notion');
+    // the layer's own server, not the shared service's `notion`
+    assert.equal(view.mcp[0].name, 'bootstrap');
     assert.equal(view.mcp[0].error, 'timeout');
     assert.deepEqual(view.skills, ['OpenCode', 'X']);
     assert.equal(view.workspace, '/tmp/room');
+
+    const calls = await readFile(log, 'utf8');
+    assert.match(calls, /^shared \/api\/session\/ses_test$/m, 'the session is the shared one');
+    assert.doesNotMatch(
+      calls,
+      /^shared \/api\/(mcp|skill|model)$/m,
+      "asked for this layer's server",
+    );
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
