@@ -238,6 +238,24 @@ export interface RoomsResponse {
   rooms: DashboardRoom[];
   facets: Facet[];
   config: RoomConfig;
+  /** A newer modelroom, when there is one. It is a notice, never an install. */
+  update: UpdateInfo;
+}
+
+/**
+ * A newer modelroom exists — or, when `latest` is null, we do not know yet
+ * (off, still asking, or the registry was out of reach). `command` is the one
+ * that fits *this* project: its own package manager, its own script.
+ */
+export interface UpdateInfo {
+  current: string;
+  latest: string | null;
+  available: boolean;
+  /** When the answer was fetched; 0 when it never was. */
+  checkedAt: number;
+  /** The check is on. When it is off, nothing is asked and nothing is claimed. */
+  enabled: boolean;
+  command: string;
 }
 
 export interface Snippet {

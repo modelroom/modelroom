@@ -19,7 +19,6 @@ just a picture of it.
 ```
 bin/modelroom.ts        CLI: serve | init | add | rename | remove | check | doctor
 bin/lint.ts             the convention checks behind `check`
-bin/manifest.ts         the consumer's package.json, edited minimally (`npm run modelroom`)
 bin/prompt.ts           the one interactive prompt: `init`'s language question
 bin/langchoice.ts       flag · config · environment → the language `init` uses, and why
 server/http.ts          HTTP + SSE + static + agent spawn + the room-operation API
@@ -31,6 +30,9 @@ server/artifact.ts      HTML → PNG (Playwright, dynamically imported)
 server/thumbs.ts        keeps every room's snapshot current (serial, idempotent)
 core/config.ts          config and state: modelroom.json + .modelroom/state.json
 core/device.ts          devices: the built-ins, the project's names, per-room resolution
+core/manifest.ts        the consumer's package.json, edited minimally (`npm run modelroom`)
+core/project.ts         how this project runs modelroom: its command, and how it updates
+core/update.ts          is there a newer modelroom? one cached registry GET, never a write
 core/rooms.ts           room discovery, status parsing
 core/facets.ts          facets, filters, search built from the records
 core/frontmatter.ts     frontmatter read/write, reserved keys
@@ -49,6 +51,7 @@ client/                 the tool's UI source (React + Mantine + CodeMirror)
     AddRoomDialog.tsx    create a room (dashboard) — name field with ✓/✘
     RenameRoomDialog.tsx  rename a room (room header)
     DeleteRoomDialog.tsx  the GitHub-style delete confirm (type the name)
+    UpdateNotice.tsx     a newer modelroom: the dashboard badge and the settings About card
   dashboard/            the room list and its facet filters
     FacetFilter.tsx     the filter control (MultiSelect, or Combobox + virtualizer)
   room/                 the room app
@@ -193,6 +196,10 @@ reads. `serve` and `doctor` say so when a checkout was never installed.
   fixed name, overwritten in place, committed next to the artifact, and reviewed on the
   pull request. Rendering is idempotent (only an artifact newer than its png renders, and
   an unchanged render writes nothing). The how and the why are in `docs/05-preview-images.md`.
+- The update notice is a note, never an update. One GET to the registry, at most once a day
+  (cached in local state), two seconds to give up, silent when it fails, and off with
+  `MODELROOM_NO_UPDATE_CHECK`. It never blocks a start, never fails a command, and never
+  writes the consumer's `package.json` or lockfile — it prints the command and stops there.
 
 ## Commits
 

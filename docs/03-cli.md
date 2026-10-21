@@ -37,6 +37,11 @@ Starts the workspace on `127.0.0.1:4321` by default. `modelroom` alone does the 
 
 `--open` tries to open a browser; on a headless machine it is ignored.
 
+When there is a newer modelroom, `serve` says so once — after the banner, when the answer
+lands — and the dashboard and `/settings` show the same notice with the command that fits
+this project. It is a notice, never an install; see **Knowing a newer one exists** under
+`update`.
+
 ## init
 
 Creates the design layer in `modelroom/` and keeps local state outside it:
@@ -221,6 +226,34 @@ npx modelroom@latest update --dry-run
 It never touches a room, `DESIGN.md` or `modelroom.json`: those are the project's, not
 modelroom's. A new install gets the same generated files from `init`.
 
+`update` acts on the version that is installed, so on its own it cannot upgrade anything.
+It is the second half of the command below.
+
+### Knowing a newer one exists
+
+`serve` and `doctor` say so, and so do the dashboard and `/settings`:
+
+```
+  update   modelroom 0.6.0 is available — npm install --save-dev modelroom@latest && npm run modelroom update
+```
+
+The command is the project's own — its package manager, its script, or the manager's remote
+runner where `init` added no script — so it is the one that works in this repository: install
+the newer modelroom, then let that copy refresh the files it generated.
+
+- The check is a single GET to `registry.npmjs.org`, at most once a day, with a two-second
+  timeout. The answer is cached in `.modelroom/state.json` (git-ignore it), and a failure is
+  silent: offline, `serve` starts and says nothing about versions.
+- **Nothing is installed for you.** modelroom never writes the consumer's `package.json` or
+  lockfile — a dependency entry written by hand would leave the lockfile behind and break
+  `npm ci` — so the notice stops at the command. Run it where you can read what the package
+  manager says, and restart `serve` afterwards: the process keeps running the version it
+  started with.
+- `MODELROOM_NO_UPDATE_CHECK=1` turns the check off, and it is the only thing in modelroom
+  that talks to the network. A checkout ahead of the registry — a branch, a release that is
+  not published yet — is not an "update", and stays quiet.
+- `doctor` never fails on it: a newer modelroom is not a problem, it is a decision.
+
 ## check
 
 ```
@@ -312,6 +345,7 @@ ok   rooms found: checkout, sign-in
 ok   config: modelroom/modelroom.json
 ok   state: .modelroom
 ok   language: ja
+ok   modelroom 0.5.0 is the latest
 ok   agent instructions: modelroom/AGENTS.md
 ok   design rules: modelroom/DESIGN.md
 ok   agent command on PATH: opencode

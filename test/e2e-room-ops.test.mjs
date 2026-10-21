@@ -51,7 +51,12 @@ test('the room endpoints create, rename and remove, like the CLI', async () => {
       JSON.stringify({ sessions: { hello: 'ses_test' }, settings: {} }, null, 2) + '\n',
     );
 
-    app = await createModelroom({ cwd: dir, port: await freePort(), host: '127.0.0.1' });
+    app = await createModelroom({
+      cwd: dir,
+      port: await freePort(),
+      host: '127.0.0.1',
+      checkForUpdates: false,
+    });
     const { url } = await app.listen();
     const post = (path, body) =>
       fetch(`${url}${path}`, {

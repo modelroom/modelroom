@@ -39,6 +39,11 @@ without asking.`,
   'cli.serve.agent': '  agent    {line}',
   'cli.serve.artifacts': '  Artifacts are served unmodified. Writable files: {docs}',
   'cli.serve.ctrlC': '  Ctrl+C to stop',
+  'cli.serve.update': '  update   modelroom {latest} is available — {command}',
+  'cli.doctor.update': 'update available: modelroom {latest} (you have {current}) — {command}',
+  'cli.doctor.updateCurrent': 'modelroom {current} is the latest',
+  'cli.doctor.updateUnknown': 'update check: could not reach the registry',
+  'cli.doctor.updateOff': 'update check: off ({env})',
   'cli.serve.noUi': 'the built UI is missing — run npm install, or npm run build:client',
   'cli.doctor.ui': 'built UI: web/assets/app.js',
   'cli.doctor.uiMissing': 'built UI: missing (run: npm install, or npm run build:client)',
@@ -445,6 +450,20 @@ without asking.`,
   'settings.couldNotReach': 'failed: could not reach the server',
   'settings.invalidLanguage': 'invalid language',
 
+  // ── a newer modelroom ──────────────────────────────────────────────────────
+  'update.title': 'Update available',
+  'update.badge': 'v{latest} available',
+  'update.available': 'modelroom {latest} is available — you have {current}',
+  'update.about': 'About modelroom',
+  'update.current': 'modelroom {current}',
+  'update.upToDate': 'the latest',
+  'update.command': 'Update with:',
+  'update.copyCommand': 'Copy command',
+  'update.hint':
+    'Updating also refreshes what modelroom generated (AGENTS.md and the skills); restart the server afterwards. Your rooms and modelroom.json are left alone.',
+  'update.off': 'Update checks are off (MODELROOM_NO_UPDATE_CHECK).',
+  'update.checkOn': 'modelroom asks the registry once a day; MODELROOM_NO_UPDATE_CHECK=1 stops it.',
+
   // ── facet ──────────────────────────────────────────────────────────────────
   'facet.any': 'any',
   'facet.noMatch': 'No value matches',
@@ -485,6 +504,9 @@ without asking.`,
   'kit.dialogs': 'Room dialogs — add / rename / delete',
   'kit.dialogsHint':
     'The add and rename dialogs, and the delete confirm: type the name to enable the button.',
+  'kit.update': 'Update notice',
+  'kit.updateHint':
+    'The two states of the notice: the dashboard badge (click it) and the settings card. Nothing is installed — the command is the whole feature.',
   'kit.splitHint':
     "Mantine has no split pane; the room's columns and the docs split use this one library.",
 } as const;
@@ -523,6 +545,11 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'cli.serve.agent': '  agent    {line}',
   'cli.serve.artifacts': '  artifact は無改変で配信されます。書き込み可能: {docs}',
   'cli.serve.ctrlC': '  停止するには Ctrl+C',
+  'cli.serve.update': '  update   modelroom {latest} が利用可能です — {command}',
+  'cli.doctor.update': '更新があります: modelroom {latest}（現在 {current}） — {command}',
+  'cli.doctor.updateCurrent': 'modelroom {current} が最新です',
+  'cli.doctor.updateUnknown': '更新チェック: registry に接続できませんでした',
+  'cli.doctor.updateOff': '更新チェック: オフ（{env}）',
   'cli.serve.noUi':
     'ビルド済み UI がありません — npm install、または npm run build:client を実行してください',
   'cli.doctor.ui': 'ビルド済み UI: web/assets/app.js',
@@ -937,6 +964,21 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'settings.couldNotReach': '失敗: サーバーに接続できません',
   'settings.invalidLanguage': '不正な言語です',
 
+  // ── 新しい modelroom ───────────────────────────────────────────────────────
+  'update.title': '更新があります',
+  'update.badge': 'v{latest} が利用可能',
+  'update.available': 'modelroom {latest} が利用可能です — 現在は {current}',
+  'update.about': 'modelroom について',
+  'update.current': 'modelroom {current}',
+  'update.upToDate': '最新です',
+  'update.command': '更新するには:',
+  'update.copyCommand': 'コマンドをコピー',
+  'update.hint':
+    '更新すると modelroom が生成したファイル（AGENTS.md と skills）も更新されます。そのあとサーバーを再起動してください。room と modelroom.json には触れません。',
+  'update.off': '更新チェックはオフです（MODELROOM_NO_UPDATE_CHECK）。',
+  'update.checkOn':
+    'modelroom は1日1回 registry に問い合わせます。止めるには MODELROOM_NO_UPDATE_CHECK=1。',
+
   // ── facet ──────────────────────────────────────────────────────────────────
   'facet.any': 'すべて',
   'facet.noMatch': '一致する値がありません',
@@ -976,6 +1018,9 @@ BEHAVIOUR.md、そして artifact を置きます。artifact の png は room �
   'kit.dialogs': 'room ダイアログ — 追加 / 改名 / 削除',
   'kit.dialogsHint':
     '追加と改名のダイアログ、そして削除の確認: 名前を入力するとボタンが有効になります。',
+  'kit.update': '更新の通知',
+  'kit.updateHint':
+    '通知の状態: ダッシュボードのバッジ（クリック）と設定カード。インストールはしません — 表示するのはコマンドまでです。',
   'kit.splitHint':
     'Mantine に分割ペインはありません。room の列とドキュメントの分割はこの1つのライブラリを使います。',
 };

@@ -173,6 +173,7 @@ async function appWithAgent(dir, agent) {
     cwd: pkgDir,
     port: await freePort(),
     host: '127.0.0.1',
+    checkForUpdates: false,
   });
   // Keep this run's session out of the repo's own state file.
   app.cfg.stateDir = dir;

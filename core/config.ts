@@ -1,7 +1,7 @@
 // modelroom — config and state
 //
 // Config (`modelroom.json`) is committed. State (`.modelroom/state.json`) is local:
-// chat sessions per room, and any settings changed from the UI.
+// chat sessions per room, any settings changed from the UI, and the last update check.
 
 import { access, readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { constants } from 'node:fs';
@@ -9,6 +9,7 @@ import { dirname, join, resolve } from 'node:path';
 import { isLang, type Lang } from '../i18n/lang.ts';
 import { detectLang } from './locale.ts';
 import { DEFAULT_DEVICE, isDeviceName, normalizeDevices, type DeviceRegistry } from './device.ts';
+import type { UpdateCache } from './update.ts';
 
 export type { Lang } from '../i18n/lang.ts';
 export { isLang, LANGS } from '../i18n/lang.ts';
@@ -61,6 +62,12 @@ export interface Config {
 export interface State {
   sessions: Record<string, string>;
   settings: Record<string, unknown>;
+  /**
+   * The last update check — local, git-ignored, and only ever a note. Keeping it
+   * here is what makes `serve` a single request to the registry per day rather
+   * than one per restart; a failure writes nothing, so the next start retries.
+   */
+  update?: UpdateCache;
 }
 
 export const DEFAULTS = {
@@ -162,7 +169,13 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<Config> {
 export async function loadState(cfg: Config): Promise<State> {
   try {
     const raw = JSON.parse(await readFile(cfg.statePath, 'utf8')) as Partial<State>;
-    return { sessions: raw.sessions ?? {}, settings: raw.settings ?? {} };
+    const state: State = { sessions: raw.sessions ?? {}, settings: raw.settings ?? {} };
+    const cached = raw.update;
+    // A cache is only a hint: a shape we do not recognise is simply not there.
+    if (cached && typeof cached.latest === 'string' && typeof cached.checkedAt === 'number') {
+      state.update = { latest: cached.latest, checkedAt: cached.checkedAt };
+    }
+    return state;
   } catch {
     return { sessions: {}, settings: {} };
   }

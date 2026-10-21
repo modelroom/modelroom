@@ -19,6 +19,7 @@ export const SERVER_EVENTS = [
   'render-done',
   'doc-saved',
   'settings',
+  'update', // the answer to the one registry check, when it lands
 ] as const;
 
 export type ServerEvent = (typeof SERVER_EVENTS)[number];

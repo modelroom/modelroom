@@ -45,10 +45,11 @@ import {
   installCommand,
   isSelfPackage,
   parseManifest,
-  remoteCommand,
   scriptCommand,
   scriptFallback,
-} from './manifest.ts';
+} from '../core/manifest.ts';
+import { projectCommands } from '../core/project.ts';
+import { NO_UPDATE_CHECK, checkForUpdate, updateCheckDisabled } from '../core/update.ts';
 import { createModelroom } from '../server/http.ts';
 import { listRoomNames, roomInfo, snapshotName } from '../core/rooms.ts';
 import { collidingRoom, isNewRoomName } from '../core/roomrefs.ts';
@@ -182,6 +183,15 @@ if (cmd === 'serve') {
         t(lang, 'cli.serve.ctrlC'),
       ].join('\n'),
     );
+    // The update check answers after the banner, so the line lands when it
+    // knows — and a check with nothing to say prints nothing at all.
+    void (async () => {
+      const update = await app.update.ready;
+      if (!update.available) return;
+      console.log(
+        t(lang, 'cli.serve.update', { latest: update.latest ?? '', command: update.command }),
+      );
+    })();
     if (opts.open) openBrowser(url);
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code;
@@ -758,7 +768,8 @@ else if (cmd === 'update') {
 else if (cmd === 'doctor') {
   const cfg = await loadConfig(cwd);
   const lang = isLang(opts.lang) ? opts.lang : cfg.lang;
-  const { cli } = await projectCommands(cfg);
+  const commands = await projectCommands(cfg);
+  const { cli } = commands;
   type Check = { ok: boolean; label: string; optional?: boolean };
   const checks: Check[] = [];
   const nodeMajor = Number(process.versions.node.split('.')[0]);
@@ -798,6 +809,33 @@ else if (cmd === 'doctor') {
     label: t(lang, uiBuilt ? 'cli.doctor.ui' : 'cli.doctor.uiMissing'),
   });
   checks.push({ ok: true, label: t(lang, 'cli.doctor.lang', { lang }) });
+  // The one outbound check, and only a note: a newer modelroom is never a
+  // "problem" — installing it is a decision, and one `doctor` does not make.
+  // A successful answer is cached in local state, the same place `serve` keeps it.
+  const cached = await loadState(cfg);
+  const { check: update, fetched } = await checkForUpdate({
+    current: pkg.version,
+    cached: cached.update,
+  });
+  if (fetched && update.latest) {
+    cached.update = { latest: update.latest, checkedAt: update.checkedAt };
+    await saveState(cfg, cached);
+  }
+  checks.push({
+    ok: !update.available,
+    optional: true,
+    label: update.available
+      ? t(lang, 'cli.doctor.update', {
+          latest: update.latest ?? '',
+          current: update.current,
+          command: commands.update,
+        })
+      : updateCheckDisabled()
+        ? t(lang, 'cli.doctor.updateOff', { env: NO_UPDATE_CHECK })
+        : update.latest
+          ? t(lang, 'cli.doctor.updateCurrent', { current: update.current })
+          : t(lang, 'cli.doctor.updateUnknown'),
+  });
   const agentsPath = join(cfg.rootDir, 'AGENTS.md');
   checks.push({
     ok: await exists(agentsPath),
@@ -891,27 +929,6 @@ else if (cmd === 'doctor') {
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────
-/**
- * The command the generated files and the `next:` lines tell someone to run.
- * The project's own script wins when it has one — it walks up from the layer and
- * runs the pinned local package — and the manager's remote runner is the fallback
- * for a project `init` could not add a script to. `latest` always goes to the
- * registry, because `update` is how a project picks up a newer modelroom.
- */
-async function projectCommands(cfg: Config): Promise<{ cli: string; cliLatest: string }> {
-  const root = dirname(cfg.stateDir);
-  const pm = detectPackageManager(await readdir(root).catch(() => []));
-  const text = await readFile(join(root, 'package.json'), 'utf8').catch(() => null);
-  const manifest = text ? parseManifest(text) : null;
-  return {
-    cli:
-      manifest && hasScript(manifest, SCRIPT_NAME)
-        ? scriptCommand(pm, SCRIPT_NAME)
-        : remoteCommand(pm, SCRIPT_NAME),
-    cliLatest: remoteCommand(pm, `${SCRIPT_NAME}@latest`),
-  };
-}
-
 /** Fill the placeholders the generated files share (AGENTS.md and the skills). */
 function fillGenerated(text: string, values: { cli: string; cliLatest: string }): string {
   return text.replaceAll('{{cli}}', values.cli).replaceAll('{{cliLatest}}', values.cliLatest);

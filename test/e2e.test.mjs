@@ -34,7 +34,14 @@ test('the server keeps its promises', async () => {
   // that write, so put the file back the way we found it when they are done.
   const statePath = join(pkgDir, '.modelroom', 'state.json');
   const stateBefore = await readFile(statePath, 'utf8').catch(() => null);
-  const app = await createModelroom({ cwd: pkgDir, port, host: '127.0.0.1' });
+  // The update check is off for these runs: the tests never reach the network,
+  // and the check's own test holds it to a stub.
+  const app = await createModelroom({
+    cwd: pkgDir,
+    port,
+    host: '127.0.0.1',
+    checkForUpdates: false,
+  });
   app.startWatching();
   const { url } = await app.listen();
   const room = 'sign-in';
@@ -49,11 +56,26 @@ test('the server keeps its promises', async () => {
       meta.lang === 'en' && meta.config?.lang === 'en',
       'GET /api/meta tells the UI which language to speak',
     );
+    // The update notice is a note on this build's own version, and this run has
+    // the check off — so it says nothing, and says so honestly.
+    const pkg = JSON.parse(await readFile(join(pkgDir, 'package.json'), 'utf8'));
+    check(
+      meta.update?.current === pkg.version && meta.update.available === false,
+      'the meta carries this build’s version and no invented update',
+    );
+    check(
+      meta.update?.enabled === false && typeof meta.update.command === 'string',
+      'a switched-off check says so, and still names how this project would update',
+    );
 
     const rooms = await (await fetch(`${base}/api/rooms`)).json();
     check(
       rooms.count >= 1 && rooms.rooms.some((r) => r.name === room),
       `GET /api/rooms finds "${room}"`,
+    );
+    check(
+      typeof rooms.update?.command === 'string' && rooms.update.command.includes('modelroom'),
+      'the room list carries the update notice, in this project’s own manager',
     );
     const info = rooms.rooms.find((r) => r.name === room);
     check(info?.status === 'draft', 'room status is read from the BRIEF.md frontmatter');
@@ -282,7 +304,12 @@ test('the server keeps its promises', async () => {
       onDisk.settings?.model === 'openrouter/deepseek/deepseek-v4.1-flash',
       'the saved setting is written to .modelroom/state.json',
     );
-    const app2 = await createModelroom({ cwd: pkgDir, port: await freePort(), host: '127.0.0.1' });
+    const app2 = await createModelroom({
+      cwd: pkgDir,
+      port: await freePort(),
+      host: '127.0.0.1',
+      checkForUpdates: false,
+    });
     check(
       app2.cfg.agent.model === 'openrouter/deepseek/deepseek-v4.1-flash',
       'saved settings are restored on the next start',
