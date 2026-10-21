@@ -148,6 +148,11 @@ layer keeps the two halves apart:
 
 - `DESIGN.md` names the design system, where its truth lives, and the MCP server that
   carries it. It is the project's file; `update` never touches it.
+- When the rooms are drawn *with* that system, the layer keeps one copy of it — `vendor/` for
+  third-party files and the layer's own shared CSS beside it — and a room links the copy by
+  relative path, so it renders offline and travels with the layer. `DESIGN.md` names the copy
+  and the version it was taken from; `docs/02-convention.md` ("The design system, shared once")
+  has the rules. A room never installs a framework of its own.
 - The server itself is *configured* in `opencode.json`. modelroom runs `opencode serve`
   with its working directory set to the layer (`modelroom/`), so OpenCode reads
   `modelroom/opencode.json`, plus any `opencode.json` above it up to the repository root.
@@ -169,7 +174,8 @@ There is no portable MCP file across agents: `.mcp.json` is Claude Code's,
 `.cursor/mcp.json` is Cursor's, `.vscode/mcp.json` is VS Code's, and OpenCode reads none
 of them. If the layer is driven by more than one agent, each gets its own file; OpenCode's
 is `opencode.json`. The shipped `read-modelroom` skill carries the *how*: read `DESIGN.md`,
-then use the design system's MCP tools before writing markup.
+use the design system's MCP tools before writing markup, and read the vendored copy the room
+links when there is one.
 
 ## Writing an adapter
 

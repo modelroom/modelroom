@@ -49,7 +49,9 @@ npm run build:css
 - The design layer never reads application code. `withinRoot()` in `server/http.ts` is the guard.
 - The HTTP API writes only `cfg.docs`. Everything else answers 403. The one other file the
   server writes is a room's snapshot (`index.png`), produced by the renderer, never by a request.
-- Artifacts and room docs stay framework-free: plain HTML and CSS, no network.
+- Artifacts and room docs render with no network and no build step; the templates ship as plain
+  HTML and CSS. A project's rooms may link a design system vendored once at the layer root
+  (`docs/02-convention.md`).
 - Docs are English; keep the tone plain.
 
 ## Snapshots

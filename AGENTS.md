@@ -100,10 +100,13 @@ reads. `serve` and `doctor` say so when a checkout was never installed.
    (React, Mantine, @tanstack/react-virtual, CodeMirror, markdown-it, lucide) are
    devDependencies bundled into `web/assets/app.js`; anything optional
    (Playwright) is dynamically imported and degrades.
-2. **Artifacts stay framework-free.** Every `index.html` under `templates/` — the blank
+2. **The shipped artifacts stay plain.** Every `index.html` under `templates/` — the blank
    `templates/<lang>/room/` and the example rooms in `templates/<lang>/example/rooms/` —
-   uses plain HTML and CSS — no framework, no CDN, no web fonts. They are handed to
-   implementation and must render with no network.
+   uses plain HTML and CSS: no framework, no CDN, no web fonts, no build step. They are the
+   start of a new layer and must render with no network. A project that adopts a design system
+   may vendor it once at the layer root and link it from its rooms — that is part of the
+   convention (`docs/02-convention.md`, "The design system, shared once"), and it is *not*
+   how the templates ship: they show the plain case on purpose.
 3. **The tool UI is React + Mantine, and nothing else.** Use the component Mantine ships;
    style it with props, the Styles API or a class in `client/modelroom.css`. Do not add a
    second component library, a utility-class layer, or a bespoke control where Mantine has

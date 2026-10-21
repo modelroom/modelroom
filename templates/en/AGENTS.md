@@ -30,6 +30,13 @@ accessibility floor. A room takes from it and names what it took in its `SPEC.md
 does not invent a colour or a component that is already there. Change `DESIGN.md` only
 when the decision is genuinely layer-wide — otherwise it belongs to the room.
 
+A design system is shared too, and it is shared **once**: `vendor/<system>/` holds the
+system's files (copied from the pinned package, committed) and `design.css` holds the
+layer's own CSS. A room links both by relative path (`../../design.css`) — the same path
+resolves when the artifact is rendered from disk and when it is served. Do not hand-edit
+either file and do not install a framework inside a room; refreshing the copy is the
+project's script. `DESIGN.md` names both, and the version the vendored copy was taken from.
+
 It also names the design system's MCP server, when there is one. The server itself is
 configured in `opencode.json`, which OpenCode reads from this layer; use its tools to
 look components and tokens up before writing markup.
@@ -38,8 +45,10 @@ look components and tokens up before writing markup.
 
 1. Read the room's `BRIEF.md` first, then `SPEC.md` and `BEHAVIOUR.md`.
 2. Change the artifact to match them. If they are wrong, say so — do not quietly reword them.
-3. Keep the artifact self-contained: no CDN, no web fonts, no framework, no build step.
-   It is going to be handed to implementation, so it must stand on its own.
+3. Keep the artifact self-contained: no CDN, no web fonts, no build step. It is going to be
+   handed to implementation, so it must render with no network. Sharing is not the enemy of
+   that — link `vendor/` and `design.css` relatively instead of fetching anything or copying
+   a framework into the room.
 4. Never restate in `SPEC.md` what can be seen in the artifact. Never copy a promise into
    two files; reference it by id (`@verb-1`) instead.
 5. Promises that need the real system (records, timestamps, permissions) do not belong in

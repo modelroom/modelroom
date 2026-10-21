@@ -11,6 +11,8 @@ modelroom/
 ├── DESIGN.md          the layer's design rules     → designer, agent
 ├── modelroom.json
 ├── .agents/skills/    the agent's three skills
+├── vendor/<system>/   the design system, copied once, pinned → every room
+├── design.css         the layer's shared tokens and components → every room
 └── rooms/<room>/
     ├── BRIEF.md        why this room exists        → director, everyone
     ├── SPEC.md         what the artifact cannot show → designer, agent, implementer
@@ -25,6 +27,11 @@ Local state lives in `.modelroom/` next to `modelroom/`, and is never committed.
 accessibility floor — and names the design system they come from (and the MCP server
 that carries it, when there is one). A room takes from it and names what it took in its
 `SPEC.md`. It is the project's file: `init` seeds it once, `update` never touches it.
+
+Two files above are shared and never a room's: `vendor/<system>/` is the design system
+itself, copied once and pinned, and `design.css` is the layer's own CSS. A room links
+both; see *The design system, shared once* below. `init` starts a layer with neither —
+the first time two rooms need the same thing, they appear.
 
 The artifact is the visible spec. `SPEC.md` is the invisible one. They must not overlap.
 
@@ -52,11 +59,51 @@ denied access outside it (for example, OpenCode `permissions` with
 
 ## The artifact
 
-- Self-contained: no CDN, no web fonts, no framework, no build step. It is going to be handed
-  to implementation, so it has to stand on its own (and render with no network).
+- **Self-contained means no network and no build step.** It is going to be handed to
+  implementation, so it has to stand on its own: no CDN, no web fonts, nothing to install,
+  nothing to compile. Open `index.html` from disk and the screen is there. It does *not* mean
+  one file — a room may link what the layer shares (below).
 - One file per state (`index-error.html` and so on). Steps in a flow are separate rooms.
-- Anything shared (a component, a token) lives in the layer's `DESIGN.md` and is named in
-  `SPEC.md`, not reinvented per room.
+- Anything shared (a component, a token) is decided in the layer's `DESIGN.md` and named in
+  `SPEC.md`; it is written once for the layer, not reinvented per room.
+
+## The design system, shared once
+
+A project that draws from a real design system — Bootstrap, a house system, a vendor kit —
+keeps **one** copy for the whole layer and lets the rooms link it. Copying the framework into
+every room is the duplication `DESIGN.md` exists to prevent; hand-writing its components in
+each room is the same duplication, one layer out.
+
+```
+modelroom/
+├── DESIGN.md            names the system, its MCP, and the two files below
+├── vendor/<system>/     the system's files, copied from the pinned package — committed
+│   └── MANIFEST.json    the version, and a sha256 per file
+├── design.css           the layer's own shared CSS: its tokens, its components — committed
+└── rooms/<room>/index.html
+```
+
+- **One copy, at the layer root, outside `rooms/`.** Never per room, never a CDN.
+- **A room links it, relative to itself**, so the same path resolves whether the artifact is
+  opened from disk (`file://`, what `render` does) or served at
+  `/files/rooms/<room>/index.html`:
+
+  ```html
+  <link rel="stylesheet" href="../../vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="../../design.css">
+  ```
+
+- **It is committed**, so the artifact renders with no network and travels with the layer when
+  the layer is handed over.
+- **The version is pinned and recorded.** The manifest next to the copy carries the version and
+  a hash per file, and a script the project owns refreshes it from the package manager's cache;
+  bumping the framework is one reviewable commit, not a search through rooms.
+- **A room keeps what is its own.** Only what two rooms would otherwise repeat moves to
+  `design.css`; a room's own styles stay in the room.
+- **`SPEC.md` says what the room took and at which version.** Implementation installs the same
+  version through its own dependency manager — the vendored copy is how the design layer draws
+  the screen, not the production dependency. Saying so is what tells the implementer what to
+  expect on the other side.
 
 ## Frontmatter is the record
 
