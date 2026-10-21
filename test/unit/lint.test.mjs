@@ -148,3 +148,82 @@ test('a device must name one the project knows', async () => {
     await rm(cfg.roomsDir, { recursive: true, force: true });
   }
 });
+
+test('next and app are reserved keys with the right shape', async () => {
+  const cfg = await fixture({
+    bad: { 'BRIEF.md': `---\ntitle: B\nnext: [a, b]\napp: 3\n---\n# B\n` },
+  });
+  try {
+    const { issues } = await lintRooms(cfg);
+    const reserved = issues.filter((i) => i.code === 'reserved-type').map((i) => i.params.key);
+    assert.deepEqual(
+      reserved.sort((a, b) => a.localeCompare(b)),
+      ['app', 'next'],
+    );
+    assert.ok(issues.every((i) => i.level === 'error'));
+  } finally {
+    await rm(cfg.roomsDir, { recursive: true, force: true });
+  }
+});
+
+test('a next that points nowhere is a warning, not an error', async () => {
+  const cfg = await fixture({
+    a: { 'BRIEF.md': `---\ntitle: A\nnext: nowhere\n---\n# A\n` },
+  });
+  try {
+    const { issues, stats } = await lintRooms(cfg);
+    const missing = issues.filter((i) => i.code === 'next-missing');
+    assert.equal(missing.length, 1);
+    assert.equal(missing[0].level, 'warn');
+    assert.equal(missing[0].params.target, 'nowhere');
+    assert.equal(stats.errors, 0);
+  } finally {
+    await rm(cfg.roomsDir, { recursive: true, force: true });
+  }
+});
+
+test('a next that crosses apps is a warning', async () => {
+  const cfg = await fixture({
+    login: { 'BRIEF.md': `---\ntitle: Login\napp: user\nnext: admin-home\n---\n# Login\n` },
+    'admin-home': { 'BRIEF.md': `---\ntitle: Admin\napp: admin\n---\n# Admin\n` },
+  });
+  try {
+    const { issues, stats } = await lintRooms(cfg);
+    const cross = issues.filter((i) => i.code === 'next-cross-app');
+    assert.equal(cross.length, 1);
+    assert.equal(cross[0].room, 'login');
+    assert.equal(cross[0].level, 'warn');
+    assert.equal(cross[0].params.targetApp, 'admin');
+    assert.equal(stats.errors, 0);
+  } finally {
+    await rm(cfg.roomsDir, { recursive: true, force: true });
+  }
+});
+
+test('a next inside its own app is not a warning', async () => {
+  const cfg = await fixture({
+    login: { 'BRIEF.md': `---\ntitle: Login\napp: user\nnext: home\n---\n# Login\n` },
+    home: { 'BRIEF.md': `---\ntitle: Home\napp: user\n---\n# Home\n` },
+  });
+  try {
+    const { issues } = await lintRooms(cfg);
+    assert.deepEqual(issues, []);
+  } finally {
+    await rm(cfg.roomsDir, { recursive: true, force: true });
+  }
+});
+
+test('two spellings of an app are a variant warning', async () => {
+  const cfg = await fixture({
+    a: { 'BRIEF.md': `---\ntitle: A\napp: user\n---\n# A\n` },
+    b: { 'BRIEF.md': `---\ntitle: B\napp: User\n---\n# B\n` },
+  });
+  try {
+    const { issues } = await lintRooms(cfg);
+    const variants = issues.filter((i) => i.code === 'variant');
+    assert.equal(variants.length, 2);
+    assert.ok(variants.every((i) => i.level === 'warn'));
+  } finally {
+    await rm(cfg.roomsDir, { recursive: true, force: true });
+  }
+});
