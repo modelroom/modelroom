@@ -137,3 +137,45 @@ export function installCommand(
       return { command: 'npm', args: ['install', '--save-dev', spec] };
   }
 }
+
+/**
+ * `modelroom …` the way the project runs its own script. `init` adds the script
+ * before anything names it, and the manager's own spelling is the one that walks
+ * up from `modelroom/` and runs the pinned local package — `pnpm exec modelroom`
+ * does neither when the layer is the working directory.
+ */
+export function scriptCommand(pm: PackageManager, name: string = SCRIPT_NAME): string {
+  switch (pm) {
+    case 'pnpm':
+      return `pnpm ${name}`;
+    case 'yarn':
+      return `yarn ${name}`;
+    case 'bun':
+      return `bun run ${name}`;
+    default:
+      return `npm run ${name}`;
+  }
+}
+
+/**
+ * `modelroom …` when no script is there to run — the manager fetches and runs the
+ * package itself. A project that pins the manager through `devEngines` rejects
+ * every npm command, so the manager's own runner is the only one that works.
+ */
+export function remoteCommand(pm: PackageManager, spec: string = SCRIPT_NAME): string {
+  switch (pm) {
+    case 'pnpm':
+      return `pnpm dlx ${spec}`;
+    case 'yarn':
+      return `yarn dlx ${spec}`;
+    case 'bun':
+      return `bunx ${spec}`;
+    default:
+      return `npx ${spec}`;
+  }
+}
+
+/** The same, for a `package.json` script, where a prompt would hang: npm gets `--yes`. */
+export function scriptFallback(pm: PackageManager, spec: string = SCRIPT_NAME): string {
+  return pm === 'npm' ? `npx --yes ${spec}` : remoteCommand(pm, spec);
+}

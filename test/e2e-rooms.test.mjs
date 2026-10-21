@@ -18,6 +18,13 @@ const pkgDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const cli = join(pkgDir, 'bin', 'modelroom.ts');
 const templates = join(pkgDir, 'templates', 'en');
 
+/**
+ * The template as `init`/`update` write it for a project with no package
+ * manager: the placeholders carry the command this project would run.
+ */
+const filled = (text) =>
+  text.replaceAll('{{cli}}', 'npx modelroom').replaceAll('{{cliLatest}}', 'npx modelroom@latest');
+
 async function project() {
   return mkdtemp(join(tmpdir(), 'mr-rooms-'));
 }
@@ -268,11 +275,11 @@ test('update refreshes the generated files and leaves the project alone', async 
     assert.equal(result.code, 0);
     assert.equal(
       await readFile(skill, 'utf8'),
-      await readFile(join(templates, 'skills', 'read-modelroom', 'SKILL.md'), 'utf8'),
+      filled(await readFile(join(templates, 'skills', 'read-modelroom', 'SKILL.md'), 'utf8')),
     );
     assert.equal(
       await readFile(agents, 'utf8'),
-      await readFile(join(templates, 'AGENTS.md'), 'utf8'),
+      filled(await readFile(join(templates, 'AGENTS.md'), 'utf8')),
     );
     // A room, DESIGN.md and the committed config are the project's, not modelroom's.
     assert.equal(await readFile(room(dir, 'checkout', 'BRIEF.md'), 'utf8'), 'mine\n');

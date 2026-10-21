@@ -55,9 +55,16 @@ design layer is untouched.
 If the repository already has a `package.json`, `init` also adds a `modelroom` script, so
 the everyday command is `npm run modelroom` — the way `npm run storybook` works. The package
 is installed with your own package manager (detected from the lockfile), so the script runs
-the pinned local version; `--skip-install` writes `"modelroom": "npx --yes modelroom"`
-instead and touches no dependencies, and `--no-script` leaves `package.json` alone entirely.
-A `package.json` is never created: `npx modelroom` stays the default.
+the pinned local version; `--skip-install` writes that manager's runner instead
+(`"pnpm dlx modelroom"`, `"npx --yes modelroom"`, …) and touches no dependencies, and
+`--no-script` leaves `package.json` alone entirely. A `package.json` is never created:
+`npx modelroom` stays the default for a project without one.
+
+The command the layer tells your agent to run follows the same manager. `AGENTS.md`, the
+skills and the CLI's `next:` line say `pnpm modelroom render <room>` in a pnpm project,
+`npm run modelroom` in an npm one, and so on — never a hardcoded `npx`. That is what makes
+it work in a project that pins its manager through `devEngines`: npm refuses every command
+there, `npx modelroom` included.
 
 ## Why "model room"
 

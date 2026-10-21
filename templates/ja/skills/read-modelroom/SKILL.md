@@ -18,7 +18,7 @@ room は1画面です。成果物は **docs とスナップショット png** �
    何も書きません:
 
    ```sh
-   npx modelroom render <room>
+   {{cli}} render <room>
    ```
 
 3. レイヤーのルートにある `DESIGN.md` を読みます。rooms がどのデザインシステムから

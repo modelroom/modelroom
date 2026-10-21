@@ -36,7 +36,6 @@ import {
 } from '../core/roomops.ts';
 import {
   LOCAL_COMMAND,
-  NPX_COMMAND,
   SCRIPT_NAME,
   addScript,
   detectPackageManager,
@@ -45,6 +44,9 @@ import {
   installCommand,
   isSelfPackage,
   parseManifest,
+  remoteCommand,
+  scriptCommand,
+  scriptFallback,
 } from './manifest.ts';
 import { createModelroom } from '../server/http.ts';
 import { listRoomNames, roomInfo, snapshotName } from '../core/rooms.ts';
@@ -160,13 +162,16 @@ if (cmd === 'serve') {
       console.warn(`modelroom: ${t(lang, 'cli.serve.noUi')}`);
     }
     const rooms = await listRoomNames(app.cfg);
+    // How this project runs modelroom, so the "no rooms yet" hint is a command
+    // that would actually work here.
+    const { cli } = await projectCommands(app.cfg);
     console.log(
       [
         `modelroom ${pkg.version}`,
         `  ${url}`,
         `  root     ${app.cfg.rootDir}`,
         t(lang, 'cli.serve.rooms', {
-          rooms: rooms.length ? rooms.join(', ') : t(lang, 'cli.serve.roomsNone'),
+          rooms: rooms.length ? rooms.join(', ') : t(lang, 'cli.serve.roomsNone', { cli }),
         }),
         t(lang, 'cli.serve.agent', {
           line: `${app.cfg.agent.adapter} · ${app.cfg.agent.command} · agent=${app.cfg.agent.agent || '-'} · model=${app.cfg.agent.model || 'default'}`,
@@ -312,11 +317,50 @@ else if (cmd === 'init') {
     written.push(rel(dest, cwd));
   }
 
+  // The project root: the one directory outside modelroom/ that init touches.
+  // It owns the .gitignore line and, when the project has one, the package.json.
+  // It comes first because the generated files below name the command that
+  // actually runs here, and `init` may add the script just underneath.
+  const projectRoot = dirname(cfg.stateDir);
+  const gitignorePath = join(projectRoot, '.gitignore');
+  const stateName = relative(projectRoot, cfg.stateDir) || basename(cfg.stateDir);
+  const entry = `/${stateName.replaceAll('\\', '/')}/`;
+  const gitignoreText = await readFile(gitignorePath, 'utf8').catch(() => '');
+  if (!gitignoreText.includes(entry)) {
+    await mkdir(projectRoot, { recursive: true });
+    await writeFile(
+      gitignorePath,
+      (gitignoreText ? gitignoreText.replace(/\n?$/, '\n') : '') + entry + '\n',
+    );
+    written.push(t(lang, 'cli.init.gitignore', { path: entry }));
+  }
+
+  // The everyday command, `npm run modelroom`: one script in the consumer's own
+  // package.json. The file is never created here, an existing key is kept,
+  // and the dependency is installed rather than written by hand, so the
+  // manifest and the lockfile cannot disagree.
+  await addManifestScript({
+    dir: projectRoot,
+    base: cwd,
+    version: pkg.version,
+    lang,
+    force,
+    skipInstall: Boolean(opts['skip-install']),
+    noScript: Boolean(opts['no-script']),
+    written,
+  });
+
+  // What the layer's agent instructions tell the agent to run. The project's own
+  // command, not a hardcoded `npx`: a project that pins its manager through
+  // `devEngines` refuses every npm command, `npx` included.
+  const { cli, cliLatest } = await projectCommands(cfg);
+
   const agentsDest = join(cfg.rootDir, 'AGENTS.md');
   if (!force && (await exists(agentsDest))) {
     console.log(t(lang, 'cli.init.skip', { label: rel(agentsDest, cwd) }));
   } else {
-    await writeFile(agentsDest, await readTemplate(templatesDir, lang, 'AGENTS.md'));
+    const src = await readTemplate(templatesDir, lang, 'AGENTS.md');
+    await writeFile(agentsDest, fillGenerated(src, { cli, cliLatest }));
     written.push(rel(agentsDest, cwd));
   }
 
@@ -341,40 +385,10 @@ else if (cmd === 'init') {
       continue;
     }
     await mkdir(dirname(dest), { recursive: true });
-    await writeFile(dest, await readTemplate(templatesDir, lang, join('skills', id, 'SKILL.md')));
+    const src = await readTemplate(templatesDir, lang, join('skills', id, 'SKILL.md'));
+    await writeFile(dest, fillGenerated(src, { cli, cliLatest }));
     written.push(rel(dest, cwd));
   }
-
-  // The project root: the one directory outside modelroom/ that init touches.
-  // It owns the .gitignore line and, when the project has one, the package.json.
-  const projectRoot = dirname(cfg.stateDir);
-  const gitignorePath = join(projectRoot, '.gitignore');
-  const stateName = relative(projectRoot, cfg.stateDir) || basename(cfg.stateDir);
-  const entry = `/${stateName.replaceAll('\\', '/')}/`;
-  const gitignoreText = await readFile(gitignorePath, 'utf8').catch(() => '');
-  if (!gitignoreText.includes(entry)) {
-    await mkdir(projectRoot, { recursive: true });
-    await writeFile(
-      gitignorePath,
-      (gitignoreText ? gitignoreText.replace(/\n?$/, '\n') : '') + entry + '\n',
-    );
-    written.push(t(lang, 'cli.init.gitignore', { path: entry }));
-  }
-
-  // The everyday command, `npm run modelroom`: one script in the consumer's own
-  // package.json. The file is never created here, an existing key is kept,
-  // and the dependency is installed rather than written by hand, so the
-  // manifest and the lockfile cannot disagree.
-  const scriptAdded = await addManifestScript({
-    dir: projectRoot,
-    base: cwd,
-    version: pkg.version,
-    lang,
-    force,
-    skipInstall: Boolean(opts['skip-install']),
-    noScript: Boolean(opts['no-script']),
-    written,
-  });
 
   console.log(t(lang, 'cli.init.created', { dir: cwd }));
   for (const w of written) console.log(`  ${w}`);
@@ -388,7 +402,7 @@ else if (cmd === 'init') {
     console.log(`  ${t(lang, 'cli.init.languageAuto')}`);
   }
   console.log(`\n${t(lang, 'cli.init.next')}`);
-  console.log(scriptAdded ? t(lang, 'cli.init.nextScript') : t(lang, 'cli.init.nextServe'));
+  console.log(t(lang, 'cli.init.nextCmd', { cli }));
   console.log(t(lang, 'cli.init.nextOpen', { port: cfg.port, room }));
 }
 
@@ -536,13 +550,14 @@ else if (cmd === 'pr-body') {
 else if (cmd === 'add' || cmd === 'new') {
   const cfg = await loadConfig(cwd);
   const lang = isLang(opts.lang) ? opts.lang : cfg.lang;
+  const { cli } = await projectCommands(cfg);
   const room = positional[1] ?? str(opts.room) ?? '';
   if (!(await findConfigPath(cwd))) {
-    console.error(t(lang, 'cli.room.noConfig'));
+    console.error(t(lang, 'cli.room.noConfig', { cli }));
     process.exit(1);
   }
   if (!room) {
-    console.error(t(lang, 'cli.room.needsName', { cmd: 'add' }));
+    console.error(t(lang, 'cli.room.needsName', { cli, verb: 'add' }));
     process.exit(1);
   }
   if (!isNewRoomName(room)) {
@@ -563,7 +578,7 @@ else if (cmd === 'add' || cmd === 'new') {
   const written = await createRoom(cfg, templatesDir, lang, room, str(opts.title));
   console.log(t(lang, 'cli.room.created', { room }));
   for (const w of written) console.log(`  ${rel(w, cwd)}`);
-  console.log(`\n${t(lang, 'cli.room.next', { port: cfg.port, room })}`);
+  console.log(`\n${t(lang, 'cli.room.next', { cli, port: cfg.port, room })}`);
 }
 
 // ── rename ──────────────────────────────────────────────────────────────────
@@ -574,14 +589,15 @@ else if (cmd === 'add' || cmd === 'new') {
 else if (cmd === 'rename' || cmd === 'mv') {
   const cfg = await loadConfig(cwd);
   const lang = isLang(opts.lang) ? opts.lang : cfg.lang;
+  const { cli } = await projectCommands(cfg);
   if (!(await findConfigPath(cwd))) {
-    console.error(t(lang, 'cli.room.noConfig'));
+    console.error(t(lang, 'cli.room.noConfig', { cli }));
     process.exit(1);
   }
   const from = positional[1] ?? '';
   const to = positional[2] ?? '';
   if (!from || !to) {
-    console.error(t(lang, 'cli.room.needsRename'));
+    console.error(t(lang, 'cli.room.needsRename', { cli }));
     process.exit(1);
   }
   if (!isNewRoomName(to)) {
@@ -627,7 +643,7 @@ else if (cmd === 'rename' || cmd === 'mv') {
     for (const m of p.mentions) console.log(`    ${path}:${m.line}  ${m.text}`);
   }
   if (dry) console.log(t(lang, 'cli.room.dryRun'));
-  else console.log(`\n${t(lang, 'cli.room.next', { port: cfg.port, room: to })}`);
+  else console.log(`\n${t(lang, 'cli.room.next', { cli, port: cfg.port, room: to })}`);
 }
 
 // ── remove ──────────────────────────────────────────────────────────────────
@@ -637,13 +653,14 @@ else if (cmd === 'rename' || cmd === 'mv') {
 else if (cmd === 'remove' || cmd === 'rm') {
   const cfg = await loadConfig(cwd);
   const lang = isLang(opts.lang) ? opts.lang : cfg.lang;
+  const { cli } = await projectCommands(cfg);
   if (!(await findConfigPath(cwd))) {
-    console.error(t(lang, 'cli.room.noConfig'));
+    console.error(t(lang, 'cli.room.noConfig', { cli }));
     process.exit(1);
   }
   const room = positional[1] ?? '';
   if (!room) {
-    console.error(t(lang, 'cli.room.needsName', { cmd: 'remove' }));
+    console.error(t(lang, 'cli.room.needsName', { cli, verb: 'remove' }));
     process.exit(1);
   }
   const names = await listRoomNames(cfg);
@@ -690,8 +707,9 @@ else if (cmd === 'remove' || cmd === 'rm') {
 else if (cmd === 'update') {
   const cfg = await loadConfig(cwd);
   const lang = isLang(opts.lang) ? opts.lang : cfg.lang;
+  const { cli } = await projectCommands(cfg);
   if (!(await findConfigPath(cwd))) {
-    console.error(t(lang, 'cli.room.noConfig'));
+    console.error(t(lang, 'cli.room.noConfig', { cli }));
     process.exit(1);
   }
   const dry = Boolean(opts['dry-run']);
@@ -720,6 +738,7 @@ else if (cmd === 'update') {
 else if (cmd === 'doctor') {
   const cfg = await loadConfig(cwd);
   const lang = isLang(opts.lang) ? opts.lang : cfg.lang;
+  const { cli } = await projectCommands(cfg);
   type Check = { ok: boolean; label: string; optional?: boolean };
   const checks: Check[] = [];
   const nodeMajor = Number(process.versions.node.split('.')[0]);
@@ -826,7 +845,11 @@ else if (cmd === 'doctor') {
     checks.push({
       ok: !stale,
       optional: true,
-      label: t(lang, stale ? 'cli.doctor.snapshotStale' : 'cli.doctor.snapshot', { room, png }),
+      label: t(lang, stale ? 'cli.doctor.snapshotStale' : 'cli.doctor.snapshot', {
+        room,
+        png,
+        cli,
+      }),
     });
   }
 
@@ -848,6 +871,32 @@ else if (cmd === 'doctor') {
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────
+/**
+ * The command the generated files and the `next:` lines tell someone to run.
+ * The project's own script wins when it has one — it walks up from the layer and
+ * runs the pinned local package — and the manager's remote runner is the fallback
+ * for a project `init` could not add a script to. `latest` always goes to the
+ * registry, because `update` is how a project picks up a newer modelroom.
+ */
+async function projectCommands(cfg: Config): Promise<{ cli: string; cliLatest: string }> {
+  const root = dirname(cfg.stateDir);
+  const pm = detectPackageManager(await readdir(root).catch(() => []));
+  const text = await readFile(join(root, 'package.json'), 'utf8').catch(() => null);
+  const manifest = text ? parseManifest(text) : null;
+  return {
+    cli:
+      manifest && hasScript(manifest, SCRIPT_NAME)
+        ? scriptCommand(pm, SCRIPT_NAME)
+        : remoteCommand(pm, SCRIPT_NAME),
+    cliLatest: remoteCommand(pm, `${SCRIPT_NAME}@latest`),
+  };
+}
+
+/** Fill the placeholders the generated files share (AGENTS.md and the skills). */
+function fillGenerated(text: string, values: { cli: string; cliLatest: string }): string {
+  return text.replaceAll('{{cli}}', values.cli).replaceAll('{{cliLatest}}', values.cliLatest);
+}
+
 /**
  * `npm run modelroom` in the consumer's project. The script is what people type,
  * so it is written whenever a package.json exists and lacks the key; the
@@ -887,6 +936,9 @@ async function addManifestScript({
     console.log(t(lang, 'cli.init.scriptInvalid'));
     return false;
   }
+  // The manager decides both how the dependency is installed and what the
+  // fallback script says when there is no local install.
+  const pm = detectPackageManager(await readdir(dir).catch(() => []));
   const label = `${rel(path, base)} scripts.${SCRIPT_NAME}`;
   if (hasScript(manifest, SCRIPT_NAME) && !force) {
     console.log(t(lang, 'cli.init.skip', { label }));
@@ -899,7 +951,6 @@ async function addManifestScript({
   if (!local && skipInstall) {
     console.log(t(lang, 'cli.init.depsSkipped'));
   } else if (!local) {
-    const pm = detectPackageManager(await readdir(dir).catch(() => []));
     const call = installCommand(pm, spec);
     const install = await runPackageManager(dir, call);
     local = install.ok;
@@ -909,6 +960,7 @@ async function addManifestScript({
         : t(lang, 'cli.init.depsFailed', {
             spec,
             pm,
+            script: scriptCommand(pm, SCRIPT_NAME),
             command: `${call.command} ${call.args.join(' ')}`,
           }),
     );
@@ -918,7 +970,7 @@ async function addManifestScript({
   // The package manager rewrote the manifest, so read it again: the script must
   // land next to the dependency entry it wrote, not on a stale copy.
   const after = local ? await readFile(path, 'utf8').catch(() => text) : text;
-  const value = local ? LOCAL_COMMAND : NPX_COMMAND;
+  const value = local ? LOCAL_COMMAND : scriptFallback(pm, SCRIPT_NAME);
   const edit = addScript(after, SCRIPT_NAME, value, { overwrite: force });
   if (!edit.ok) {
     console.log(
@@ -1034,15 +1086,19 @@ async function generatedFiles(
   lang: Lang,
 ): Promise<Array<{ path: string; text: string }>> {
   const out: Array<{ path: string; text: string }> = [];
+  const commands = await projectCommands(cfg);
   for (const id of SKILLS) {
     out.push({
       path: join(cfg.rootDir, '.agents', 'skills', id, 'SKILL.md'),
-      text: await readTemplate(templatesDir, lang, join('skills', id, 'SKILL.md')),
+      text: fillGenerated(
+        await readTemplate(templatesDir, lang, join('skills', id, 'SKILL.md')),
+        commands,
+      ),
     });
   }
   out.push({
     path: join(cfg.rootDir, 'AGENTS.md'),
-    text: await readTemplate(templatesDir, lang, 'AGENTS.md'),
+    text: fillGenerated(await readTemplate(templatesDir, lang, 'AGENTS.md'), commands),
   });
   return out;
 }

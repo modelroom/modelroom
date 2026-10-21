@@ -13,9 +13,9 @@
 - `rooms/<room>/index.html` — artifact そのもの
 
 `rooms/<room>/index.png` は artifact を描画したものです。手で編集せず、
-`npx modelroom render <room>` で生成し、html と一緒にコミットします。
+`{{cli}} render <room>` で生成し、html と一緒にコミットします。
 
-room の追加・改名・削除は CLI（`npx modelroom add|rename|remove`）、またはツール UI の
+room の追加・改名・削除は CLI（`{{cli}} add|rename|remove`）、またはツール UI の
 追加ボタンと room メニューで行います（同じコードです）。ディレクトリ名が room そのもので、
 その room への参照も一緒に動かす必要があります。
 
@@ -45,7 +45,7 @@ room の追加・改名・削除は CLI（`npx modelroom add|rename|remove`）�
    ファイルにコピーせず、id（`@verb-1`）で参照します。
 5. 実際のシステムが必要とする約束（レコード、タイムスタンプ、権限）は、このレイヤーには
    置きません。
-6. `index.html` を変えたら `npx modelroom render <room>` を実行し、`index.png` を一致
+6. `index.html` を変えたら `{{cli}} render <room>` を実行し、`index.png` を一致
    させます。レビューされるのは画像です。古いスナップショットは、コミットしないより
    悪い状態です。
 
@@ -53,7 +53,7 @@ room の追加・改名・削除は CLI（`npx modelroom add|rename|remove`）�
 
 その room のレビュー対象は docs とスナップショットであり、マークアップではありません。
 見た目を変えないはずの変更（アクセシビリティ対応、ピクセルを動かしてはいけない
-リファクタ）では、`npx modelroom render <room> --check` がピクセル不変を証明します —
+リファクタ）では、`{{cli}} render <room> --check` がピクセル不変を証明します —
 一時ファイルに描画して比較します。逆に、見た目を変える変更は新しい `index.png` を
 残し、PR がそれを表示します。
 

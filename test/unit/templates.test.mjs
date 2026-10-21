@@ -46,7 +46,18 @@ test('every language ships the skills, with a name and a description', async () 
       const text = await readFile(join(templatesDir, lang, 'skills', id, 'SKILL.md'), 'utf8');
       assert.match(text, /^---\nname: /, `${lang}/skills/${id} has frontmatter`);
       assert.match(text, /\ndescription:/, `${lang}/skills/${id} has a description`);
-      assert.match(text, /modelroom render/, `${lang}/skills/${id} names the render command`);
+      assert.match(text, /\{\{cli\}\} render/, `${lang}/skills/${id} names the render command`);
+    }
+  }
+});
+
+test('the generated files defer the command to the project, not to a hardcoded npx', async () => {
+  for (const lang of LANGS) {
+    const files = ['AGENTS.md', ...SKILLS.map((id) => join('skills', id, 'SKILL.md'))];
+    for (const file of files) {
+      const text = await readFile(join(templatesDir, lang, file), 'utf8');
+      assert.doesNotMatch(text, /npx modelroom/, `${lang}/${file} has no hardcoded npx`);
+      assert.match(text, /\{\{cli\}\}/, `${lang}/${file} uses {{cli}}`);
     }
   }
 });

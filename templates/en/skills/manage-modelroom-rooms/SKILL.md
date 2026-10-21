@@ -21,14 +21,14 @@ code, when a person would rather click than type a command.
 ## Add a room
 
 ```sh
-npx modelroom add <room> --title "Sign in"
+{{cli}} add <room> --title "Sign in"
 ```
 
 Then write the room, `BRIEF.md` first, and finish with:
 
 ```sh
-npx modelroom render <room>
-npx modelroom check
+{{cli}} render <room>
+{{cli}} check
 ```
 
 ## Rename a room
@@ -36,7 +36,7 @@ npx modelroom check
 Look before you move:
 
 ```sh
-npx modelroom rename <old> <new> --dry-run
+{{cli}} rename <old> <new> --dry-run
 ```
 
 The dry run prints the directory move and every reference it would rewrite. Run
@@ -50,10 +50,10 @@ Then finish what it cannot do:
 2. A `title` and an H1 are prose, not paths: the directory name and the name on
    the screen are allowed to differ. Change them only if the screen really
    renames.
-3. `npx modelroom check`, then `npx modelroom render <room>`, then read
+3. `{{cli}} check`, then `{{cli}} render <room>`, then read
    `git diff` for what the script could not see.
 
-Stop `npx modelroom` first. The running server holds the room's chat session in
+Stop `{{cli}}` first. The running server holds the room's chat session in
 memory, and a rename underneath it loses that; the command refuses while a server
 is up.
 
@@ -69,8 +69,8 @@ superseded_by: <the room that replaced it>
 Only when the person has clearly asked to delete it:
 
 ```sh
-npx modelroom remove <room> --dry-run   # who still points at it?
-npx modelroom remove <room> --yes
+{{cli}} remove <room> --dry-run   # who still points at it?
+{{cli}} remove <room> --yes
 ```
 
 `remove` refuses while another room points at it, unless you pass `--force`; a
@@ -83,8 +83,8 @@ The skills and `AGENTS.md` are generated from the installed modelroom, so a new
 version can change them:
 
 ```sh
-npx modelroom@latest update            # refresh the generated files
-npx modelroom@latest update --dry-run  # show what would change
+{{cliLatest}} update            # refresh the generated files
+{{cliLatest}} update --dry-run  # show what would change
 ```
 
 It never touches a room or `modelroom.json`.

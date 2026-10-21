@@ -22,7 +22,7 @@ Onion Skin）** で比較します。タイムスタンプやバージョンを�
    書きません:
 
    ```sh
-   npx modelroom render <room>
+   {{cli}} render <room>
    ```
 
 2. room の変更ファイルを**まとめて**コミットする — docs、`index.html`、
@@ -35,7 +35,7 @@ Onion Skin）** で比較します。タイムスタンプやバージョンを�
 3. room から説明の素材を作り、差分のコンテキストは自分で足す:
 
    ```sh
-   npx modelroom pr-body <room>
+   {{cli}} pr-body <room>
    ```
 
    summary、スナップショットの場所、BEHAVIOUR を出力します。何のための変更かを
@@ -45,7 +45,7 @@ Onion Skin）** で比較します。タイムスタンプやバージョンを�
    raw ファイル）を渡します:
 
    ```sh
-   npx modelroom pr-body <room> --image-url \
+   {{cli}} pr-body <room> --image-url \
      "https://raw.githubusercontent.com/<owner>/<repo>/<branch>/rooms/<room>/index.png"
    ```
 

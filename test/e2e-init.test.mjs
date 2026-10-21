@@ -250,6 +250,65 @@ test('an installed dependency means a local script and no install', async () => 
   }
 });
 
+test('a pnpm project is told to run pnpm, not npx', async () => {
+  const dir = await project();
+  try {
+    // A pnpm project: a lockfile, and the devEngines pin that makes npm refuse.
+    await writeFile(join(dir, 'pnpm-lock.yaml'), '');
+    await writeFile(
+      join(dir, 'package.json'),
+      shop({
+        devEngines: {
+          packageManager: { name: 'pnpm', version: '^11.9.0', onFail: 'download' },
+        },
+      }),
+    );
+    const result = await init(dir, ['checkout', '--skip-install']);
+
+    // The generated files name the project's command, so the agent never trips
+    // npm's devEngines check.
+    const agents = await readFile(join(dir, 'modelroom', 'AGENTS.md'), 'utf8');
+    assert.match(agents, /pnpm modelroom render <room>/);
+    assert.doesNotMatch(agents, /npx modelroom/);
+    const skill = await readFile(
+      join(dir, 'modelroom', '.agents', 'skills', 'manage-modelroom-rooms', 'SKILL.md'),
+      'utf8',
+    );
+    assert.match(skill, /pnpm modelroom add <room>/);
+    assert.match(skill, /pnpm dlx modelroom@latest update/);
+    // The script `--skip-install` writes is the manager's own runner too.
+    assert.equal(
+      JSON.parse(await readFile(join(dir, 'package.json'), 'utf8')).scripts.modelroom,
+      'pnpm dlx modelroom',
+    );
+    assert.match(result.stdout, /pnpm modelroom/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('update names the project manager even when the files were generated for another', async () => {
+  const dir = await project();
+  try {
+    // Generated first for npm, with no lockfile anywhere.
+    await writeFile(join(dir, 'package.json'), shop());
+    await init(dir, ['checkout', '--skip-install']);
+    assert.match(await readFile(join(dir, 'modelroom', 'AGENTS.md'), 'utf8'), /npm run modelroom/);
+
+    await writeFile(join(dir, 'pnpm-lock.yaml'), '');
+    await run(process.execPath, [cli, 'update'], {
+      cwd: dir,
+      env: { ...process.env, CI: '1', LANG: 'en_US.UTF-8' },
+    });
+
+    const agents = await readFile(join(dir, 'modelroom', 'AGENTS.md'), 'utf8');
+    assert.match(agents, /pnpm modelroom render <room>/);
+    assert.doesNotMatch(agents, /npx modelroom/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('a failed install falls back to the npx script and init still succeeds', async () => {
   const dir = await project();
   try {

@@ -23,7 +23,7 @@ unrelated files.
    already matches the artifact.
 
    ```sh
-   npx modelroom render <room>
+   {{cli}} render <room>
    ```
 
 2. Commit the room's changed files **together** — the docs, `index.html`, and
@@ -36,7 +36,7 @@ unrelated files.
 3. Build the description from the room, then add the diff context yourself:
 
    ```sh
-   npx modelroom pr-body <room>
+   {{cli}} pr-body <room>
    ```
 
    It prints the summary, where the snapshot is, and the BEHAVIOUR. Add a short
@@ -46,7 +46,7 @@ unrelated files.
    URL that renders for the reviewer — the raw file on the branch:
 
    ```sh
-   npx modelroom pr-body <room> --image-url \
+   {{cli}} pr-body <room> --image-url \
      "https://raw.githubusercontent.com/<owner>/<repo>/<branch>/rooms/<room>/index.png"
    ```
 

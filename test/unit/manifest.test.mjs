@@ -9,6 +9,9 @@ import {
   installCommand,
   isSelfPackage,
   parseManifest,
+  remoteCommand,
+  scriptCommand,
+  scriptFallback,
   scriptOf,
 } from '../../bin/manifest.ts';
 
@@ -164,4 +167,27 @@ test("installCommand spells the dev dependency each manager's way", () => {
     command: 'bun',
     args: ['add', '--dev', 'modelroom@^1.2.3'],
   });
+});
+
+test('scriptCommand runs the project script in each manager, from the layer too', () => {
+  assert.equal(scriptCommand('npm'), 'npm run modelroom');
+  assert.equal(scriptCommand('pnpm'), 'pnpm modelroom');
+  assert.equal(scriptCommand('yarn'), 'yarn modelroom');
+  assert.equal(scriptCommand('bun'), 'bun run modelroom');
+  assert.equal(scriptCommand('pnpm', 'other'), 'pnpm other');
+});
+
+test('remoteCommand names the manager, so a devEngines pin is not tripped', () => {
+  assert.equal(remoteCommand('npm'), 'npx modelroom');
+  assert.equal(remoteCommand('pnpm'), 'pnpm dlx modelroom');
+  assert.equal(remoteCommand('yarn'), 'yarn dlx modelroom');
+  assert.equal(remoteCommand('bun'), 'bunx modelroom');
+  assert.equal(remoteCommand('pnpm', 'modelroom@latest'), 'pnpm dlx modelroom@latest');
+});
+
+test('scriptFallback keeps --yes for npm and leaves the others alone', () => {
+  assert.equal(scriptFallback('npm'), 'npx --yes modelroom');
+  assert.equal(scriptFallback('pnpm'), 'pnpm dlx modelroom');
+  assert.equal(scriptFallback('yarn'), 'yarn dlx modelroom');
+  assert.equal(scriptFallback('bun'), 'bunx modelroom');
 });
