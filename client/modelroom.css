@@ -29,6 +29,12 @@
   --mr-dimmed: var(--mantine-color-dimmed);
   --mr-primary: var(--mantine-primary-color-filled);
   --mr-border: var(--mantine-color-default-border);
+  /* The flow view's wires. `--mr-border` is deliberately close to the panel so a
+   * card's outline stays quiet, which makes it the wrong colour for a line that
+   * has to be followed: this is the same idea one step darker, and it clears the
+   * 3:1 non-text contrast floor against `--mr-panel` in both schemes
+   * (gray-7 is 8.2:1 on white, gray-4 is 9.1:1 on dark-6). */
+  --mr-flow-edge: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-4));
   --mr-surface: var(--mantine-color-body);
   --mr-subtle: var(--mantine-color-default-hover);
   /* Panels sit on the page the way cards did: white on off-white, dark-6 on
@@ -232,8 +238,12 @@
 .mr-flow {
   --xy-background-color: var(--mr-panel);
   --xy-node-border-radius: var(--mantine-radius-md);
-  --xy-edge-stroke: var(--mr-border);
-  --xy-edge-stroke-width: 1.5;
+  /* The wires are the one thing in the graph that is not a component: 2px, in a
+   * colour of their own (`--mr-flow-edge`), so the direction they carry is
+   * legible rather than decorative. The arrowheads the edges ask for take the
+   * same colour (`defaultMarkerColor` in `FlowView.tsx`). */
+  --xy-edge-stroke: var(--mr-flow-edge);
+  --xy-edge-stroke-width: 2;
   --xy-edge-stroke-selected: var(--mantine-primary-color-filled);
   --xy-attribution-background-color: transparent;
 }

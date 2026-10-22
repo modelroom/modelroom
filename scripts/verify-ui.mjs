@@ -41,6 +41,34 @@ const check = (ok, label, extra = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}${extra ? ` — ${extra}` : ''}`);
 };
 
+/** `rgb(…)` / `rgba(…)` → [r, g, b], or null when it is not a colour. */
+const parseRgb = (value) => {
+  const parts = /rgba?\(([^)]+)\)/.exec(value ?? '');
+  if (!parts) return null;
+  const channels = parts[1]
+    .split(/[,\s/]+/)
+    .slice(0, 3)
+    .map(Number);
+  return channels.length === 3 && channels.every(Number.isFinite) ? channels : null;
+};
+
+/** WCAG relative luminance. */
+const luminance = ([r, g, b]) => {
+  const channel = (value) => {
+    const c = value / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+};
+
+/** The WCAG contrast ratio of two colours, or 0 when one of them is unreadable. */
+const contrastRatio = (a, b) => {
+  const [first, second] = [parseRgb(a), parseRgb(b)];
+  if (!first || !second) return 0;
+  const [hi, lo] = [luminance(first), luminance(second)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
 // A browser action that never returns, or a socket that will not close, must
 // fail the pass rather than hang CI. The timer fires only if the process is
 // still alive at the deadline; a normal run reaches `process.exit` first.
@@ -405,7 +433,58 @@ try {
     const userEdges = await flowPage.locator('.react-flow__edge').count();
     check(userNodes === 3, `flow: the user app draws its 3 screens (${userNodes})`);
     check(userEdges === 2, `flow: the user app draws its 2 transitions (${userEdges})`);
+    check(
+      (await flowPage.locator('.react-flow__arrowhead polyline.arrowclosed').count()) >= 1,
+      'flow: the transitions are drawn with an arrowhead',
+    );
     await flowPage.screenshot({ path: join(outDir, 'flow-user.png') });
+
+    // The wires have to read as lines, in both schemes. `--xy-edge-stroke` is a
+    // custom property pointing at `--mr-flow-edge`, so ask a probe element which
+    // colour it resolves to and hold it against the canvas it is drawn on: 3:1
+    // is the non-text contrast floor, and this is the check that fails when the
+    // edges are painted in the card border again.
+    const wireOnPanel = () =>
+      flowPage.evaluate(() => {
+        const flow = document.querySelector('.mr-flow');
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--xy-edge-stroke)';
+        flow.appendChild(probe);
+        const edge = getComputedStyle(probe).color;
+        probe.remove();
+        const canvas = flow.querySelector('.react-flow');
+        const path = flow.querySelector('.react-flow__edge-path');
+        return {
+          edge,
+          panel: getComputedStyle(canvas).backgroundColor,
+          width: path ? getComputedStyle(path).strokeWidth : '0px',
+        };
+      });
+
+    const lightWire = await wireOnPanel();
+    const lightRatio = contrastRatio(lightWire.edge, lightWire.panel);
+    check(
+      lightRatio >= 3,
+      `flow: the wires clear 3:1 on the panel (light, ${lightRatio.toFixed(2)}:1)`,
+      `${lightWire.edge} on ${lightWire.panel}`,
+    );
+    check(
+      Number.parseFloat(lightWire.width) >= 2,
+      `flow: the wires are drawn at 2px or more (${lightWire.width})`,
+    );
+
+    await flowPage.getByRole('button', { name: 'Dark theme' }).click();
+    await flowPage.waitForTimeout(300);
+    await flowPage.screenshot({ path: join(outDir, 'flow-user-dark.png') });
+    const darkWire = await wireOnPanel();
+    const darkRatio = contrastRatio(darkWire.edge, darkWire.panel);
+    check(
+      darkRatio >= 3,
+      `flow: the wires clear 3:1 on the panel (dark, ${darkRatio.toFixed(2)}:1)`,
+      `${darkWire.edge} on ${darkWire.panel}`,
+    );
+    await flowPage.getByRole('button', { name: 'Light theme' }).click();
+    await flowPage.waitForTimeout(200);
 
     // A flow node is a way in: clicking it opens the room.
     await flowPage.locator('.react-flow__node', { hasText: 'Login' }).first().click();

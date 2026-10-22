@@ -11,6 +11,7 @@ import {
   Background,
   Controls,
   Handle,
+  MarkerType,
   Position,
   ReactFlow,
   type Edge,
@@ -26,8 +27,15 @@ import { buildFlows, type FlowGroup } from './flow.ts';
 const NODE_W = 216;
 const NODE_H = 118;
 
-/** Small, themed connection dots: present for React Flow, not loud. */
-const HANDLE_STYLE = { width: 6, height: 6, background: 'var(--mr-border)', border: 0 };
+/** The colour the wires, their arrowheads and the connection dots draw in;
+ * `--mr-flow-edge` in `modelroom.css` is where its two values live. */
+const EDGE_COLOR = 'var(--mr-flow-edge)';
+
+/**
+ * Small connection dots: present for React Flow, and the same colour as the wire
+ * they meet, so an edge does not appear to start from nowhere.
+ */
+const HANDLE_STYLE = { width: 6, height: 6, background: EDGE_COLOR, border: 0 };
 
 type RoomNodeData = { room: DashboardRoom };
 type RoomNode = Node<RoomNodeData, 'room'>;
@@ -127,6 +135,9 @@ function layoutGroup(group: FlowGroup, roomsByName: Map<string, DashboardRoom>):
     id: `${edge.from}->${edge.to}`,
     source: edge.from,
     target: edge.to,
+    // Without an arrowhead an edge says "related", not "then": `next` is a
+    // direction, so it is drawn as one.
+    markerEnd: { type: MarkerType.ArrowClosed },
   }));
 
   return { group, nodes, edges };
@@ -190,6 +201,9 @@ export function FlowView({
               edges={edges}
               nodeTypes={NODE_TYPES}
               colorMode={colorScheme}
+              // The arrowheads are drawn in an SVG `defs`, outside the edge's own
+              // styles: this is what tells them which colour to fill with.
+              defaultMarkerColor={EDGE_COLOR}
               fitView
               fitViewOptions={{ padding: 0.2 }}
               nodesDraggable={false}
