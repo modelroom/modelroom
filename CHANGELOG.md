@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.1](https://github.com/modelroom/modelroom/compare/modelroom-v0.8.0...modelroom-v0.8.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **dashboard:** draw the flow's wires in a colour of their own ([#46](https://github.com/modelroom/modelroom/issues/46)) ([80d3c6e](https://github.com/modelroom/modelroom/commit/80d3c6eff6a44f10d4a754e01213132f7036d453))
+* **serve:** a render that wrote nothing settles, and the watcher ignores it ([#47](https://github.com/modelroom/modelroom/issues/47)) ([ad4b167](https://github.com/modelroom/modelroom/commit/ad4b167f7ce26a3a65b5f93b7147b94b46432876))
+
 ## [0.8.0](https://github.com/modelroom/modelroom/compare/modelroom-v0.7.0...modelroom-v0.8.0) (2026-10-22)
 
 
