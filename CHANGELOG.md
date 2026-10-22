@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/modelroom/modelroom/compare/modelroom-v0.8.1...modelroom-v0.9.0) (2026-10-22)
+
+
+### Features
+
+* **room:** preview a room from the dashboard, and make the room one tabbed surface ([#49](https://github.com/modelroom/modelroom/issues/49)) ([3c53199](https://github.com/modelroom/modelroom/commit/3c53199ad8d04dcf0795146169eeb5fb5d390271))
+
 ## [0.8.1](https://github.com/modelroom/modelroom/compare/modelroom-v0.8.0...modelroom-v0.8.1) (2026-10-22)
 
 
