@@ -80,13 +80,14 @@ application code.
 
 | Where | What |
 |---|---|
-| `/` | every room, side by side, with its snapshot — full-text search and filters built from the records |
-| `/rooms/<name>` | chat, the room's docs (editable), the artifact, and its snapshot — updating as the agent works |
+| `/` | every room, side by side, with its snapshot — full-text search and filters built from the records. Click a room to preview it without leaving the list |
+| `/rooms/<name>` | chat beside one tabbed surface: the artifact, the room's docs, and the session — updating as the agent works |
 | `/settings` | which agent to run, and with which model |
 | `/files/<path>` | the design layer (`modelroom/`), served read-only and **unmodified** (no injected scripts) |
 
-The room's docs are the only files the UI can write. Changing `index.html` (from the agent or by
-hand) reloads the preview with no manual refresh; changes elsewhere in the room stream in the same way.
+A room's docs are read-only in the UI — you change them by asking the agent, and the doc tab shows
+a diff against the last version you looked at. Changing `index.html` (from the agent or by hand)
+reloads the preview with no manual refresh; changes elsewhere in the room stream in the same way.
 
 Each room also keeps `index.png` — its artifact rendered, committed under a fixed name. That is
 the picture a reviewer reads: it shows on the dashboard, and a pull request diffs it under

@@ -45,9 +45,13 @@ i18n/lang.ts            Lang = 'en' | 'ja' (browser-safe)
 i18n/catalog.ts         the one catalog, shared by CLI, server and UI
 api/chat.ts             the chat turn, as the browser receives it (types only)
 server/parts.ts         opencode's message → that turn
-client/                 the tool's UI source (React + Mantine + CodeMirror)
+client/                 the tool's UI source (React + Mantine)
   theme.ts              the Mantine theme: colour ramps, radii, fonts
-  components/           shared panels and pieces (chat · docs · artifact · session)
+  components/           shared panels and pieces (chat · artifact · docs · session)
+    RoomTabs.tsx         the room's content as tabs: artifact · docs · session
+    DocView.tsx          one doc, read-only: preview, and a diff since you last looked
+    Diff.tsx             the rendered doc diff
+    RoomPreview.tsx      the dashboard's right-hand preview drawer
     AddRoomDialog.tsx    create a room (dashboard) — name field with ✓/✘
     RenameRoomDialog.tsx  rename a room (room header)
     DeleteRoomDialog.tsx  the GitHub-style delete confirm (type the name)
@@ -60,6 +64,7 @@ client/                 the tool's UI source (React + Mantine + CodeMirror)
   kit.tsx               the component workshop (`web/kit.html`)
   main.tsx              the one entry: the apps, picked from the shell's `data-app`
   lib/api.ts            everything the UI asks of the server, typed once
+  lib/diff.ts           the pure line diff behind DocView
   lib/roomname.ts       the browser's copy of the name rule (dashboards' ✓/✘)
   modelroom.css         Mantine's stylesheet + the tool's own extras → web/modelroom.css
 scripts/build-client.mjs  esbuild → web/assets/app.js (generated)
@@ -101,7 +106,7 @@ reads. `serve` and `doctor` say so when a checkout was never installed.
 ## Rules
 
 1. **No new runtime dependencies.** `dependencies` stays empty. The tool's libraries
-   (React, Mantine, @tanstack/react-virtual, CodeMirror, markdown-it, lucide) are
+   (React, Mantine, @tanstack/react-virtual, markdown-it, lucide) are
    devDependencies bundled into `web/assets/app.js`; anything optional
    (Playwright) is dynamically imported and degrades.
 2. **The shipped artifacts stay plain.** Every `index.html` under `templates/` — the blank
@@ -150,10 +155,20 @@ reads. `serve` and `doctor` say so when a checkout was never installed.
   installed once in `client/main.tsx` (`MantineProvider` + `theme` +
   `cssVariablesResolver`). The switch is `data-mantine-color-scheme` on `<html>`, set
   before paint by a script in each shell. `client/modelroom.css` only holds what is not a
-  component: scrollbars, the panel handles, the CodeMirror shell and the highlight.js
+  component: scrollbars, the panel handles, the doc diff and the highlight.js
   palette. A new surface uses Mantine's components and CSS variables — there is no second
   component library and no utility-class layer.
-- **Panels are panels.** The four columns and the docs' edit/preview split use
+- **A room is one tabbed surface.** `client/components/RoomTabs.tsx` is the artifact, the
+  docs and the session as tabs; the room shows it beside the chat, and the dashboard's
+  preview drawer (`client/components/RoomPreview.tsx`) shows the same surface, without the
+  session, from the right. The chat becomes the first tab on a narrow screen. A dashboard
+  card or flow node opens that drawer on a plain click and keeps its own link for the room
+  itself, so a room is a preview away and a modified click still opens the detail.
+- **The docs are read-only.** The agent edits the room's files; the UI shows the rendered
+  doc and a diff against the last text this browser saw (`client/lib/diff.ts`), kept in
+  localStorage. `PUT /api/doc` is still the API — scripts and the CLI use it — but the
+  browser never writes a doc, so there is no editor and no autosave.
+- **Panels are panels.** The room's chat and its tabbed surface use
   `react-resizable-panels` (`client/components/Split.tsx`). Mantine ships no split pane;
   the library is on the 4.x line — the components are `Group`, `Panel` and `Separator`,
   the orientation prop is `orientation`, and panel sizes with no unit are percentages.
@@ -167,11 +182,12 @@ reads. `serve` and `doctor` say so when a checkout was never installed.
   opencode's parsing of it lives in `server/parts.ts`.
 - **The markdown is escaped.** markdown-it runs with `html: false`, so a doc or a reply can
   never inject markup into the tool; links get `target="_blank"` and `rel="noopener"`.
-- **Docs are written one way.** `GET /api/doc` returns the text and a content hash;
+- **The doc API is written one way.** `GET /api/doc` returns the text and a content hash;
   `PUT /api/doc` sends the text back with the hash it was based on and is refused (409,
   with the current text) when they disagree. The mtime is still accepted as a fallback for
-  scripts. Writes to one file are queued in the server, so an autosave and the agent's edit
-  cannot interleave and silently lose one of them. `cfg.docs` is still the whole writable set.
+  scripts. Writes to one file are queued in the server, so two writers cannot interleave and
+  silently lose one of them. `cfg.docs` is still the whole writable set — but the browser no
+  longer writes, so the queue is the agent's and a script's.
 - **Rooms are made through the CLI's own code, not a second path.** The add button on the
   dashboard and the pencil/⋯ menu in a room header (`client/room/RoomActions.tsx`) open the
   dialogs in `client/components/`; those call `/api/rooms*`, and the server runs

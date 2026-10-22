@@ -3,10 +3,19 @@
 // React Flow draws the graph; `@dagrejs/dagre` decides where the boxes go, so a
 // chain reads left to right and a branch sits under its parent. The nodes are
 // Mantine's, not React Flow's — the graph is part of the tool, not a second
-// design system. A click opens the room, so the diagram is also a way in.
+// design system. A click previews the room beside the list; the node's own button
+// is the way through to it.
 
 import { useMemo } from 'react';
-import { Box, Group, Paper, Text, useComputedColorScheme } from '@mantine/core';
+import {
+  ActionIcon,
+  Box,
+  Group,
+  Paper,
+  Text,
+  Tooltip,
+  useComputedColorScheme,
+} from '@mantine/core';
 import {
   Background,
   Controls,
@@ -21,6 +30,7 @@ import {
 import { graphlib, layout as dagreLayout } from '@dagrejs/dagre';
 import type { DashboardRoom } from '../lib/api.ts';
 import { useI18n } from '../lib/i18n.tsx';
+import { Icon } from '../components/Icon.tsx';
 import { ToneBadge, toneForStatus } from '../components/Status.tsx';
 import { buildFlows, type FlowGroup } from './flow.ts';
 
@@ -41,7 +51,9 @@ type RoomNodeData = { room: DashboardRoom };
 type RoomNode = Node<RoomNodeData, 'room'>;
 
 function RoomNodeView({ data }: NodeProps<RoomNode>) {
+  const { t } = useI18n();
   const room = data.room;
+  const href = `/rooms/${encodeURIComponent(room.name)}`;
   return (
     <Paper
       withBorder
@@ -53,6 +65,7 @@ function RoomNodeView({ data }: NodeProps<RoomNode>) {
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
+        position: 'relative',
       }}
     >
       {/* React Flow needs a handle at each end for an edge to have somewhere to land. */}
@@ -92,6 +105,21 @@ function RoomNodeView({ data }: NodeProps<RoomNode>) {
           rooms/{room.name}
         </Text>
       </Box>
+      {/* A click on the node previews it; this is the way through to the room. */}
+      <Tooltip label={t('dashboard.openRoom')} withArrow>
+        <ActionIcon
+          component="a"
+          href={href}
+          className="nodrag"
+          variant="default"
+          size="sm"
+          aria-label={t('dashboard.openRoom')}
+          onClick={(event) => event.stopPropagation()}
+          style={{ position: 'absolute', top: 4, right: 4, zIndex: 2 }}
+        >
+          <Icon name="arrow-right" size={13} />
+        </ActionIcon>
+      </Tooltip>
     </Paper>
   );
 }
@@ -147,12 +175,15 @@ export function FlowView({
   rooms,
   app,
   known,
+  onPreview,
 }: {
   rooms: DashboardRoom[];
   /** The selected app tab, or null for every app. */
   app: string | null;
   /** Every room name: a `next` that names none is not an edge. */
   known: Set<string>;
+  /** A node click: preview the room without leaving the graph. */
+  onPreview: (name: string) => void;
 }) {
   const { t } = useI18n();
   const colorScheme = useComputedColorScheme('light');
@@ -210,9 +241,7 @@ export function FlowView({
               nodesConnectable={false}
               elementsSelectable={false}
               proOptions={{ hideAttribution: true }}
-              onNodeClick={(_event, node) =>
-                window.location.assign(`/rooms/${encodeURIComponent(node.id)}`)
-              }
+              onNodeClick={(_event, node) => onPreview(node.id)}
             >
               <Background gap={16} />
               <Controls showInteractive={false} />

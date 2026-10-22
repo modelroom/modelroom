@@ -81,19 +81,10 @@ export interface DocResponse {
   name: string;
   text: string;
   mtime: number;
-  /** sha256 of the text, truncated — the version a save is based on. */
+  /** sha256 of the text, truncated — a stable version to compare against. */
   hash: string;
   missing?: boolean;
   error?: string;
-}
-
-export interface PutDocResponse {
-  room?: string;
-  name?: string;
-  mtime?: number;
-  hash?: string;
-  error?: string;
-  text?: string;
 }
 
 export interface TokenUsage {
@@ -154,22 +145,6 @@ export const getRoom = (room: string): Promise<RoomResponse> =>
 
 export const getDoc = (room: string, name: string): Promise<DocResponse> =>
   json(`/api/doc?room=${encodeURIComponent(room)}&name=${encodeURIComponent(name)}`);
-
-export async function putDoc(body: {
-  room: string;
-  name: string;
-  text: string;
-  hash: string;
-  mtime: number;
-}): Promise<{ ok: boolean; status: number; data: PutDocResponse }> {
-  const res = await fetch('/api/doc', {
-    method: 'PUT',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const data = (await res.json().catch(() => ({}))) as PutDocResponse;
-  return { ok: res.ok, status: res.status, data };
-}
 
 export const getSession = (room: string): Promise<SessionView> =>
   json(`/api/session?room=${encodeURIComponent(room)}`);

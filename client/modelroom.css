@@ -7,7 +7,7 @@
  *   · the thin scrollbars and card thumbnail
  *   · the reading rhythm of rendered markdown that Mantine's own `Typography`
  *     does not decide (long tokens, wraps)
- *   · the CodeMirror shell (the editor is CodeMirror's, not ours)
+ *   · the doc diff: line rows coloured from the theme
  *   · the highlight.js palette, keyed off the theme's own colours
  *
  * The built file (web/modelroom.css) is generated, not committed: `npm install`
@@ -161,17 +161,48 @@
   background-color: var(--mantine-color-body);
 }
 
-/* CodeMirror: the editor fills its pane and speaks in the UI's font. */
-.mr-editor .cm-editor {
-  height: 100%;
-}
-.mr-editor .cm-scroller {
+/* ── the doc diff ───────────────────────────────────────────────────────────
+ * One row per line: two gutters, a sign, the text. Additions and removals carry
+ * a wash of the theme's success/danger so a change reads at a glance.
+ */
+
+.mr-diff {
   font-family: var(--mr-mono);
-  font-size: 0.8125rem;
+  font-size: 12px;
   line-height: 1.7;
+  overflow: auto;
 }
-.mr-editor .cm-editor.cm-focused {
-  outline: none;
+.mr-diff-line {
+  display: flex;
+  gap: 8px;
+  white-space: pre;
+}
+.mr-diff-no {
+  width: 3ch;
+  flex: none;
+  text-align: right;
+  color: var(--mr-dimmed);
+  user-select: none;
+}
+.mr-diff-sign {
+  width: 1ch;
+  flex: none;
+  color: var(--mr-dimmed);
+}
+.mr-diff-text {
+  flex: 1;
+}
+.mr-diff-add {
+  background-color: color-mix(in oklab, var(--mr-success) 16%, transparent);
+}
+.mr-diff-del {
+  background-color: color-mix(in oklab, var(--mr-danger) 16%, transparent);
+}
+.mr-diff-add .mr-diff-sign {
+  color: var(--mr-success);
+}
+.mr-diff-del .mr-diff-sign {
+  color: var(--mr-danger);
 }
 
 /* ── code fences, coloured from the theme ──────────────────────────────── */

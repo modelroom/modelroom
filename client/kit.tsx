@@ -35,9 +35,9 @@ import {
   TextInput,
   Title,
   Tooltip,
-  VisuallyHidden,
 } from '@mantine/core';
 import { Markdown } from './components/Markdown.tsx';
+import { Diff } from './components/Diff.tsx';
 import { CopyButton } from '@mantine/core';
 import { Icon, ICON_NAMES } from './components/Icon.tsx';
 import { Split, SplitHandle, SplitPanel } from './components/Split.tsx';
@@ -66,6 +66,31 @@ export type SignInState = 'idle' | 'submitting' | 'error';
 const SAMPLE_DOC = `# Spec
 
 What the artifact cannot show.
+
+| Key | Value |
+| --- | --- |
+| device | tablet 1024 |
+| states | idle, error |
+
+> A statement lives in one file.
+`;
+
+/** The doc diff: a change with its context, and a second one further down. */
+const DIFF_BEFORE = `# Spec
+
+The form has two states.
+
+| Key | Value |
+| --- | --- |
+| device | phone 390 |
+| states | idle |
+
+> A statement lives in one file.
+`;
+
+const DIFF_AFTER = `# Spec
+
+The form has three states.
 
 | Key | Value |
 | --- | --- |
@@ -297,42 +322,17 @@ function FacetDemo() {
 
 function SegmentedDemo() {
   const { t } = useI18n();
-  const [value, setValue] = useState('split');
+  const [value, setValue] = useState('preview');
   return (
     <Group gap="md" align="center">
       <SegmentedControl
         size="xs"
         value={value}
         onChange={setValue}
-        aria-label={t('docs.docView')}
+        aria-label={t('docs.viewMode')}
         data={[
-          {
-            value: 'edit',
-            label: (
-              <>
-                <Icon name="pencil" size={14} />
-                <VisuallyHidden>{t('common.edit')}</VisuallyHidden>
-              </>
-            ),
-          },
-          {
-            value: 'split',
-            label: (
-              <>
-                <Icon name="columns" size={14} />
-                <VisuallyHidden>{t('common.split')}</VisuallyHidden>
-              </>
-            ),
-          },
-          {
-            value: 'preview',
-            label: (
-              <>
-                <Icon name="eye" size={14} />
-                <VisuallyHidden>{t('common.preview')}</VisuallyHidden>
-              </>
-            ),
-          },
+          { value: 'preview', label: t('common.preview') },
+          { value: 'diff', label: t('docs.diff') },
         ]}
       />
       <Text size="xs" c="dimmed" ff="monospace">
@@ -481,6 +481,19 @@ export function Kit() {
           </Box>
         </Section>
 
+        <Section title={t('kit.diff')} hint={t('kit.diffHint')}>
+          <Box
+            maw={672}
+            style={{
+              border: '1px solid var(--mantine-color-default-border)',
+              borderRadius: 'var(--mantine-radius-md)',
+              overflow: 'hidden',
+            }}
+          >
+            <Diff before={DIFF_BEFORE} after={DIFF_AFTER} />
+          </Box>
+        </Section>
+
         <Section title={t('kit.formControls')} hint={t('kit.formHint')}>
           <SimpleGrid cols={{ base: 1, sm: 2 }} maw={672}>
             <TextInput
@@ -547,7 +560,7 @@ export function Kit() {
               borderRadius: 'var(--mantine-radius-md)',
             }}
           >
-            <SplitPanel defaultSize="30%" minSize="15%">
+            <SplitPanel defaultSize="32%" minSize="15%">
               <Box
                 h="100%"
                 style={{
@@ -562,25 +575,10 @@ export function Kit() {
               </Box>
             </SplitPanel>
             <SplitHandle withHandle />
-            <SplitPanel defaultSize="40%" minSize="15%">
+            <SplitPanel defaultSize="68%" minSize="15%">
               <Box h="100%" style={{ display: 'grid', placeItems: 'center' }}>
                 <Text size="xs" c="dimmed">
-                  docs
-                </Text>
-              </Box>
-            </SplitPanel>
-            <SplitHandle />
-            <SplitPanel defaultSize="30%" minSize="15%">
-              <Box
-                h="100%"
-                style={{
-                  display: 'grid',
-                  placeItems: 'center',
-                  backgroundColor: 'var(--mr-subtle)',
-                }}
-              >
-                <Text size="xs" c="dimmed">
-                  artifact
+                  artifact · docs · session
                 </Text>
               </Box>
             </SplitPanel>

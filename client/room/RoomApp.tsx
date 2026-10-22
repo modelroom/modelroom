@@ -1,51 +1,29 @@
-// The room, assembled: a navbar and four columns — chat · docs · artifact · session.
+// The room, assembled: the chat on the left, and one tabbed surface on the right —
+// the artifact, every doc, and the session (`RoomTabs`).
 //
-// Wide screens show all four; the handles between them move and the layout is
-// remembered by the panel group. Narrow screens show one at a time, picked from
-// the switch under the navbar.
+// Wide screens show the chat and that surface side by side; the handle between
+// them moves and the layout is remembered by the panel group. Narrow screens have
+// no room for a column, so the chat becomes the surface's first tab.
 //
-// The shell is Mantine's `AppShell`; the nav is `Button component="a"` and
-// `ActionIcon`.
+// The shell is Mantine's `AppShell`; the nav is `Button component="a"`.
 
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ActionIcon,
-  Alert,
-  AppShell,
-  Box,
-  Button,
-  Group,
-  Loader,
-  SegmentedControl,
-  Text,
-  Tooltip,
-} from '@mantine/core';
+import { Alert, AppShell, Box, Button, Group, Loader, Text } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { getRoom, postSession, type RoomResponse } from '../lib/api.ts';
 import { useI18n } from '../lib/i18n.tsx';
-import { load, save } from '../lib/storage.ts';
 import { useChat } from '../hooks/useChat.ts';
 import { useServerEvent, useServerEvents } from '../hooks/useServerEvents.tsx';
-import { ArtifactPanel } from '../components/ArtifactPanel.tsx';
 import { ChatPanel } from '../components/ChatPanel.tsx';
-import { DocsPanel } from '../components/DocsPanel.tsx';
 import { Icon } from '../components/Icon.tsx';
-import { SessionPanel } from '../components/SessionPanel.tsx';
+import { RoomTabs } from '../components/RoomTabs.tsx';
 import { Split, SplitHandle, SplitPanel } from '../components/Split.tsx';
 import { AgentStatus, ToneBadge, toneForStatus } from '../components/Status.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import { RoomActions } from './RoomActions.tsx';
 
-type MobileTab = 'chat' | 'docs' | 'artifact' | 'session';
-
 export function RoomApp() {
   const { t } = useI18n();
-  const tabs = [
-    { value: 'chat', label: t('room.chat') },
-    { value: 'docs', label: t('room.docs') },
-    { value: 'artifact', label: t('room.artifact') },
-    { value: 'session', label: t('room.session') },
-  ];
   const room = decodeURIComponent(location.pathname.replace(/^\/rooms\//, '').split('?')[0] ?? '');
   const [data, setData] = useState<RoomResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,11 +51,6 @@ export function RoomApp() {
   });
 
   const narrow = useMediaQuery('(max-width: 1023px)');
-  const [mobileTab, setMobileTab] = useState<MobileTab>('chat');
-  const [sessionOpen, setSessionOpen] = useState(() => load('modelroom.panels.session', true));
-  useEffect(() => {
-    save('modelroom.panels.session', sessionOpen);
-  }, [sessionOpen]);
 
   const title = data?.room.title ?? data?.room.name ?? room;
   useEffect(() => {
@@ -133,20 +106,19 @@ export function RoomApp() {
   const busy = status?.phase === 'chat' || status?.phase === 'rendering';
 
   const chatPanel = <ChatPanel room={room} chat={chat} agentLabel={agentLabel} />;
-  const docsPanel = (
-    <DocsPanel key={room} room={room} roomsPath={config.rooms} docs={config.docs} />
-  );
-  const artifactPanel = (
-    <ArtifactPanel
+  const contentTabs = (
+    <RoomTabs
       room={room}
       roomsPath={config.rooms}
       artifact={config.artifact}
+      docs={config.docs}
       info={data.room}
       snapshotDevice={data.room.device}
       devices={config.devices}
+      chat={narrow ? chatPanel : undefined}
+      session
     />
   );
-  const sessionPanel = <SessionPanel room={room} />;
 
   return (
     <AppShell header={{ height: 48 }} padding={0} withBorder={false}>
@@ -202,23 +174,6 @@ export function RoomApp() {
               {t('room.newSession')}
             </Button>
             <ThemeToggle />
-            {!narrow && (
-              <Tooltip
-                label={sessionOpen ? t('room.hideSession') : t('room.showSession')}
-                withArrow
-              >
-                <ActionIcon
-                  variant={sessionOpen ? 'light' : 'subtle'}
-                  color="gray"
-                  size="md"
-                  aria-label={sessionOpen ? t('room.hideSession') : t('room.showSession')}
-                  aria-pressed={sessionOpen}
-                  onClick={() => setSessionOpen((open) => !open)}
-                >
-                  <Icon name="panel-right" size={16} />
-                </ActionIcon>
-              </Tooltip>
-            )}
             <AgentStatus connected={connected} busy={busy} message={status?.message} />
           </Group>
         </Group>
@@ -233,59 +188,20 @@ export function RoomApp() {
         }}
       >
         {narrow ? (
-          <>
-            <Box
-              px="sm"
-              py={6}
-              style={{
-                borderBottom: '1px solid var(--mantine-color-default-border)',
-                flexShrink: 0,
-              }}
-            >
-              <SegmentedControl
-                size="xs"
-                value={mobileTab}
-                onChange={(value) => setMobileTab(value as MobileTab)}
-                data={tabs}
-                fullWidth
-                aria-label={t('room.sessionPanel')}
-              />
-            </Box>
-            <Box style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-              {mobileTab === 'chat'
-                ? chatPanel
-                : mobileTab === 'docs'
-                  ? docsPanel
-                  : mobileTab === 'artifact'
-                    ? artifactPanel
-                    : sessionPanel}
-            </Box>
-          </>
+          contentTabs
         ) : (
           <Split
             orientation="horizontal"
-            autoSaveId="modelroom.room.layout"
+            autoSaveId="modelroom.room.layout.v2"
             style={{ flex: 1, minHeight: 0 }}
           >
-            <SplitPanel defaultSize="24%" minSize="16%">
+            <SplitPanel defaultSize="32%" minSize="20%">
               {chatPanel}
             </SplitPanel>
             <SplitHandle />
-            <SplitPanel defaultSize="28%" minSize="18%">
-              {docsPanel}
+            <SplitPanel defaultSize="68%" minSize="30%">
+              {contentTabs}
             </SplitPanel>
-            <SplitHandle />
-            <SplitPanel defaultSize="30%" minSize="20%">
-              {artifactPanel}
-            </SplitPanel>
-            {sessionOpen && (
-              <>
-                <SplitHandle />
-                <SplitPanel defaultSize="18%" minSize="14%">
-                  {sessionPanel}
-                </SplitPanel>
-              </>
-            )}
           </Split>
         )}
       </AppShell.Main>
