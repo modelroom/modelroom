@@ -214,6 +214,25 @@ try {
   await artifactPage.keyboard.press('Escape');
   await artifactPage.waitForTimeout(300);
   check(!(await stagePosition()), 'artifact: Escape leaves the maximised view');
+
+  // The content surface is tabbed: the artifact, the docs, and the session.
+  check(
+    (await artifactPage.getByRole('tab', { name: 'Artifact' }).count()) === 1,
+    'room: the artifact is a tab',
+  );
+  check(
+    (await artifactPage.getByRole('tab', { name: 'Session' }).count()) === 1,
+    'room: the session is a tab',
+  );
+  await artifactPage.getByRole('tab', { name: 'SPEC' }).click();
+  await artifactPage.waitForTimeout(500);
+  check(
+    (await artifactPage.getByRole('tab', { name: 'SPEC' }).getAttribute('aria-selected')) ===
+      'true',
+    'room: a doc tab can be selected',
+  );
+  await artifactPage.screenshot({ path: join(outDir, 'room-doc-tab.png') });
+
   check(
     artifactErrors.length === 0,
     'artifact panel: console is clean',
@@ -383,6 +402,8 @@ try {
       host: '127.0.0.1',
       checkForUpdates: false,
     });
+    // The doc diff waits on the file watcher's `change` event.
+    flowApp.startWatching();
     const flowUrl = (await flowApp.listen()).url;
 
     const flowPage = await context.newPage();
@@ -486,16 +507,29 @@ try {
     await flowPage.getByRole('button', { name: 'Light theme' }).click();
     await flowPage.waitForTimeout(200);
 
-    // A flow node is a way in: clicking it opens the room.
+    // A flow node previews the room without leaving the graph; the drawer's own
+    // button is the way through to the room.
     await flowPage.locator('.react-flow__node', { hasText: 'Login' }).first().click();
-    await flowPage.waitForURL(/\/rooms\/login$/, { timeout: 5000 }).catch(() => undefined);
+    await flowPage.waitForTimeout(600);
+    const flowDrawer = flowPage.getByRole('dialog');
+    check((await flowDrawer.count()) === 1, 'flow: clicking a node opens the preview');
     check(
-      new URL(flowPage.url()).pathname === '/rooms/login',
-      'flow: clicking a node opens the room',
+      new URL(flowPage.url()).pathname === '/',
+      'flow: the preview does not navigate',
       flowPage.url(),
     );
-    await flowPage.goBack({ waitUntil: 'networkidle' });
-    await flowPage.waitForTimeout(600);
+    check(
+      (await flowDrawer.getByRole('link', { name: 'Open room' }).count()) === 1,
+      'flow: the preview links to the room',
+    );
+    check(
+      (await flowDrawer.getByRole('tab', { name: 'Session' }).count()) === 0,
+      'flow: the preview has no session tab',
+    );
+    await flowPage.screenshot({ path: join(outDir, 'preview-open.png') });
+    await flowPage.keyboard.press('Escape');
+    await flowPage.waitForTimeout(400);
+    check((await flowDrawer.count()) === 0, 'flow: Escape closes the preview');
 
     // "All" stacks every app: 7 screens, 3 transitions.
     await flowPage.getByRole('tab', { name: 'All' }).click();
@@ -530,6 +564,25 @@ try {
       String(updatedFirst),
     );
 
+    // A card previews the room beside the list; the drawer's own button is the way
+    // in, and the list is still there when the drawer closes.
+    await flowPage.locator('main a[href="/rooms/login"]').first().click();
+    await flowPage.waitForTimeout(600);
+    const gridDrawer = flowPage.getByRole('dialog');
+    check((await gridDrawer.count()) === 1, 'grid: clicking a card opens the preview');
+    check(
+      new URL(flowPage.url()).pathname === '/',
+      'grid: the preview does not navigate',
+      flowPage.url(),
+    );
+    check(
+      (await gridDrawer.getByRole('tab', { name: 'Artifact' }).count()) === 1,
+      'grid: the preview shows the artifact tab',
+    );
+    await flowPage.keyboard.press('Escape');
+    await flowPage.waitForTimeout(400);
+    check((await gridDrawer.count()) === 0, 'grid: Escape closes the preview');
+
     // The app tab and a tag filter both survive a room → back trip.
     await flowPage.getByRole('tab', { name: 'user', exact: true }).click();
     await flowPage.waitForTimeout(300);
@@ -549,7 +602,7 @@ try {
       flowPage.url(),
     );
 
-    await flowPage.getByText('rooms/login', { exact: true }).click();
+    await flowPage.locator('a[href="/rooms/login"][aria-label="Open room"]').click();
     await flowPage.waitForURL(/\/rooms\/login/);
     await flowPage.waitForTimeout(400);
     await flowPage.getByRole('link', { name: 'Rooms' }).click();
@@ -570,6 +623,57 @@ try {
         .getAttribute('aria-selected')) === 'true',
       'persist: the user tab is still selected',
     );
+
+    // A doc the agent changes after you have read it shows a diff: read BRIEF
+    // (that becomes the baseline), change it on disk, and wait for the watcher.
+    await flowPage.goto(`${flowUrl}/rooms/login`, { waitUntil: 'networkidle' });
+    await flowPage.waitForTimeout(400);
+    await flowPage.getByRole('tab', { name: 'BRIEF' }).click();
+    // Wait for the doc to render: that is also when the baseline is written.
+    await flowPage.getByRole('heading', { name: 'login' }).waitFor({ timeout: 5000 });
+    await writeFile(
+      join(fixture, 'rooms', 'login', 'BRIEF.md'),
+      '---\ntitle: Login\napp: user\nnext: top\ntags: [auth]\n---\n# login\n\nA line the agent added.\n',
+    );
+    await flowPage
+      .getByText(/since you last looked/)
+      .first()
+      .waitFor({ state: 'visible', timeout: 8000 })
+      .catch(() => undefined);
+    check(
+      (await flowPage.getByText(/since you last looked/).count()) >= 1,
+      'docs: a change after you read a doc shows a diff',
+    );
+    await flowPage.getByText('diff', { exact: true }).click();
+    await flowPage.waitForTimeout(300);
+    check((await flowPage.locator('.mr-diff-line').count()) > 0, 'docs: the diff renders lines');
+    await flowPage.screenshot({ path: join(outDir, 'doc-diff.png') });
+    await flowPage.getByRole('button', { name: 'Seen' }).click();
+    await flowPage.waitForTimeout(300);
+    check(
+      (await flowPage.getByText(/since you last looked/).count()) === 0,
+      'docs: Seen clears the diff',
+    );
+
+    // A change while you are looking at another tab lights that tab's dot; opening
+    // the tab clears it. The change stream is the server's, so nothing polls.
+    await flowPage.getByRole('tab', { name: 'Artifact' }).click();
+    await flowPage.waitForTimeout(300);
+    await writeFile(
+      join(fixture, 'rooms', 'login', 'BRIEF.md'),
+      '---\ntitle: Login\napp: user\nnext: top\ntags: [auth]\n---\n# login\n\nAnother line.\n',
+    );
+    const briefDot = flowPage.getByRole('tab', { name: 'BRIEF' }).locator('.mr-tab-dot');
+    await briefDot.waitFor({ state: 'visible', timeout: 8000 }).catch(() => undefined);
+    check((await briefDot.count()) === 1, 'tabs: a change to another tab lights its dot');
+    await flowPage.getByRole('tab', { name: 'BRIEF' }).click();
+    await flowPage.waitForTimeout(300);
+    check((await briefDot.count()) === 0, 'tabs: opening the tab clears its dot');
+
+    await writeFile(join(fixture, 'rooms', 'login', 'index.html'), '<h1>Login</h1>\n');
+    const artifactDot = flowPage.getByRole('tab', { name: 'Artifact' }).locator('.mr-tab-dot');
+    await artifactDot.waitFor({ state: 'visible', timeout: 8000 }).catch(() => undefined);
+    check((await artifactDot.count()) === 1, 'tabs: a change to the artifact lights its dot');
 
     // The artifact's own link walks to the next room's screen, in the preview.
     // Written after the dashboard checks so no thumbnail render disturbs them.
