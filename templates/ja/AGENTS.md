@@ -87,5 +87,11 @@ main には最終の1枚だけが残り、中間の画像は git が回収しま
 - この room がプロジェクトの既定の画面でない場合は、`BRIEF.md` に `device: <name>` を
   書きます。名前は `sp`、`tablet`、`pc` と、`modelroom.json` が定義したものです。
   スナップショットはそのデバイスで描画されます。
+- フローの一部である room は、`app: <name>`（自由記述 — `user`、`admin`、`user-legacy`）で
+  アプリケーションを、`next: <room>` で主要な次の画面を1つ書きます。ダッシュボードの
+  app タブと flow ビューはこれらから作られます。`next` は同じ `app` の中で保ちます。
+- room の画面から別の room の画面へのリンクは、**room からの相対パス**で書きます
+  （`<a href="../top/index.html">`）。ディスクから開くときも配信されるときも同じパスで
+  解決します。絶対パスの `/rooms/top/index.html` は動きません。
 
 理由は modelroom パッケージの `docs/02-convention.md` にあります。

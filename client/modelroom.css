@@ -20,6 +20,7 @@
  */
 
 @import '@mantine/core/styles.css';
+@import '@xyflow/react/dist/style.css';
 
 /* ── the tool's own names for the theme's colours ────────────────────────── */
 
@@ -221,4 +222,28 @@
 }
 .hljs-strong {
   font-weight: 600;
+}
+
+/* ── the flow view (React Flow) ──────────────────────────────────────────────
+ * React Flow ships its own base stylesheet; these lines only re-point its
+ * colours at the theme so the graph reads as part of the tool, in either scheme.
+ */
+
+.mr-flow {
+  --xy-background-color: var(--mr-panel);
+  --xy-node-border-radius: var(--mantine-radius-md);
+  --xy-edge-stroke: var(--mr-border);
+  --xy-edge-stroke-width: 1.5;
+  --xy-edge-stroke-selected: var(--mantine-primary-color-filled);
+  --xy-attribution-background-color: transparent;
+}
+
+.mr-flow .react-flow__attribution {
+  display: none;
+}
+
+.mr-flow .react-flow__controls-button {
+  background: var(--mr-panel);
+  border-color: var(--mr-border);
+  fill: var(--mr-text);
 }

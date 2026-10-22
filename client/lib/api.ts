@@ -55,6 +55,8 @@ export interface RoomInfo {
   deprecated: boolean;
   updatedAt: number;
   createdAt: number;
+  /** `updated_at` when it parses, else mtime — what "updated" sorting reads. */
+  sortAt: number;
   /** The device this room's snapshot renders at: its own, else the project's. */
   device: string;
   hasArtifact: boolean;
@@ -211,6 +213,8 @@ export interface DashboardRoom {
   version: string | number | null;
   deprecated: boolean;
   updatedAt: number;
+  /** `updated_at` when it parses, else mtime — what "updated" sorting reads. */
+  sortAt: number;
   hasArtifact: boolean;
   hasThumb: boolean;
   thumbStale: boolean;

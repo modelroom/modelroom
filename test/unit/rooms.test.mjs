@@ -258,3 +258,33 @@ test('docInfo reports existence per configured doc', async () => {
     await rm(cfg.roomsDir, { recursive: true, force: true });
   }
 });
+
+test('sortAt reads updated_at, falling back to the file mtime', async () => {
+  const cfg = await fixture();
+  const brief = join(cfg.roomsDir, 'sign-in', 'BRIEF.md');
+  try {
+    // No `updated_at`: the file's own mtime is what "updated" sorting reads.
+    const plain = await roomInfo(cfg, 'sign-in');
+    assert.equal(plain.sortAt, plain.updatedAt);
+    assert.ok(plain.sortAt > 0);
+
+    // A date string is parsed, even when it predates the file.
+    await writeFile(brief, '---\ntitle: Sign in\nupdated_at: 2020-01-02\n---\n# Sign in\n');
+    clearDocCache();
+    assert.equal((await roomInfo(cfg, 'sign-in')).sortAt, Date.parse('2020-01-02'));
+
+    // A number is epoch milliseconds.
+    await writeFile(brief, '---\ntitle: Sign in\nupdated_at: 1600000000000\n---\n# Sign in\n');
+    clearDocCache();
+    assert.equal((await roomInfo(cfg, 'sign-in')).sortAt, 1600000000000);
+
+    // Unreadable text falls back to the mtime — never NaN.
+    await writeFile(brief, '---\ntitle: Sign in\nupdated_at: someday\n---\n# Sign in\n');
+    clearDocCache();
+    const fallback = await roomInfo(cfg, 'sign-in');
+    assert.equal(fallback.sortAt, fallback.updatedAt);
+    assert.ok(Number.isFinite(fallback.sortAt));
+  } finally {
+    await rm(cfg.roomsDir, { recursive: true, force: true });
+  }
+});

@@ -85,5 +85,11 @@ and git collects the intermediate ones.
 - If this room is not the project's default screen, say so with `device: <name>` in
   `BRIEF.md`. The names are `sp`, `tablet`, `pc`, plus whatever `modelroom.json` defines;
   the snapshot is rendered at that device.
+- A room that is part of a flow names its application with `app: <name>` (free text —
+  `user`, `admin`, `user-legacy`) and its one main next screen with `next: <room>`. The
+  dashboard's app tabs and flow view are built from these; keep `next` inside its own `app`.
+- A link from one room's screen to another is written **relative to the room**
+  (`<a href="../top/index.html">`), so it resolves both when the artifact is opened from
+  disk and when it is served. An absolute `/rooms/top/index.html` does not work.
 
 See `docs/02-convention.md` in the modelroom package for the reasoning.

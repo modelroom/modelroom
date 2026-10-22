@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActionIcon,
   Anchor,
   Box,
   Button,
@@ -10,6 +11,7 @@ import {
   Loader,
   SegmentedControl,
   Text,
+  Tooltip,
 } from '@mantine/core';
 import { postRender, type DeviceInfo, type RoomInfo } from '../lib/api.ts';
 import { useI18n } from '../lib/i18n.tsx';
@@ -44,6 +46,9 @@ export function ArtifactPanel({
   const [pngNonce, setPngNonce] = useState(() => Date.now());
   const [thumb, setThumb] = useState(info.hasThumb);
   const [busy, setBusy] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  /** True once a link inside the artifact moved the frame off this room's screen. */
+  const [navigated, setNavigated] = useState(false);
 
   const stage = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
@@ -92,6 +97,39 @@ export function ArtifactPanel({
     observer.observe(element);
     return () => observer.disconnect();
   }, [fitFrame]);
+
+  // Leaving for another room starts over: this room's screen, not the last click's.
+  useEffect(() => {
+    setNavigated(false);
+    setExpanded(false);
+  }, [room]);
+
+  // Escape leaves the maximised view, the way it leaves a modal.
+  useEffect(() => {
+    if (!expanded) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExpanded(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [expanded]);
+
+  // A link in the artifact can walk to another room's screen. The frame follows
+  // it; the panel says so, and offers the way back to this room's own screen.
+  const onFrameLoad = useCallback(() => {
+    fitFrame();
+    try {
+      const path = iframe.current?.contentWindow?.location.pathname ?? '';
+      setNavigated(Boolean(path) && path !== `/files/${roomsPath}/${room}/${artifact}`);
+    } catch {
+      setNavigated(true); // cross-origin: it certainly left
+    }
+  }, [artifact, fitFrame, room, roomsPath]);
+
+  const resetArtifact = useCallback(() => {
+    setNavigated(false);
+    setNonce(Date.now());
+  }, []);
 
   useServerEvent<{ room: string }>('render-done', (data) => {
     if (data.room && data.room !== room) return;
@@ -179,6 +217,29 @@ export function ArtifactPanel({
           >
             {t('artifact.makePng')}
           </Button>
+          {navigated && (
+            <Button
+              size="compact-xs"
+              variant="light"
+              color="gray"
+              onClick={resetArtifact}
+              leftSection={<Icon name="arrow-left" size={13} />}
+            >
+              {t('artifact.backToArtifact')}
+            </Button>
+          )}
+          <Tooltip label={expanded ? t('artifact.minimize') : t('artifact.maximize')} withArrow>
+            <ActionIcon
+              variant={expanded ? 'light' : 'default'}
+              color="gray"
+              size="md"
+              aria-label={expanded ? t('artifact.minimize') : t('artifact.maximize')}
+              aria-pressed={expanded}
+              onClick={() => setExpanded((open) => !open)}
+            >
+              <Icon name={expanded ? 'minimize' : 'maximize'} size={15} />
+            </ActionIcon>
+          </Tooltip>
         </Group>
       }
       right={
@@ -195,13 +256,37 @@ export function ArtifactPanel({
         className="mr-scroll"
         p="md"
         style={{
-          position: 'relative',
+          position: expanded ? 'fixed' : 'relative',
+          inset: expanded ? 0 : undefined,
+          zIndex: expanded ? 300 : undefined,
           flex: 1,
           minHeight: 0,
           overflow: 'auto',
           backgroundColor: 'var(--mr-page)',
         }}
       >
+        {expanded && (
+          <Group gap="xs" style={{ position: 'fixed', top: 12, right: 12, zIndex: 301 }}>
+            {navigated && (
+              <Button
+                size="compact-xs"
+                variant="default"
+                onClick={resetArtifact}
+                leftSection={<Icon name="arrow-left" size={13} />}
+              >
+                {t('artifact.backToArtifact')}
+              </Button>
+            )}
+            <ActionIcon
+              variant="default"
+              size="md"
+              aria-label={t('artifact.minimize')}
+              onClick={() => setExpanded(false)}
+            >
+              <Icon name="minimize" size={15} />
+            </ActionIcon>
+          </Group>
+        )}
         {!info.hasArtifact ? (
           <Empty>{t('artifact.noArtifact', { artifact })}</Empty>
         ) : view === 'artifact' ? (
@@ -222,7 +307,7 @@ export function ArtifactPanel({
               <iframe
                 ref={iframe}
                 src={src}
-                onLoad={fitFrame}
+                onLoad={onFrameLoad}
                 title={t('artifact.title')}
                 style={{
                   display: 'block',

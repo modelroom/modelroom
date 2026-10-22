@@ -131,10 +131,39 @@ Reserved keys — shape only, never a fixed vocabulary:
 | `tags` | string[] | chips, and a checkbox facet |
 | `status` | string | a badge, and a facet |
 | `version` | number or string | a `v3` badge |
-| `updated_at` | date string | sort order (falls back to file mtime) |
+| `updated_at` | date string, or epoch ms | sort order (falls back to file mtime) |
 | `deprecated` | boolean | hidden unless archived is on |
 | `superseded_by` | string | a pointer to the room that replaced this one |
 | `device` | string | the device the snapshot renders at (`sp`, `tablet`, `pc`, or a name from `modelroom.json`) |
+| `next` | string | the main transition: the next room in the flow |
+| `app` | string | which application a room belongs to; the flow view groups by it |
+
+`next` and `app` are how a set of rooms becomes a flow. `app` is free text — `user`,
+`admin`, `user-legacy` — and, like every other key, it becomes a facet, so the dashboard's
+app tabs are just the values that exist. `next` names one room: the main edge the wireframe
+draws. It should stay inside its own `app`; a `next` that crosses apps is a `modelroom check`
+warning, because a transition that changes app is a different flow.
+
+```yaml
+---
+title: Sign in
+app: user
+next: top
+---
+```
+
+The flow view draws these as a graph — one tab per `app`, arrows for `next` — and the room
+cards can be walked in the preview itself: a link inside `index.html` opens the next room's
+screen. Write it **relative to the room**, so it resolves whether the artifact is opened from
+disk or served:
+
+```html
+<!-- rooms/sign-in/index.html → rooms/top/index.html -->
+<a href="../top/index.html">Sign in</a>
+```
+
+An absolute `/rooms/top/index.html` does not work: `/rooms/` is the tool's own address for a
+room, not a path to a file, and it breaks the disk case too.
 
 `device` is the one reserved key with a fixed vocabulary: it must name a device the
 project knows, because the renderer needs its width and height. `modelroom check` reports

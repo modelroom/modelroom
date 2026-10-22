@@ -16,8 +16,10 @@ import {
   Code,
   Group,
   Pill,
+  SegmentedControl,
   SimpleGrid,
   Skeleton,
+  Tabs,
   Text,
   TextInput,
   Title,
@@ -34,6 +36,7 @@ import {
 } from '../lib/api.ts';
 import { stamp } from '../lib/format.ts';
 import { useI18n } from '../lib/i18n.tsx';
+import { forgetSession, loadSession, saveSession } from '../lib/storage.ts';
 import { useServerEvent, useServerEvents } from '../hooks/useServerEvents.tsx';
 import { useUpdate } from '../hooks/useUpdate.ts';
 import { AgentStatus, ToneBadge, toneForStatus } from '../components/Status.tsx';
@@ -42,6 +45,76 @@ import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import { AddRoomDialog } from '../components/AddRoomDialog.tsx';
 import { UpdateBadge } from '../components/UpdateNotice.tsx';
 import { FacetFilter } from './FacetFilter.tsx';
+import { FlowView } from './FlowView.tsx';
+import { appOf } from './flow.ts';
+import { orderRooms, type SortKey } from './sort.ts';
+
+type View = 'grid' | 'flow';
+
+/** The dashboard's whole display state: it lives in the URL, and mirrors to the tab. */
+interface ViewState {
+  q: string;
+  filters: Record<string, string[]>;
+  archived: boolean;
+  sort: SortKey;
+  view: View;
+  /** The `app` tab; null is "all". */
+  app: string | null;
+}
+
+const VIEW_KEY = 'modelroom.dashboard.view';
+const ALL_APPS = '__all__';
+
+const DEFAULT_VIEW: ViewState = {
+  q: '',
+  filters: {},
+  archived: false,
+  sort: 'updated',
+  view: 'grid',
+  app: null,
+};
+
+/** The state as the address bar spells it; only what differs from the default. */
+function toQuery(state: ViewState): string {
+  const params = new URLSearchParams();
+  if (state.q) params.set('q', state.q);
+  for (const [key, values] of Object.entries(state.filters)) {
+    if (values.length) params.set(`f.${key}`, values.join('|'));
+  }
+  if (state.archived) params.set('archived', '1');
+  if (state.sort !== 'updated') params.set('sort', state.sort);
+  if (state.view !== 'grid') params.set('view', state.view);
+  if (state.app) params.set('app', state.app);
+  return params.toString();
+}
+
+function readUrl(): ViewState {
+  const params = new URLSearchParams(location.search);
+  // `Object.fromEntries`, not `filters[key] = …`: the key is the URL's, and a
+  // dynamic assignment would let `?f.__proto__=…` reach the prototype.
+  const filters = Object.fromEntries(
+    [...params]
+      .filter(([key, value]) => key.startsWith('f.') && value)
+      .map(([key, value]) => [key.slice(2), value.split('|').filter(Boolean)]),
+  ) as Record<string, string[]>;
+  return {
+    q: params.get('q') ?? '',
+    filters,
+    archived: params.get('archived') === '1',
+    sort: params.get('sort') === 'name' ? 'name' : 'updated',
+    view: params.get('view') === 'flow' ? 'flow' : 'grid',
+    app: params.get('app') || null,
+  };
+}
+
+/** Did this visit arrive with a view in the address bar? Then it wins. */
+function hasUrlState(): boolean {
+  const params = new URLSearchParams(location.search);
+  return (
+    ['q', 'archived', 'sort', 'view', 'app'].some((key) => params.has(key)) ||
+    [...params.keys()].some((key) => key.startsWith('f.'))
+  );
+}
 
 const ESCAPES: Record<string, string> = {
   '&': '&amp;',
@@ -186,9 +259,22 @@ export function DashboardApp() {
   const [facets, setFacets] = useState<Facet[]>([]);
   const [config, setConfig] = useState<RoomConfig | null>(null);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
-  const [query, setQuery] = useState('');
-  const [filters, setFilters] = useState<Record<string, string[]>>({});
-  const [archived, setArchived] = useState(false);
+  // Read once, before the first render: the URL when it names a view, else what
+  // this tab last showed. From then on the URL mirrors the state.
+  const initial = useRef<ViewState | null>(null);
+  if (initial.current === null) {
+    initial.current = hasUrlState()
+      ? readUrl()
+      : (loadSession<ViewState | null>(VIEW_KEY, null) ?? DEFAULT_VIEW);
+  }
+  const start = initial.current;
+
+  const [query, setQuery] = useState(start.q);
+  const [filters, setFilters] = useState<Record<string, string[]>>(start.filters);
+  const [archived, setArchived] = useState(start.archived);
+  const [sort, setSort] = useState<SortKey>(start.sort);
+  const [view, setView] = useState<View>(start.view);
+  const [app, setApp] = useState<string | null>(start.app);
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -200,20 +286,19 @@ export function DashboardApp() {
   const { status, connected } = useServerEvents();
 
   const syncUrl = useCallback(
-    (next: { q?: string; filters?: Record<string, string[]>; archived?: boolean }) => {
-      const params = new URLSearchParams();
-      const q = next.q ?? query;
-      const nextFilters = next.filters ?? filters;
-      const nextArchived = next.archived ?? archived;
-      if (q) params.set('q', q);
-      for (const [key, values] of Object.entries(nextFilters)) {
-        if (values.length) params.set(`f.${key}`, values.join('|'));
-      }
-      if (nextArchived) params.set('archived', '1');
-      const qs = params.toString();
+    (next: Partial<ViewState>) => {
+      const state: ViewState = {
+        q: next.q ?? query,
+        filters: next.filters ?? filters,
+        archived: next.archived ?? archived,
+        sort: next.sort ?? sort,
+        view: next.view ?? view,
+        app: next.app ?? app,
+      };
+      const qs = toQuery(state);
       history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
     },
-    [archived, filters, query],
+    [app, archived, filters, query, sort, view],
   );
 
   const runSearch = useCallback(async (text: string) => {
@@ -237,24 +322,23 @@ export function DashboardApp() {
     setLoading(false);
   }, []);
 
-  // The URL is the state on the way in; the rest of the time it is a mirror.
+  // The address bar starts in step with what we read, so a shared link and a
+  // restored tab look the same. `start` is read once; `load`/`runSearch` are stable.
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const initialQ = params.get('q') ?? '';
-    const initialArchived = params.get('archived') === '1';
-    const initialFilters: Record<string, string[]> = {};
-    for (const [key, value] of params) {
-      if (!key.startsWith('f.') || !value) continue;
-      initialFilters[key.slice(2)] = value.split('|').filter(Boolean);
-    }
-    setQuery(initialQ);
-    setArchived(initialArchived);
-    setFilters(initialFilters);
+    const qs = toQuery(start);
+    history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
     void (async () => {
       await load();
-      if (initialQ.trim()) await runSearch(initialQ);
+      if (start.q.trim()) await runSearch(start.q);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load, runSearch]);
+
+  // Everything the dashboard shows is remembered for the tab, so leaving a room
+  // and coming back lands on the same view.
+  useEffect(() => {
+    saveSession(VIEW_KEY, { q: query, filters, archived, sort, view, app });
+  }, [app, archived, filters, query, sort, view]);
 
   // Another tab (or the agent) changed something.
   useEffect(() => {
@@ -304,36 +388,81 @@ export function DashboardApp() {
     syncUrl({ archived: value });
   };
 
+  const setSortKey = (value: SortKey) => {
+    setSort(value);
+    syncUrl({ sort: value });
+  };
+
+  const setViewMode = (value: View) => {
+    setView(value);
+    syncUrl({ view: value });
+  };
+
+  const setAppTab = (value: string | null) => {
+    setApp(value);
+    syncUrl({ app: value });
+  };
+
   const clearAll = () => {
     setQuery('');
     setFilters({});
     setArchived(false);
     setHits(null);
+    forgetSession(VIEW_KEY);
     syncUrl({ q: '', filters: {}, archived: false });
   };
 
   const order = useMemo(() => new Map((hits ?? []).map((hit, index) => [hit.name, index])), [hits]);
 
+  const baseRooms = useMemo(
+    () => rooms.filter((room) => archived || !room.deprecated),
+    [archived, rooms],
+  );
+
   const visible = useMemo(() => {
-    const base = rooms.filter((room) => archived || !room.deprecated);
-    for (const [key, wanted] of Object.entries(filters)) {
-      if (!wanted.length) continue;
-      // The next filter narrows the current list, exactly as the old page did.
-      for (let i = base.length - 1; i >= 0; i -= 1) {
-        const room = base[i] as DashboardRoom;
-        const raw = room.fields?.[key];
-        const have = (Array.isArray(raw) ? raw : [raw])
-          .filter((v) => v !== null && v !== undefined)
-          .map(String);
-        if (!have.some((value) => wanted.includes(value))) base.splice(i, 1);
-      }
+    let base = baseRooms;
+    if (app !== null) base = base.filter((room) => appOf(room) === app);
+    if (Object.keys(filters).length) {
+      base = base.filter((room) =>
+        Object.entries(filters).every(([key, wanted]) => {
+          if (!wanted.length) return true;
+          const raw = room.fields?.[key];
+          const have = (Array.isArray(raw) ? raw : [raw])
+            .filter((value) => value !== null && value !== undefined)
+            .map(String);
+          return have.some((value) => wanted.includes(value));
+        }),
+      );
     }
-    if (query) {
-      base.sort((a, b) => (order.get(a.name) ?? 0) - (order.get(b.name) ?? 0));
-      return base.filter((room) => order.has(room.name));
+    return orderRooms(base, sort, query ? order : null);
+  }, [app, baseRooms, filters, order, query, sort]);
+
+  // The app tabs: named apps in name order, "unassigned" last. The tab bar only
+  // appears once there is a real choice (one named app or more).
+  const appTabs = useMemo(() => {
+    const values = new Set<string>();
+    let none = false;
+    for (const room of baseRooms) {
+      const value = appOf(room);
+      if (value) values.add(value);
+      else none = true;
     }
-    return base.sort((a, b) => b.updatedAt - a.updatedAt);
-  }, [archived, filters, order, query, rooms]);
+    return { apps: [...values].sort((a, b) => a.localeCompare(b, 'ja')), none };
+  }, [baseRooms]);
+  const showAppTabs = appTabs.apps.length >= 1;
+  // Only the rooms the flow is drawing: a `next` to a hidden or archived room is
+  // not an edge, so the graph never points at a node that is not there.
+  const knownNames = useMemo(() => new Set(baseRooms.map((room) => room.name)), [baseRooms]);
+
+  // A tab can outlive its app (a rename, a removal). Fall back to "all" rather
+  // than filter to nothing — but only once the rooms are loaded.
+  useEffect(() => {
+    if (loading || app === null) return;
+    if (!appTabs.apps.includes(app)) {
+      setApp(null);
+      syncUrl({ app: null });
+    }
+  }, [app, appTabs.apps, loading, syncUrl]);
 
   const total = rooms.filter((room) => archived || !room.deprecated).length;
   const archivedCount = rooms.filter((room) => room.deprecated).length;
@@ -419,16 +548,63 @@ export function DashboardApp() {
 
       <AppShell.Main style={{ backgroundColor: 'var(--mr-page)' }}>
         <Box maw={1600} mx="auto" p="md">
-          {(facets.length > 0 || archivedCount > 0) && (
-            <Group align="flex-start" gap="lg" mb="md" wrap="wrap">
-              {facets.map((facet) => (
-                <FacetFilter
-                  key={facet.key}
-                  facet={facet}
-                  selected={filters[facet.key] ?? []}
-                  onChange={(values) => setFacet(facet.key, values)}
+          <Group justify="space-between" align="center" gap="md" mb="sm" wrap="wrap">
+            {showAppTabs ? (
+              <Tabs
+                value={app ?? ALL_APPS}
+                onChange={(value) => setAppTab(value === ALL_APPS ? null : value)}
+              >
+                <Tabs.List>
+                  <Tabs.Tab value={ALL_APPS}>{t('dashboard.appAll')}</Tabs.Tab>
+                  {appTabs.apps.map((value) => (
+                    <Tabs.Tab key={value} value={value}>
+                      {value}
+                    </Tabs.Tab>
+                  ))}
+                </Tabs.List>
+              </Tabs>
+            ) : (
+              <Box />
+            )}
+
+            <Group gap="sm" wrap="nowrap">
+              {view === 'grid' && (
+                <SegmentedControl
+                  size="xs"
+                  value={sort}
+                  onChange={(value) => setSortKey(value as SortKey)}
+                  data={[
+                    { value: 'updated', label: t('dashboard.sortUpdated') },
+                    { value: 'name', label: t('dashboard.sortName') },
+                  ]}
+                  aria-label={t('dashboard.sort')}
                 />
-              ))}
+              )}
+              <SegmentedControl
+                size="xs"
+                value={view}
+                onChange={(value) => setViewMode(value as View)}
+                data={[
+                  { value: 'grid', label: t('dashboard.viewGrid') },
+                  { value: 'flow', label: t('dashboard.viewFlow') },
+                ]}
+                aria-label={t('dashboard.view')}
+              />
+            </Group>
+          </Group>
+
+          {view === 'grid' && (facets.length > 0 || archivedCount > 0) && (
+            <Group align="flex-start" gap="lg" mb="md" wrap="wrap">
+              {facets
+                .filter((facet) => facet.key !== 'app')
+                .map((facet) => (
+                  <FacetFilter
+                    key={facet.key}
+                    facet={facet}
+                    selected={filters[facet.key] ?? []}
+                    onChange={(values) => setFacet(facet.key, values)}
+                  />
+                ))}
               {archivedCount > 0 && (
                 <Box ml="auto" pt={20}>
                   <Checkbox
@@ -442,7 +618,7 @@ export function DashboardApp() {
             </Group>
           )}
 
-          {filtered && (
+          {view === 'grid' && filtered && (
             <Group gap="xs" mb="sm" wrap="wrap">
               {query && (
                 <ToneBadge tone="secondary">{t('dashboard.searchBadge', { query })}</ToneBadge>
@@ -480,6 +656,8 @@ export function DashboardApp() {
                 </Card>
               ))}
             </SimpleGrid>
+          ) : view === 'flow' ? (
+            <FlowView rooms={baseRooms} app={app} known={knownNames} />
           ) : visible.length > 0 ? (
             <SimpleGrid minColWidth={240} spacing="md">
               {visible.map((room) => (
