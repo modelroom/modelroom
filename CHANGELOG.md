@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/modelroom/modelroom/compare/modelroom-v0.7.0...modelroom-v0.8.0) (2026-10-22)
+
+
+### Features
+
+* **dashboard:** remember the view, sort rooms, and draw the flow ([#42](https://github.com/modelroom/modelroom/issues/42)) ([a72b5a7](https://github.com/modelroom/modelroom/commit/a72b5a76a55069bf9887a301bedeba30f5d4c75e))
+
 ## [0.7.0](https://github.com/modelroom/modelroom/compare/modelroom-v0.6.0...modelroom-v0.7.0) (2026-10-21)
 
 
