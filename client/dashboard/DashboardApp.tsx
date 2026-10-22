@@ -6,8 +6,9 @@
 // The filters are `FacetFilter` (see FacetFilter.tsx) and their state lives in
 // the URL, so a narrowed view is shareable and survives a reload.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import {
+  ActionIcon,
   AppShell,
   Box,
   Button,
@@ -43,6 +44,7 @@ import { AgentStatus, ToneBadge, toneForStatus } from '../components/Status.tsx'
 import { Icon } from '../components/Icon.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import { AddRoomDialog } from '../components/AddRoomDialog.tsx';
+import { RoomPreview } from '../components/RoomPreview.tsx';
 import { UpdateBadge } from '../components/UpdateNotice.tsx';
 import { FacetFilter } from './FacetFilter.tsx';
 import { FlowView } from './FlowView.tsx';
@@ -134,14 +136,28 @@ function RoomCard({
   room,
   hit,
   query,
+  onPreview,
 }: {
   room: DashboardRoom;
   hit: SearchHit | null;
   query: string;
+  onPreview: (name: string) => void;
 }) {
   const { lang, t } = useI18n();
+  const href = `/rooms/${encodeURIComponent(room.name)}`;
   const tokens = query.trim().split(/\s+/).filter(Boolean);
   const snippet = hit?.snippets[0];
+
+  // A plain click previews the room without leaving the list; a modified click
+  // (⌘/ctrl/shift, or the middle button) is left to the browser, so "open in a
+  // new tab" still means the room itself.
+  const open = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+    event.preventDefault();
+    onPreview(room.name);
+  };
 
   const highlight = (text: string): string => {
     const safe = escapeHtml(text);
@@ -154,102 +170,119 @@ function RoomCard({
   };
 
   return (
-    <Card
-      component="a"
-      href={`/rooms/${encodeURIComponent(room.name)}`}
-      withBorder
-      radius="md"
-      p={0}
-      opacity={room.deprecated ? 0.6 : 1}
-      style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-    >
-      {room.hasThumb && room.thumbUrl ? (
-        <img
-          className="mr-card-artifact"
-          src={`${room.thumbUrl}?v=${room.updatedAt}`}
-          alt=""
-          loading="lazy"
-        />
-      ) : (
-        <Box className="mr-card-artifact" style={{ display: 'grid', placeItems: 'center' }}>
-          <Text size="xs" c="dimmed">
-            {room.hasArtifact ? t('dashboard.noThumb') : t('dashboard.noArtifact')}
-          </Text>
-        </Box>
-      )}
-
-      <Box p="sm" style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 4 }}>
-        <Group gap="xs" wrap="nowrap">
-          <Text fw={500} truncate style={{ minWidth: 0 }}>
-            {room.title || room.name}
-          </Text>
-          {room.version !== null && room.version !== undefined && (
-            <ToneBadge tone="outline" ff="monospace">
-              v{room.version}
-            </ToneBadge>
-          )}
-          {room.running && (
-            <ToneBadge tone="secondary" leftSection={<Icon name="loader" size={11} />}>
-              {t('common.running')}
-            </ToneBadge>
-          )}
-        </Group>
-
-        <Text size="xs" ff="monospace" c="dimmed" truncate>
-          rooms/{room.name}
-        </Text>
-
-        {room.summary && (
-          <Text size="xs" c="dimmed" lineClamp={2}>
-            {room.summary}
-          </Text>
-        )}
-
-        {snippet && (
-          <Box
-            px="xs"
-            py={4}
-            style={{
-              borderRadius: 'var(--mantine-radius-sm)',
-              backgroundColor: 'var(--mr-subtle)',
-            }}
-          >
-            <Text
-              size="xs"
-              c="dimmed"
-              // The snippet is already escaped text; only the match is marked up.
-              dangerouslySetInnerHTML={{ __html: highlight(snippet.text) }}
-            />
+    <Box style={{ position: 'relative' }}>
+      <Card
+        component="a"
+        href={href}
+        onClick={open}
+        withBorder
+        radius="md"
+        p={0}
+        h="100%"
+        opacity={room.deprecated ? 0.6 : 1}
+        style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+      >
+        {room.hasThumb && room.thumbUrl ? (
+          <img
+            className="mr-card-artifact"
+            src={`${room.thumbUrl}?v=${room.updatedAt}`}
+            alt=""
+            loading="lazy"
+          />
+        ) : (
+          <Box className="mr-card-artifact" style={{ display: 'grid', placeItems: 'center' }}>
+            <Text size="xs" c="dimmed">
+              {room.hasArtifact ? t('dashboard.noThumb') : t('dashboard.noArtifact')}
+            </Text>
           </Box>
         )}
 
-        <Group gap={4} mt={4} wrap="wrap">
-          {room.status && <ToneBadge tone={toneForStatus(room.status)}>{room.status}</ToneBadge>}
-          {room.deprecated && (
-            <ToneBadge tone="destructive">{t('dashboard.archivedBadge')}</ToneBadge>
-          )}
-          {room.thumbStale && <ToneBadge tone="warning">{t('dashboard.thumbStale')}</ToneBadge>}
-          {room.tags.slice(0, 4).map((tag) => (
-            <ToneBadge key={tag} tone="outline">
-              {tag}
-            </ToneBadge>
-          ))}
-          {room.behaviourIds.length > 0 && (
-            <ToneBadge tone="outline">
-              {t(
-                room.behaviourIds.length === 1
-                  ? 'dashboard.behavioursOne'
-                  : 'dashboard.behavioursOther',
-                { count: room.behaviourIds.length },
-              )}
-            </ToneBadge>
-          )}
-          <Text size="xs" c="dimmed" ml="auto">
-            {stamp(room.updatedAt, lang)}
+        <Box p="sm" style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 4 }}>
+          <Group gap="xs" wrap="nowrap">
+            <Text fw={500} truncate style={{ minWidth: 0 }}>
+              {room.title || room.name}
+            </Text>
+            {room.version !== null && room.version !== undefined && (
+              <ToneBadge tone="outline" ff="monospace">
+                v{room.version}
+              </ToneBadge>
+            )}
+            {room.running && (
+              <ToneBadge tone="secondary" leftSection={<Icon name="loader" size={11} />}>
+                {t('common.running')}
+              </ToneBadge>
+            )}
+          </Group>
+
+          <Text size="xs" ff="monospace" c="dimmed" truncate>
+            rooms/{room.name}
           </Text>
-        </Group>
-      </Box>
-    </Card>
+
+          {room.summary && (
+            <Text size="xs" c="dimmed" lineClamp={2}>
+              {room.summary}
+            </Text>
+          )}
+
+          {snippet && (
+            <Box
+              px="xs"
+              py={4}
+              style={{
+                borderRadius: 'var(--mantine-radius-sm)',
+                backgroundColor: 'var(--mr-subtle)',
+              }}
+            >
+              <Text
+                size="xs"
+                c="dimmed"
+                // The snippet is already escaped text; only the match is marked up.
+                dangerouslySetInnerHTML={{ __html: highlight(snippet.text) }}
+              />
+            </Box>
+          )}
+
+          <Group gap={4} mt={4} wrap="wrap">
+            {room.status && <ToneBadge tone={toneForStatus(room.status)}>{room.status}</ToneBadge>}
+            {room.deprecated && (
+              <ToneBadge tone="destructive">{t('dashboard.archivedBadge')}</ToneBadge>
+            )}
+            {room.thumbStale && <ToneBadge tone="warning">{t('dashboard.thumbStale')}</ToneBadge>}
+            {room.tags.slice(0, 4).map((tag) => (
+              <ToneBadge key={tag} tone="outline">
+                {tag}
+              </ToneBadge>
+            ))}
+            {room.behaviourIds.length > 0 && (
+              <ToneBadge tone="outline">
+                {t(
+                  room.behaviourIds.length === 1
+                    ? 'dashboard.behavioursOne'
+                    : 'dashboard.behavioursOther',
+                  { count: room.behaviourIds.length },
+                )}
+              </ToneBadge>
+            )}
+            <Text size="xs" c="dimmed" ml="auto">
+              {stamp(room.updatedAt, lang)}
+            </Text>
+          </Group>
+        </Box>
+      </Card>
+
+      <Tooltip label={t('dashboard.openRoom')} withArrow>
+        <ActionIcon
+          component="a"
+          href={href}
+          variant="default"
+          size="md"
+          aria-label={t('dashboard.openRoom')}
+          style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
+        >
+          <Icon name="arrow-right" size={15} />
+        </ActionIcon>
+      </Tooltip>
+    </Box>
   );
 }
 
@@ -278,6 +311,8 @@ export function DashboardApp() {
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  /** The room shown in the preview drawer; null is "closed". */
+  const [preview, setPreview] = useState<string | null>(null);
 
   const seq = useRef(0);
   const searchTimer = useRef<number | null>(null);
@@ -469,8 +504,10 @@ export function DashboardApp() {
   const filtered = Boolean(query) || Object.keys(filters).length > 0;
   const activeCount = (query ? 1 : 0) + Object.values(filters).reduce((n, v) => n + v.length, 0);
 
-  // `/` focuses the search, Escape leaves it.
+  // `/` focuses the search, Escape leaves it. While the preview is open the
+  // search behind it should stay put.
   useEffect(() => {
+    if (preview) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === '/' && document.activeElement !== searchBox.current) {
         event.preventDefault();
@@ -482,7 +519,7 @@ export function DashboardApp() {
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [preview]);
 
   const busy = status?.phase === 'chat' || status?.phase === 'rendering';
   // What the page loaded is only the first word: the check lands after it, over SSE.
@@ -657,7 +694,7 @@ export function DashboardApp() {
               ))}
             </SimpleGrid>
           ) : view === 'flow' ? (
-            <FlowView rooms={baseRooms} app={app} known={knownNames} />
+            <FlowView rooms={baseRooms} app={app} known={knownNames} onPreview={setPreview} />
           ) : visible.length > 0 ? (
             <SimpleGrid minColWidth={240} spacing="md">
               {visible.map((room) => (
@@ -666,6 +703,7 @@ export function DashboardApp() {
                   room={room}
                   hit={(hits ?? []).find((entry) => entry.name === room.name) ?? null}
                   query={query}
+                  onPreview={setPreview}
                 />
               ))}
             </SimpleGrid>
@@ -715,6 +753,8 @@ export function DashboardApp() {
         prefix={config?.rooms ?? 'rooms'}
         onCreated={(room) => window.location.assign(`/rooms/${encodeURIComponent(room)}`)}
       />
+
+      <RoomPreview room={preview} onClose={() => setPreview(null)} />
     </AppShell>
   );
 }
