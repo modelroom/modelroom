@@ -1,15 +1,19 @@
 // modelroom — keeping every room's snapshot current.
 //
-// The rule is one line: a room needs rendering when its artifact is newer than
-// its png (or the png is missing). Runs are serial, so a fresh `serve` does not
+// The rule is one line: a room needs rendering when its artifact moved after the
+// last render, or a doc named its device after it — `needsRender` in
+// `core/rooms.ts` is that line. Runs are serial, so a fresh `serve` does not
 // spawn a browser per room at once, and a room that is already queued is not
 // queued twice. Nothing here decides what to do with the file — it is rendered
 // next to the artifact, where the room keeps it.
+//
+// A render that produces the same bytes writes nothing (that is the promise that
+// keeps a commit honest), so what it drew from is recorded in local state
+// instead. Without that record the room would still look stale afterwards, the
+// dashboard would ask again, and `serve` would render the same picture forever.
 
-import { stat } from 'node:fs/promises';
-import { join } from 'node:path';
-import type { Config } from '../core/config.ts';
-import { deviceStamp, snapshotName } from '../core/rooms.ts';
+import { saveState, type Config, type State } from '../core/config.ts';
+import { needsRender, recordRender, sourceStamp } from '../core/rooms.ts';
 import { renderArtifact, type RenderResult } from './artifact.ts';
 
 export interface Thumbnailer {
@@ -21,24 +25,13 @@ export interface Thumbnailer {
 
 export function createThumbnailer(
   cfg: Config,
+  state: State,
   onRendered: (room: string, result: RenderResult) => void,
 ): Thumbnailer {
   const queue: string[] = [];
   const queued = new Set<string>();
   let running = false;
   let stopped = false;
-
-  /** Does this room have an artifact whose snapshot is missing or older? */
-  async function stale(room: string): Promise<boolean> {
-    const dir = join(cfg.roomsDir, room);
-    const artifact = await stat(join(dir, cfg.artifact)).catch(() => null);
-    if (!artifact) return false; // no artifact: nothing to render
-    const png = await stat(join(dir, snapshotName(cfg.artifact))).catch(() => null);
-    if (!png) return true;
-    // A doc that names the device dates the snapshot too: the room moved, so the
-    // picture has to follow, even though `index.html` did not change.
-    return Math.max(artifact.mtimeMs, await deviceStamp(cfg, room)) > png.mtimeMs;
-  }
 
   async function work(): Promise<void> {
     if (running || stopped) return;
@@ -48,6 +41,10 @@ export function createThumbnailer(
         if (stopped) return;
         const room = queue.shift() as string;
         queued.delete(room);
+        // What this render is drawn from is read before it starts: sources that
+        // move while it runs have to look stale afterwards, or the record would
+        // claim a picture that was never taken.
+        const stamp = await sourceStamp(cfg, room);
         // The device is the room's own (else the project's); `renderArtifact`
         // resolves it, so the background pass cannot overwrite a per-room choice.
         const result = await renderArtifact({
@@ -55,6 +52,7 @@ export function createThumbnailer(
           room,
           scale: cfg.thumbnail.scale,
         });
+        if (result.ok && recordRender(state.renders, room, stamp)) void saveState(cfg, state);
         onRendered(room, result);
       }
     } finally {
@@ -68,7 +66,7 @@ export function createThumbnailer(
       const next: string[] = [];
       for (const room of names ?? []) {
         if (queued.has(room)) continue;
-        if (await stale(room)) next.push(room);
+        if (await needsRender(cfg, room)) next.push(room);
       }
       if (!next.length) return;
       for (const room of next) {

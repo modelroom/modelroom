@@ -277,8 +277,10 @@ Exit code is 1 on errors (or on warnings with `--strict`).
 ## render
 
 `render` produces the snapshot png next to a room's artifact. It is idempotent: a room
-is rendered only when its artifact is newer than its png, and a render whose bytes do
-not change writes nothing — so the committed file moves only when the picture does.
+is rendered only when its artifact — or a doc that names its device — moved after the last
+render, and a render whose bytes do not change writes nothing, so the committed file moves
+only when the picture does. What the last render drew from is kept in local state
+(`.modelroom/state.json`), not in the png's timestamp: `docs/05-preview-images.md` says why.
 
 ```
 modelroom render checkout          # one room, only if stale

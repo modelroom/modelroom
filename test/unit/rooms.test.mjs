@@ -12,6 +12,10 @@ import {
   publicRoom,
   docInfo,
   deviceStamp,
+  needsRender,
+  recordRender,
+  snapshotCurrent,
+  sourceStamp,
   clearDocCache,
 } from '../../core/rooms.ts';
 import { normalizeDevices } from '../../core/device.ts';
@@ -201,6 +205,68 @@ test('changing the device marks the snapshot stale even when the artifact did no
       'the device doc dates the snapshot',
     );
     assert.equal((await roomInfo(cfg, 'sign-in')).thumbStale, true);
+  } finally {
+    await rm(cfg.roomsDir, { recursive: true, force: true });
+  }
+});
+
+test('a render that wrote nothing still settles the room', async () => {
+  const cfg = await fixture();
+  const dir = join(cfg.roomsDir, 'sign-in');
+  const brief = join(dir, 'BRIEF.md');
+  const png = join(dir, 'index.png');
+  try {
+    const old = new Date(Date.now() - 60_000);
+    const now = new Date();
+    const later = new Date(now.getTime() + 5_000);
+    await writeFile(png, 'png');
+    await utimes(join(dir, 'index.html'), old, old);
+    // The brief names the device after the png was made: drawn from these
+    // sources, the picture is out of date, and the png cannot say so.
+    await writeFile(brief, '---\ntitle: Sign in\ndevice: pc\n---\n# Sign in\n');
+    await utimes(brief, later, later);
+    clearDocCache();
+
+    const stamp = await sourceStamp(cfg, 'sign-in');
+    // The doc's own mtime, with the slack a filesystem with whole-second
+    // timestamps needs — the same tolerance the test above allows.
+    assert.ok(stamp >= now.getTime() + 4_000, 'the device doc dates the sources');
+    assert.equal(await needsRender(cfg, 'sign-in'), true);
+    assert.equal((await roomInfo(cfg, 'sign-in')).thumbStale, true);
+
+    // The render that follows draws the same bytes, so the png is not touched —
+    // it records the stamp instead, and that is what makes the room current.
+    const renders = {};
+    assert.equal(recordRender(renders, 'sign-in', stamp), true);
+    const recorded = { ...cfg, renders };
+    assert.equal(await needsRender(recorded, 'sign-in'), false, 'the record settles it');
+    assert.equal((await roomInfo(recorded, 'sign-in')).thumbStale, false, 'and the badge agrees');
+    assert.equal(recordRender(renders, 'sign-in', stamp), false, 'recording it twice is not news');
+
+    // The artifact moving is still a reason to render: the record is a stamp,
+    // not a promise that nothing will ever change again.
+    const moved = new Date(later.getTime() + 5_000);
+    await utimes(join(dir, 'index.html'), moved, moved);
+    assert.equal(await needsRender(recorded, 'sign-in'), true);
+  } finally {
+    await rm(cfg.roomsDir, { recursive: true, force: true });
+  }
+});
+
+test('a snapshot is current for the sources it was drawn from', () => {
+  assert.equal(snapshotCurrent(100, 150), true, 'the png is newer than its sources');
+  assert.equal(snapshotCurrent(100, 50), false, 'the sources moved after the picture');
+  assert.equal(snapshotCurrent(100, 50, 100), true, 'drawn from exactly these sources');
+  assert.equal(snapshotCurrent(100, 50, 99), false, 'drawn from older ones');
+});
+
+test('a room with no artifact has nothing to render', async () => {
+  const cfg = await fixture();
+  try {
+    await mkdir(join(cfg.roomsDir, 'empty'));
+    clearDocCache();
+    assert.equal(await sourceStamp(cfg, 'empty'), 0);
+    assert.equal(await needsRender(cfg, 'empty'), false);
   } finally {
     await rm(cfg.roomsDir, { recursive: true, force: true });
   }

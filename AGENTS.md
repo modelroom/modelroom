@@ -26,14 +26,14 @@ server/agents/index.ts  adapters: opencode | command
 server/opencode.ts      the opencode session reader (turns, parts, stats)
 server/opencode-server.ts  the private opencode server modelroom owns
 server/opencode-turn.ts  one turn, driven through that server's API
-server/artifact.ts      HTML → PNG (Playwright, dynamically imported)
+server/artifact.ts      HTML → PNG (Playwright, dynamically imported; scratch in stateDir)
 server/thumbs.ts        keeps every room's snapshot current (serial, idempotent)
 core/config.ts          config and state: modelroom.json + .modelroom/state.json
 core/device.ts          devices: the built-ins, the project's names, per-room resolution
 core/manifest.ts        the consumer's package.json, edited minimally (`npm run modelroom`)
 core/project.ts         how this project runs modelroom: its command, and how it updates
 core/update.ts          is there a newer modelroom? one cached registry GET, never a write
-core/rooms.ts           room discovery, status parsing
+core/rooms.ts           room discovery, status parsing, the snapshot staleness rule
 core/facets.ts          facets, filters, search built from the records
 core/frontmatter.ts     frontmatter read/write, reserved keys
 core/locale.ts          environment/OS language detection
@@ -194,8 +194,10 @@ reads. `serve` and `doctor` say so when a checkout was never installed.
 - `Status:` in a room's brief drives the badge. `adopted` is a human decision.
 - A room's snapshot (`<artifact>.png`, so `index.png`) is a deliverable, not a cache: a
   fixed name, overwritten in place, committed next to the artifact, and reviewed on the
-  pull request. Rendering is idempotent (only an artifact newer than its png renders, and
-  an unchanged render writes nothing). The how and the why are in `docs/05-preview-images.md`.
+  pull request. Rendering is idempotent: a room renders when its artifact (or a doc that
+  names its device) moved after the last render, an unchanged render writes nothing, and
+  that render is recorded in local state — never in the png's mtime, which is the promise
+  the state protects. The how and the why are in `docs/05-preview-images.md`.
 - The update notice is a note, never an update. One GET to the registry, at most once a day
   (cached in local state), two seconds to give up, silent when it fails, and off with
   `MODELROOM_NO_UPDATE_CHECK`. It never blocks a start, never fails a command, and never

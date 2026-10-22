@@ -182,13 +182,34 @@ test('state round-trips and missing state reads as empty', async () => {
   const dir = await fixture();
   try {
     const cfg = await loadConfig(dir);
-    assert.deepEqual(await loadState(cfg), { sessions: {}, settings: {} });
+    assert.deepEqual(await loadState(cfg), { sessions: {}, settings: {}, renders: {} });
 
-    await saveState(cfg, { sessions: { 'sign-in': 'ses_1' }, settings: { theme: 'dark' } });
+    await saveState(cfg, {
+      sessions: { 'sign-in': 'ses_1' },
+      settings: { theme: 'dark' },
+      renders: { 'sign-in': 1_700_000_000_000 },
+    });
     assert.deepEqual(await loadState(cfg), {
       sessions: { 'sign-in': 'ses_1' },
       settings: { theme: 'dark' },
+      renders: { 'sign-in': 1_700_000_000_000 },
     });
+
+    // The render record maps a room to a stamp: anything else in there is not
+    // one, and is dropped rather than trusted.
+    await writeFile(
+      join(dir, '.modelroom', 'state.json'),
+      JSON.stringify({
+        sessions: {},
+        settings: {},
+        renders: { ok: 12, 'not-a-number': 'soon', nested: { at: 1 } },
+      }),
+    );
+    assert.deepEqual((await loadState(cfg)).renders, { ok: 12 });
+
+    // A state file written before the record existed still reads.
+    await writeFile(join(dir, '.modelroom', 'state.json'), JSON.stringify({ sessions: {} }));
+    assert.deepEqual(await loadState(cfg), { sessions: {}, settings: {}, renders: {} });
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

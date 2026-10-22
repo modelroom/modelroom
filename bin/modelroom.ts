@@ -9,7 +9,7 @@
 //
 // `modelroom` with no command serves. See docs/03-cli.md.
 
-import { readFile, writeFile, mkdir, access, readdir, stat, rm as fsRm } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, access, readdir, rm as fsRm } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, join, relative, resolve, basename } from 'node:path';
@@ -51,7 +51,14 @@ import {
 import { projectCommands } from '../core/project.ts';
 import { NO_UPDATE_CHECK, checkForUpdate, updateCheckDisabled } from '../core/update.ts';
 import { createModelroom } from '../server/http.ts';
-import { listRoomNames, roomInfo, snapshotName } from '../core/rooms.ts';
+import {
+  listRoomNames,
+  needsRender,
+  recordRender,
+  roomInfo,
+  snapshotName,
+  sourceStamp,
+} from '../core/rooms.ts';
 import { collidingRoom, isNewRoomName } from '../core/roomrefs.ts';
 import { lintRooms } from './lint.ts';
 import { LANG_LABELS, configLanguage, resolveInitLang, shouldAskLang } from './langchoice.ts';
@@ -252,6 +259,8 @@ else if (cmd === 'init') {
       configDir: designDir,
       stateDir: join(cwd, '.modelroom'),
       statePath: join(cwd, '.modelroom', 'state.json'),
+      // Nothing has been rendered yet: the record is filled in by `serve`/`render`.
+      renders: {},
     };
   }
 
@@ -491,6 +500,11 @@ else if (cmd === 'render') {
   }
 
   const { renderArtifact, checkArtifact } = await import('../server/artifact.ts');
+  // The render record is local state, and `render` is one of the two things that
+  // writes it: the png is left alone when the bytes do not change, so `serve`
+  // learns here that the room was drawn from these sources (see `core/rooms.ts`).
+  const state = await loadState(cfg);
+  cfg.renders = state.renders;
   let written = 0;
   let same = 0;
   let failed = 0;
@@ -509,7 +523,9 @@ else if (cmd === 'render') {
       }
       continue;
     }
+    const stamp = await sourceStamp(cfg, room);
     const result = await renderArtifact({ cfg, room, device, scale, force });
+    if (result.ok && recordRender(state.renders, room, stamp)) await saveState(cfg, state);
     if (!result.ok) {
       failed++;
       console.log(t(lang, 'cli.render.error', { room, message: result.error }));
@@ -661,7 +677,7 @@ else if (cmd === 'rename' || cmd === 'mv') {
   console.log(t(lang, 'cli.room.renamed', { from, to }));
   if (!dry) {
     await applyRename(cfg, from, to, plans);
-    if (await moveSession(cfg, from, to))
+    if (await moveRoomState(cfg, from, to))
       console.log(t(lang, 'cli.room.sessionMoved', { from, to }));
   } else {
     console.log(`  ${rel(join(cfg.roomsDir, from), cwd)} → ${rel(join(cfg.roomsDir, to), cwd)}`);
@@ -722,8 +738,11 @@ else if (cmd === 'remove' || cmd === 'rm') {
   }
   await removeRoom(cfg, room);
   const state = await loadState(cfg);
-  if (state.sessions[room]) {
+  // The room is gone, so what local state held for it goes too: the chat session
+  // and the render record (both are keyed by the room's name).
+  if (state.sessions[room] || state.renders[room] !== undefined) {
     delete state.sessions[room];
+    delete state.renders[room];
     await saveState(cfg, state);
   }
   console.log(t(lang, 'cli.room.removed', { room }));
@@ -880,6 +899,10 @@ else if (cmd === 'doctor') {
   });
 
   const png = snapshotName(cfg.artifact);
+  // The render record is what the question needs to be asked honestly: `serve`
+  // notes there that a room whose png did not change was still drawn.
+  const state = await loadState(cfg);
+  cfg.renders = state.renders;
   for (const room of rooms) {
     const missing: string[] = [];
     for (const d of cfg.docs) if (!(await exists(join(cfg.roomsDir, room, d)))) missing.push(d);
@@ -896,10 +919,10 @@ else if (cmd === 'doctor') {
     });
     if (!hasArtifact) continue;
     // A stale snapshot is a warning, not a failure: it is exactly what the next
-    // render fixes, and a checkout without Playwright cannot fix it here.
-    const source = await stat(join(cfg.roomsDir, room, cfg.artifact)).catch(() => null);
-    const snapshot = await stat(join(cfg.roomsDir, room, png)).catch(() => null);
-    const stale = !snapshot || (source?.mtimeMs ?? 0) > snapshot.mtimeMs;
+    // render fixes, and a checkout without Playwright cannot fix it here. The
+    // question is `serve`'s, asked of the same function, so the two cannot
+    // disagree about a room whose unchanged render wrote nothing.
+    const stale = await needsRender(cfg, room);
     checks.push({
       ok: !stale,
       optional: true,
@@ -1106,15 +1129,27 @@ async function refuseWhenServing(cfg: Config, lang: Lang, force: boolean): Promi
   }
 }
 
-/** Carry the room's chat session across a rename, so the conversation stays. */
-async function moveSession(cfg: Config, from: string, to: string): Promise<boolean> {
+/**
+ * Carry what local state holds for a room across a rename — the chat session (so
+ * the conversation stays) and the render record (the png moved with the room, and
+ * it is still the picture of these sources). Returns whether there was a session,
+ * which is what the caller reports.
+ */
+async function moveRoomState(cfg: Config, from: string, to: string): Promise<boolean> {
   const state = await loadState(cfg);
   const session = state.sessions[from];
-  if (!session) return false;
-  state.sessions[to] = session;
-  delete state.sessions[from];
+  const rendered = state.renders[from];
+  if (!session && rendered === undefined) return false;
+  if (session) {
+    state.sessions[to] = session;
+    delete state.sessions[from];
+  }
+  if (rendered !== undefined) {
+    state.renders[to] = rendered;
+    delete state.renders[from];
+  }
   await saveState(cfg, state);
-  return true;
+  return Boolean(session);
 }
 
 /** The generated files `update` refreshes: the skills and AGENTS.md. */

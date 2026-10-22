@@ -29,7 +29,9 @@ The html sits between them: it produces the picture, but it is not what a review
 2. **One fixed name.** Never `checkout-2026-10-20.png` or `checkout-v3.png`. The name is
    always `index.png`.
 3. **Overwritten in place.** A render writes over the previous file. When the bytes do not
-   change, nothing is written at all, so the commit only moves when the picture does.
+   change, nothing is written at all, so the commit only moves when the picture does. What
+   that render drew from is recorded in local state (`.modelroom/state.json`, git-ignored)
+   rather than in the png's timestamp — see *What "stale" means* below.
 4. **Diffed by GitHub.** Because the path is stable, a pull request shows two versions of
    the same file under **Files changed**, with the image diff (Swipe / Onion Skin). That is
    the review surface.
@@ -48,6 +50,21 @@ The html sits between them: it produces the picture, but it is not what a review
 
 modelroom renders and prints. It never touches git or `gh` — the branch, the commit and
 the pull request belong to the agent, which already has them.
+
+## What "stale" means
+
+One definition, in `core/rooms.ts`: a room needs rendering when its artifact moved after
+the last render, or a doc that names its device did. The artifact is the source of the
+picture, and the device is part of what the picture is, so both date it.
+
+The png's own mtime answers that question only when there is no record — a fresh checkout,
+or a state file someone deleted. Normally there is one: every render, changed or not,
+records the sources it drew from in `.modelroom/state.json`. That is what makes the promise
+in point 3 work. A render that produces the same bytes must not touch the png, and if
+staleness were read from the file's timestamp, that render would leave the room looking
+stale forever — `serve` would render it again on the next change, and on the one after
+that. The record is local and git-ignored on purpose: it says what *this machine* has
+drawn, not something to commit.
 
 ## Why not the alternatives
 
@@ -72,7 +89,8 @@ Binaries under version control grow a repository, because git keeps whole blobs 
 deltas are poor on already-compressed data. Here the growth is bounded three ways:
 
 - **the fixed name** means one file per room, not one per revision;
-- **idempotent rendering** means a commit only happens when the picture changes;
+- **idempotent rendering** means a commit only happens when the picture changes, and a
+  render that changed nothing is remembered in local state instead of in the file;
 - **Squash and Merge** means main keeps only the final image, and the revisions on the
   branch are pruned once it is deleted.
 
