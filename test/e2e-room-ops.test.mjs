@@ -44,11 +44,16 @@ test('the room endpoints create, rename and remove, like the CLI', async () => {
       cwd: dir,
       env: { ...process.env, CI: '1', LANG: 'en_US.UTF-8' },
     });
-    // A chat session for `hello`, so the rename has one to move.
+    // A chat session for `hello`, so the rename has one to move — and a render
+    // record, which is the other thing local state holds per room name.
     await mkdir(join(dir, '.modelroom'), { recursive: true });
     await writeFile(
       join(dir, '.modelroom', 'state.json'),
-      JSON.stringify({ sessions: { hello: 'ses_test' }, settings: {} }, null, 2) + '\n',
+      JSON.stringify(
+        { sessions: { hello: 'ses_test' }, settings: {}, renders: { hello: 1_700_000_000_000 } },
+        null,
+        2,
+      ) + '\n',
     );
 
     app = await createModelroom({
@@ -103,6 +108,9 @@ test('the room endpoints create, rename and remove, like the CLI', async () => {
     // A rename onto a taken name is refused.
     expect((await post('/api/rooms/rename', { from: 'hello-v2', to: 'sign-in' })).status).toBe(409);
 
+    const renamedState = JSON.parse(await readFile(join(dir, '.modelroom', 'state.json'), 'utf8'));
+    expect(renamedState.renders).toEqual({ 'hello-v2': 1_700_000_000_000 });
+
     // ── remove ───────────────────────────────────────────────────────────────
     const refused = await post('/api/rooms/remove', { name: 'hello-v2' });
     expect(refused.status).toBe(409);
@@ -114,6 +122,7 @@ test('the room endpoints create, rename and remove, like the CLI', async () => {
     expect(await exists(roomDir('hello-v2'))).toBe(false);
     const state = JSON.parse(await readFile(join(dir, '.modelroom', 'state.json'), 'utf8'));
     expect(state.sessions).toEqual({});
+    expect(state.renders).toEqual({});
   } finally {
     if (app) await app.close();
     await rm(dir, { recursive: true, force: true });

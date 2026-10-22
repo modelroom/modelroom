@@ -57,6 +57,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/**
+ * The paths modelroom will look at — serve, and watch: ordinary project files
+ * only, no dotfiles (secrets, `.git`, `.modelroom`) and no `node_modules`.
+ *
+ * The watcher asks this too, which is the point: the tool's own writes are dot
+ * paths, and a scratch file that read as a room edit would have `serve` render
+ * the room it just finished rendering.
+ */
+export function visiblePath(relativePath: string): boolean {
+  return relativePath
+    .split(sep)
+    .every((part) => part && !part.startsWith('.') && part !== 'node_modules');
+}
+
 const pkgDir = findPackageRoot(dirname(fileURLToPath(import.meta.url)));
 const webDir = join(pkgDir, 'web');
 const templatesDir = join(pkgDir, 'templates');
@@ -161,6 +175,9 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
 
   await mkdir(cfg.stateDir, { recursive: true }); // keep state local, never in git
   const state: State = await loadState(cfg);
+  // The render record is local state the whole server reads: a room drawn from
+  // its current sources is not stale, even though its png was not rewritten.
+  cfg.renders = state.renders;
   // Settings saved from the UI are local state: re-apply them over modelroom.json
   // so a saved model survives the next start.
   applySettings(cfg, state.settings);
@@ -267,7 +284,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
   // the artifact changes, and whenever the dashboard asks for the list. It is
   // idempotent — an unchanged render writes nothing — so the committed png only
   // moves when the picture does.
-  const thumbnails = createThumbnailer(cfg, (room, result) => {
+  const thumbnails = createThumbnailer(cfg, state, (room, result) => {
     if (result.ok) {
       setStatus(
         'ok',
@@ -310,9 +327,7 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
 
   function withinRoot(target: string): boolean {
     if (target !== cfg.rootDir && !target.startsWith(cfg.rootDir + sep)) return false;
-    // Serve ordinary project files only: no dotfiles (secrets, .git, .modelroom), no deps.
-    const parts = relative(cfg.rootDir, target).split(sep);
-    return parts.every((p) => p && !p.startsWith('.') && p !== 'node_modules');
+    return visiblePath(relative(cfg.rootDir, target));
   }
 
   async function serveFile(res: ServerResponse, urlPath: string) {
@@ -372,8 +387,10 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
             const file = name
               ? relative(cfg.rootDir, join(dir, String(name)))
               : relative(cfg.rootDir, dir);
+            // What is not served is not watched either: a dot path is the tool's
+            // own scratch (or something git ignores), never a room that changed.
+            if (!visiblePath(file)) return;
             const at = Date.now();
-            if (file.includes('.modelroom')) return;
             status.lastEvent = { file, at };
             status.phase = 'change';
             status.message = tr('server.changed', { file });
@@ -731,10 +748,18 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
         const plans = await planRename(cfg, names, from, to);
         await applyRename(cfg, from, to, plans);
         // A running server is the one place the room's chat session is held in
-        // memory, so it moves it here rather than refusing as the CLI must.
+        // memory, so it moves it here rather than refusing as the CLI must. The
+        // render record follows: the png moved with the directory, and it is
+        // still the picture of these sources.
         if (state.sessions[from]) {
           state.sessions[to] = state.sessions[from];
           delete state.sessions[from];
+          await persist();
+        }
+        const rendered = state.renders[from];
+        if (rendered !== undefined) {
+          state.renders[to] = rendered;
+          delete state.renders[from];
           await persist();
         }
         broadcast('change', { file: `${cfg.rooms}/${to}`, at: Date.now() });
@@ -777,6 +802,10 @@ export async function createModelroom(opts: CreateOptions = {}): Promise<App> {
         await removeRoom(cfg, name);
         if (state.sessions[name]) {
           delete state.sessions[name];
+          await persist();
+        }
+        if (state.renders[name] !== undefined) {
+          delete state.renders[name];
           await persist();
         }
         broadcast('change', { file: `${cfg.rooms}/${name}`, at: Date.now() });

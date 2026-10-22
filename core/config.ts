@@ -57,11 +57,26 @@ export interface Config {
   configDir: string;
   stateDir: string;
   statePath: string;
+  /**
+   * The render record from local state (`State.renders`), attached by whoever
+   * loaded the state: `serve` and `render` both do. It is not a config key and
+   * the config file never carries it — a room is stale when its sources moved
+   * after the last render, and this is the half of that rule the png cannot say.
+   */
+  renders: Record<string, number>;
 }
 
 export interface State {
   sessions: Record<string, string>;
   settings: Record<string, unknown>;
+  /**
+   * The source stamp each room's snapshot was last drawn from, by room name
+   * (`core/rooms.ts` decides what the stamp is). It lives here, and not in the
+   * png's mtime, because a render whose bytes do not change writes nothing —
+   * that promise is what keeps a commit honest, and this record is what keeps
+   * the render from being asked for again, and again, forever.
+   */
+  renders: Record<string, number>;
   /**
    * The last update check — local, git-ignored, and only ever a note. Keeping it
    * here is what makes `serve` a single request to the registry per day rather
@@ -158,6 +173,7 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<Config> {
     configDir,
     stateDir: '',
     statePath: '',
+    renders: {},
   } satisfies Config;
   cfg.rootDir = resolve(configDir, cfg.root);
   cfg.roomsDir = resolve(cfg.rootDir, cfg.rooms);
@@ -169,7 +185,14 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<Config> {
 export async function loadState(cfg: Config): Promise<State> {
   try {
     const raw = JSON.parse(await readFile(cfg.statePath, 'utf8')) as Partial<State>;
-    const state: State = { sessions: raw.sessions ?? {}, settings: raw.settings ?? {} };
+    const state: State = {
+      sessions: raw.sessions ?? {},
+      settings: raw.settings ?? {},
+      // A record is only a hint: an entry that is not a number is not a stamp.
+      renders: Object.fromEntries(
+        Object.entries(raw.renders ?? {}).filter(([, stamp]) => typeof stamp === 'number'),
+      ),
+    };
     const cached = raw.update;
     // A cache is only a hint: a shape we do not recognise is simply not there.
     if (cached && typeof cached.latest === 'string' && typeof cached.checkedAt === 'number') {
@@ -177,7 +200,7 @@ export async function loadState(cfg: Config): Promise<State> {
     }
     return state;
   } catch {
-    return { sessions: {}, settings: {} };
+    return { sessions: {}, settings: {}, renders: {} };
   }
 }
 

@@ -9,7 +9,7 @@
 // whatever snapshot is committed, and `make png` explains what is missing.
 
 import { basename, dirname, join } from 'node:path';
-import { stat, readFile, rename, unlink } from 'node:fs/promises';
+import { stat, readFile, rename, unlink, mkdir, copyFile } from 'node:fs/promises';
 import type { Config } from '../core/config.ts';
 import { resolveDevice, type ResolvedDevice } from '../core/device.ts';
 import type { Frontmatter } from '../core/frontmatter.ts';
@@ -39,7 +39,7 @@ export type RenderResult =
     }
   | { ok: false; error: string };
 
-export type RenderConfig = Pick<Config, 'roomsDir' | 'artifact' | 'lang' | 'docs'> &
+export type RenderConfig = Pick<Config, 'roomsDir' | 'artifact' | 'lang' | 'docs' | 'stateDir'> &
   Partial<Pick<Config, 'thumbnail' | 'devices'>>;
 
 /**
@@ -61,8 +61,43 @@ export async function deviceFor(
 // A temp name per run: two renders of the same room (the background pass and the
 // button) must not fight over one path.
 let tempSeq = 0;
-const scratch = (out: string, tag: string): string =>
-  join(dirname(out), `.${basename(out)}.${process.pid}.${(tempSeq += 1)}.${tag}`);
+
+/**
+ * Where a render writes before it is moved into place: a throwaway name under
+ * `stateDir` (`.modelroom/`, git-ignored), with its directory made on the way.
+ *
+ * It is deliberately not next to the artifact. A scratch file inside a room is a
+ * room change to the file watcher — which would tell the dashboard the room had
+ * been edited, and render it again — and an untracked file to `git status`.
+ */
+export async function prepareScratch(
+  cfg: Pick<Config, 'stateDir'>,
+  out: string,
+  tag: string,
+): Promise<string> {
+  const path = join(
+    cfg.stateDir,
+    'render',
+    `${basename(out)}.${process.pid}.${(tempSeq += 1)}.${tag}`,
+  );
+  await mkdir(dirname(path), { recursive: true });
+  return path;
+}
+
+/**
+ * Put a rendered file where it belongs. `rename` is atomic and is what every
+ * normal run gets; a state directory on another filesystem (a mounted volume)
+ * cannot be renamed across, so that case copies instead.
+ */
+async function place(tmp: string, out: string): Promise<void> {
+  try {
+    await rename(tmp, out);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'EXDEV') throw err;
+    await copyFile(tmp, out);
+    await unlink(tmp).catch(() => {});
+  }
+}
 
 /** Where a room's snapshot lives. */
 export function snapshotPath(cfg: Pick<Config, 'roomsDir' | 'artifact'>, room: string): string {
@@ -189,7 +224,7 @@ export async function renderArtifact({
   force?: boolean;
 }): Promise<RenderResult> {
   const out = snapshotPath(cfg, room);
-  const tmp = scratch(out, 'tmp');
+  const tmp = await prepareScratch(cfg, out, 'tmp');
   const resolved = await deviceFor(cfg, room, device);
   const done = await renderToFile({ cfg, room, device: resolved, scale, out: tmp });
   if (!done.ok) {
@@ -210,7 +245,7 @@ export async function renderArtifact({
     };
   }
   try {
-    await rename(tmp, out);
+    await place(tmp, out);
   } catch (err) {
     await unlink(tmp).catch(() => {});
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
@@ -243,7 +278,7 @@ export async function checkArtifact({
   scale?: number;
 }): Promise<{ ok: true; same: boolean; device: string } | { ok: false; error: string }> {
   const out = snapshotPath(cfg, room);
-  const tmp = scratch(out, 'check');
+  const tmp = await prepareScratch(cfg, out, 'check');
   const resolved = await deviceFor(cfg, room, device);
   const done = await renderToFile({ cfg, room, device: resolved, scale, out: tmp });
   if (!done.ok) {

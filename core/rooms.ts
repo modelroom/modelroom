@@ -85,6 +85,8 @@ export interface RoomsConfig {
   /** Devices and the default a room falls back to; `core/device.ts` owns them. */
   devices?: DeviceRegistry;
   thumbnail?: { device: string };
+  /** What each room was last rendered from; `core/config.ts#State.renders` owns it. */
+  renders?: Record<string, number>;
 }
 
 // Parsed docs, keyed by path and invalidated by mtime+size. A change to one file
@@ -268,9 +270,16 @@ export async function roomInfo(cfg: RoomsConfig, name: string): Promise<RoomInfo
     ),
     hasArtifact,
     hasThumb,
-    // The artifact is the source of the snapshot: when it moved, the png is old.
+    // The artifact is the source of the snapshot: when it moved, or a doc that
+    // names the device did, the committed png is out of date — unless a render
+    // has already recorded drawing from exactly these sources.
     thumbStale:
-      hasArtifact && (!hasThumb || Math.max(artifact?.mtime ?? 0, deviceAt) > (thumb?.mtime ?? 0)),
+      hasArtifact &&
+      !snapshotCurrent(
+        Math.max(artifact?.mtime ?? 0, deviceAt),
+        thumb?.mtime ?? 0,
+        cfg.renders?.[name],
+      ),
     artifactUrl: `/files/${cfg.rooms}/${name}/${cfg.artifact}`,
     thumbUrl: thumb?.exists ? `/files/${cfg.rooms}/${name}/${png}` : null,
     behaviourIds: [...new Set(ids)],
@@ -308,6 +317,61 @@ export async function deviceStamp(
     if (doc?.frontmatter.device !== undefined) newest = Math.max(newest, doc.mtime);
   }
   return newest;
+}
+
+/**
+ * What a render is drawn from, as one timestamp: the artifact's mtime, or a doc
+ * that names the device, whichever moved last. `0` when the room has no artifact
+ * — there is nothing to draw. This is the value a render records, so `serve` and
+ * `render` agree about what "up to date" means.
+ */
+export async function sourceStamp(
+  cfg: Pick<RoomsConfig, 'roomsDir' | 'docs' | 'artifact'>,
+  name: string,
+): Promise<number> {
+  const artifact = await stat(join(cfg.roomsDir, name, cfg.artifact)).catch(() => null);
+  if (!artifact) return 0;
+  return Math.max(artifact.mtimeMs, await deviceStamp(cfg, name));
+}
+
+/**
+ * Is a snapshot current for these sources? A record naming exactly this stamp
+ * says yes: the png was drawn from them and an identical render writes nothing,
+ * so the file's own mtime is the wrong question to ask afterwards. Without a
+ * record — a fresh checkout, or a state file someone deleted — it is the only
+ * question there is.
+ */
+export function snapshotCurrent(source: number, pngMtime: number, rendered?: number): boolean {
+  return rendered === source || source <= pngMtime;
+}
+
+/**
+ * Does this room need rendering? A missing snapshot, or one drawn from older
+ * sources: the artifact moved, or a doc named the device after the picture was
+ * made. The one rule behind `serve`'s background pass and `doctor`.
+ */
+export async function needsRender(
+  cfg: Pick<RoomsConfig, 'roomsDir' | 'docs' | 'artifact' | 'renders'>,
+  name: string,
+): Promise<boolean> {
+  const source = await sourceStamp(cfg, name);
+  if (!source) return false; // no artifact: nothing to render
+  const png = await stat(join(cfg.roomsDir, name, snapshotName(cfg.artifact))).catch(() => null);
+  return !png || !snapshotCurrent(source, png.mtimeMs, cfg.renders?.[name]);
+}
+
+/**
+ * Note that a room's snapshot now stands for these sources. Returns whether the
+ * record moved, so a caller only writes the state file when it has news.
+ */
+export function recordRender(
+  renders: Record<string, number>,
+  room: string,
+  stamp: number,
+): boolean {
+  if (renders[room] === stamp) return false;
+  renders[room] = stamp;
+  return true;
 }
 
 /** The room as the browser sees it: no body, no internal cache fields. */
