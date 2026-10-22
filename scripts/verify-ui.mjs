@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { readFile } from 'node:fs/promises';
 import { createModelroom } from '../server/http.ts';
+import { captureReadmeShots } from './readme-shots.mjs';
 
 const pkgDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(pkgDir, '.modelroom', 'verify');
@@ -709,6 +710,14 @@ try {
     if (flowApp) await flowApp.close();
     await rm(fixture, { recursive: true, force: true });
   }
+
+  // ── the README's pictures ─────────────────────────────────────────────────
+  // The dashboard and the flow only say anything with several rooms in them, so
+  // this builds its own demo project (a shop and its admin console) and
+  // photographs the surfaces the README names. It reuses this browser; the
+  // images land in `docs/images/` and are committed. Run this pass when the
+  // tool's UI moves, and commit the new pictures.
+  await captureReadmeShots(browser);
 } finally {
   await browser.close();
   await app.close();

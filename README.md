@@ -15,6 +15,8 @@ artifact (`index.html`) — kept apart, side by side, on one page.
 It is agent-agnostic. Bring OpenCode, Claude Code, Codex, or any CLI. modelroom bundles no model
 and no chat product: it gives your agent a place to work, and gives you a place to look.
 
+![The dashboard: every room with its snapshot, narrowed by facets built from the records](docs/images/dashboard.png)
+
 ```bash
 npx modelroom init checkout    # asks the language, then a room with its docs
 npx modelroom                  # → http://127.0.0.1:4321
@@ -85,9 +87,38 @@ application code.
 | `/settings` | which agent to run, and with which model |
 | `/files/<path>` | the design layer (`modelroom/`), served read-only and **unmodified** (no injected scripts) |
 
-A room's docs are read-only in the UI — you change them by asking the agent, and the doc tab shows
-a diff against the last version you looked at. Changing `index.html` (from the agent or by hand)
-reloads the preview with no manual refresh; changes elsewhere in the room stream in the same way.
+**The dashboard** is the front page: every room, its snapshot, and the facets the records build.
+Click a room and it opens from the right — a preview, not a page.
+
+![a room previewed from the dashboard](docs/images/preview.png)
+
+**A room** is one screen: the chat on the left, and one tabbed surface on the right — the artifact,
+the docs, and the session.
+
+![a room: the chat beside the artifact](docs/images/room.png)
+
+**The docs** are read-only and rendered, with a diff against the last version you looked at.
+
+![the room's brief, rendered](docs/images/room-docs.png)
+
+**The flow** draws each app's screens and wires them by `next`, so a product's shape is one glance.
+
+![the flow view](docs/images/flow.png)
+
+**Settings** is where the agent is chosen — which CLI, which agent, which model.
+
+![settings](docs/images/settings.png)
+
+<details>
+<summary>The same dashboard, dark</summary>
+
+![the dashboard in dark mode](docs/images/dashboard-dark.png)
+
+</details>
+
+A room's docs are read-only in the UI — you change them by asking the agent. Changing `index.html`
+(from the agent or by hand) reloads the preview with no manual refresh; changes elsewhere in the
+room stream in the same way.
 
 Each room also keeps `index.png` — its artifact rendered, committed under a fixed name. That is
 the picture a reviewer reads: it shows on the dashboard, and a pull request diffs it under
